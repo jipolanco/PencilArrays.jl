@@ -72,7 +72,7 @@ README](https://github.com/JuliaIO/HDF5.jl#installation) for details.
 
 In the `PencilIO` module, the HDF5.jl package is lazy-loaded
 using [Requires](https://github.com/JuliaPackaging/Requires.jl).
-This means that, in Julia code, `PencilFFTs` must be loaded *after* `HDF5` for
+This means that, in Julia code, `PencilArrays` must be loaded *after* `HDF5` for
 parallel I/O functionality to be available.
 
 The following order of `using`s ensures that parallel I/O support is available:
@@ -80,7 +80,7 @@ The following order of `using`s ensures that parallel I/O support is available:
 ```julia
 using MPI
 using HDF5
-using PencilFFTs
+using PencilArrays
 ```
 
 ## Library

@@ -40,7 +40,7 @@ function check_hdf5_parallel()
         "HDF5.jl has no parallel support." *
         " Make sure that you're using MPI-enabled HDF5 libraries, and that" *
         " MPI was loaded before HDF5." *
-        " See https://jipolanco.github.io/PencilFFTs.jl/latest/PencilIO/#Setting-up-Parallel-HDF5-1" *
+        " See https://jipolanco.github.io/PencilArrays.jl/latest/PencilIO/#Setting-up-Parallel-HDF5-1" *
         " for details."
     )
 end

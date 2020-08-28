@@ -5,7 +5,7 @@ transposition routines using the
 [TimerOutputs](https://github.com/KristofferC/TimerOutputs.jl) package. This
 has a (very small) performance overhead, so it is disabled by default. To
 enable time measurements, call
-`TimerOutputs.enable_debug_timings` after loading `PencilFFTs` (see below for
+`TimerOutputs.enable_debug_timings` after loading `PencilArrays` (see below for
 an example).
 For more details see the [TimerOutputs
 docs](https://github.com/KristofferC/TimerOutputs.jl#overhead).
@@ -14,7 +14,7 @@ Minimal example:
 
 ```julia
 using MPI
-using PencilFFTs.PencilArrays
+using PencilArrays
 using TimerOutputs
 
 # Enable timing of `PencilArrays` functions
