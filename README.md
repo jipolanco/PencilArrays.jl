@@ -21,8 +21,8 @@ by a different MPI process.
   <img width="85%" alt="Pencil decomposition of 3D domains" src="docs/src/img/pencils.svg">
 </p>
 
-Note that PencilArrays can decompose grids of arbitrary dimension `N`, along an
-arbitrary number of subdimensions `M < N`.
+More generally, PencilArrays can decompose arrays of arbitrary dimension `N`,
+along an arbitrary number of subdimensions `M < N`.
 (In the example above, `N = 3` and `M = 2`.)
 
 PencilArrays is the basis for the
@@ -41,15 +41,15 @@ provides efficient and highly scalable distributed FFTs.
 - efficient and transparent arrays with permuted dimensions (similar to
   [`PermutedDimsArray`](https://docs.julialang.org/en/latest/base/arrays/#Base.PermutedDimsArrays.PermutedDimsArray));
 
-- convenient parallel I/O using the Parallel HDF5 libraries;
+- convenient parallel I/O using the [Parallel
+  HDF5](https://portal.hdfgroup.org/display/HDF5/Parallel+HDF5) libraries;
 
 - distributed FFTs and related transforms via the
   [PencilFFTs](https://github.com/jipolanco/PencilFFTs.jl) package.
 
 ## Installation
 
-PencilArrays is in the process of being registered as a Julia package.
+PencilArrays will soon be registered as a Julia package.
 Then, it will be installable using the Julia package manager:
 
     julia> ] add PencilArrays
-

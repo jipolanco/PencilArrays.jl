@@ -7,7 +7,7 @@ test_files = [
     "pencils.jl",
 ]
 
-Nproc = clamp(Sys.CPU_THREADS, 2, 4)
+Nproc = clamp(Sys.CPU_THREADS, 4, 8)
 
 for fname in test_files
     @info "Running $fname with $Nproc processes..."
