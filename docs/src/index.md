@@ -16,10 +16,14 @@ two out of three dimensions, sometimes called *pencil* decomposition.
 This is illustrated by the figure below,[^1] where each coloured block is
 managed by a different MPI process.
 
-<p align="center">
-  <br/>
-  <img width="85%" alt="Pencil decomposition of 3D domains" src="docs/src/img/pencils.svg">
-</p>
+```@raw html
+<div class="figure">
+  <img
+    width="85%"
+    src="img/pencils.svg"
+    alt="Pencil decomposition of 3D domains">
+</div>
+```
 
 More generally, PencilArrays can decompose arrays of arbitrary dimension `N`,
 along an arbitrary subset of `M` dimensions.

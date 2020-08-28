@@ -13,7 +13,9 @@ makedocs(;
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
         canonical = "https://jipolanco.github.io/PencilArrays.jl",
-        assets = String[
+        assets = [
+            "assets/custom.css",
+            "assets/matomo.js",
         ],
     ),
     pages = [
