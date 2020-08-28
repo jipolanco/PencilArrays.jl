@@ -38,8 +38,8 @@ provides efficient and highly scalable distributed FFTs.
 - transpositions between different decomposition configurations, using
   point-to-point and collective MPI communications;
 
-- efficient and transparent arrays with permuted dimensions (similar to
-  [`PermutedDimsArray`](https://docs.julialang.org/en/latest/base/arrays/#Base.PermutedDimsArrays.PermutedDimsArray));
+- zero-cost, arbitrary dimension permutations à la
+  [`PermutedDimsArray`](https://docs.julialang.org/en/latest/base/arrays/#Base.PermutedDimsArrays.PermutedDimsArray);
 
 - convenient parallel I/O using the [Parallel
   HDF5](https://portal.hdfgroup.org/display/HDF5/Parallel+HDF5) libraries;
