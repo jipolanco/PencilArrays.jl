@@ -26,10 +26,6 @@ import .MPITopologies: get_comm
 
 include("data_ranges.jl")
 
-# TODO [deprecation]
-# - remove `T` parameter
-# - remove `element_type` arguments
-
 """
     Pencil{N,M}
 
@@ -90,7 +86,6 @@ configurations, leading to reduced global memory usage.
 struct Pencil{
         N,  # spatial dimensions
         M,  # MPI topology dimensions (< N)
-        T <: Number,  # element type [TODO deprecated -- remove!]
         P,  # optional index permutation (see Permutation)
     }
     # M-dimensional MPI decomposition info (with M < N).
@@ -129,8 +124,7 @@ struct Pencil{
             permute::Permutation = NoPermutation(),
             send_buf = UInt8[], recv_buf = UInt8[],
             timer = TimerOutput(),
-            _deprecated_eltype::Val{T} = Val(Float64),
-        ) where {N, M, T<:Number}
+        ) where {N, M}
         check_permutation(permute)
         _check_selected_dimensions(N, decomp_dims)
         decomp_dims = _sort_dimensions(decomp_dims)
@@ -138,8 +132,8 @@ struct Pencil{
         axes_local = axes_all[topology.coords_local...]
         axes_local_perm = permute_indices(axes_local, permute)
         P = typeof(permute)
-        new{N,M,T,P}(topology, size_global, decomp_dims, axes_all, axes_local,
-                     axes_local_perm, permute, send_buf, recv_buf, timer)
+        new{N,M,P}(topology, size_global, decomp_dims, axes_all, axes_local,
+                   axes_local_perm, permute, send_buf, recv_buf, timer)
     end
 
     function Pencil(p::Pencil{N,M};
@@ -155,16 +149,6 @@ struct Pencil{
                etc...)
     end
 end
-
-@deprecate(
-    Pencil(topo, dims, pdims, ::Type{T}; kw...) where {T},
-    Pencil(topo, dims, pdims; kw..., _deprecated_eltype = Val(T)),
-)
-
-@deprecate(
-    Pencil(pencil, ::Type{T}; kw...) where {T},
-    Pencil(pencil; kw..., _deprecated_eltype = Val(T)),
-)
 
 # Verify that `dims` is a subselection of dimensions in 1:N.
 function _check_selected_dimensions(N, dims::Dims{M}) where M
@@ -193,14 +177,6 @@ function Base.show(io::IO, p::Pencil)
               Data dimensions: $(size_global(p))
               Decomposed dimensions: $(get_decomposition(p))
               Data permutation: $(perm)""")
-end
-
-function Base.eltype(::Type{<:Pencil{N, M, T}}) where {N, M, T}
-    Base.depwarn(
-        "eltype(::Pencil) is deprecated and will be removed soon!",
-        :eltype_Pencil,
-    )
-    T
 end
 
 """

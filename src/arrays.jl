@@ -102,11 +102,6 @@ struct PencilArray{
     end
 end
 
-@deprecate(
-    PencilArray(p::Pencil, extra_dims=()),
-    PencilArray{eltype(p)}(undef, p, extra_dims),
-)
-
 function PencilArray{T}(init, pencil::Pencil, extra_dims::Dims=()) where {T}
     dims = (size_local(pencil, permute=true)..., extra_dims...)
     PencilArray(pencil, Array{T}(init, dims))

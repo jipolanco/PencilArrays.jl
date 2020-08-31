@@ -563,6 +563,3 @@ function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
 end
 
 end  # module Transpositions
-
-# Deprecated since v0.5.
-Base.@deprecate_binding TransposeMethods Transpositions

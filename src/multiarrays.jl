@@ -38,14 +38,6 @@ struct ManyPencilArray{
     end
 end
 
-@deprecate(
-    ManyPencilArray(
-        pencils::Vararg{Pencil{Np,X,T}, M} where {X};
-        extra_dims::Dims=()) where {Np,M,T},
-    ManyPencilArray{eltype(first(pencils))}(
-        undef, pencils...; extra_dims=extra_dims),
-)
-
 function _make_arrays(data::Vector{T}, extra_dims::Dims, p::Pencil,
                       pens::Vararg{Pencil}) where {T}
     dims = (size_local(p, permute=true)..., extra_dims...)
