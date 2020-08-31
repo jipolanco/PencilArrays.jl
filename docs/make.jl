@@ -11,7 +11,7 @@ makedocs(;
     repo = "https://github.com/jipolanco/PencilArrays.jl/blob/{commit}{path}#L{line}",
     sitename = "PencilArrays.jl",
     format = Documenter.HTML(;
-        prettyurls = get(ENV, "CI", "false") == "true",
+        prettyurls = true,
         canonical = "https://jipolanco.github.io/PencilArrays.jl",
         assets = [
             "assets/custom.css",
