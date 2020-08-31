@@ -25,9 +25,9 @@ managed by a different MPI process.
 </div>
 ```
 
-More generally, PencilArrays can decompose arrays of arbitrary dimension `N`,
-along an arbitrary subset of `M` dimensions.
-(In the example above, `N = 3` and `M = 2`.)
+More generally, PencilArrays can decompose arrays of arbitrary dimension $N$,
+along an arbitrary subset of $M$ dimensions.
+(In the example above, $N = 3$ and $M = 2$.)
 
 PencilArrays is the basis for the
 [PencilFFTs](https://github.com/jipolanco/PencilFFTs.jl) package, which
@@ -35,7 +35,7 @@ provides efficient and highly scalable distributed FFTs.
 
 ## Features
 
-- distribution of `N`-dimensional arrays among MPI processes;
+- distribution of $N$-dimensional arrays among MPI processes;
 
 - decomposition of arrays along an arbitrary subset of dimensions;
 
@@ -57,6 +57,46 @@ PencilArrays will soon be registered as a Julia package.
 Then, it will be installable using the Julia package manager:
 
     julia> ] add PencilArrays
+
+## Quick start
+
+The following example assumes that the code is executed on 12 MPI processes.
+The processes are distributed on a $3×4$ grid, as in the figure above.
+
+```julia
+using MPI
+using PencilArrays
+usign LinearAlgebra: transpose!
+
+MPI.Init()
+comm = MPI.COMM_WORLD  # we assume MPI.Comm_size(comm) == 12
+
+# Define MPI Cartesian topology: distribute processes on a 3×4 grid.
+topology = MPITopology(comm, (3, 4))
+
+# Let's decompose 3D arrays along dimensions (2, 3).
+# This corresponds to the "x-pencil" configuration in the figure.
+# This configuration is described by a Pencil object.
+dims_global = (42, 31, 29)  # global dimensions of the array
+decomp_dims = (2, 3)
+pen_x = Pencil(topology, dims_global, decomp_dims)
+
+# We can now allocate distributed arrays in the x-pencil configuration.
+Ax = PencilArray{Float64}(undef, pen_x)
+fill!(Ax, MPI.Comm_rank(comm))  # each process locally fills its part of the array
+size(Ax)         # size of local part
+size_global(Ax)  # total size of the array = (42, 31, 29)
+
+# Create another pencil configuration, decomposing along dimensions (1, 3).
+# We could use the same constructor as before, but it's recommended to reuse the
+# previous Pencil instead.
+pen_y = Pencil(pen_x, decomp_dims=(1, 3))
+
+# Now transpose from the x-pencil to the y-pencil configuration, redistributing
+# the data initially in Ax.
+Ay = PencilArray{Float64}(undef, pen_y)
+transpose!(Ay, Ax)
+```
 
 [^1]:
     Figure adapted from [this PhD thesis](https://hal.archives-ouvertes.fr/tel-02084215v1).
