@@ -62,7 +62,7 @@ The processes are distributed on a 3×4 grid, as in the figure above.
 ```julia
 using MPI
 using PencilArrays
-usign LinearAlgebra: transpose!
+using LinearAlgebra: transpose!
 
 MPI.Init()
 comm = MPI.COMM_WORLD  # we assume MPI.Comm_size(comm) == 12
