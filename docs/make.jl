@@ -30,6 +30,7 @@ makedocs(;
             "Internals" => ["PermutationUtils.md"]
         ],
     ],
+    linkcheck = true,
 )
 
 deploydocs(;

@@ -64,7 +64,7 @@ This function automatically sets the
 access property list to the given MPI communicator and info object.
 Other property lists should be given as name-value pairs, following the
 [`h5open`
-syntax](https://github.com/JuliaIO/HDF5.jl/blob/master/doc/hdf5.md#passing-parameters).
+syntax](https://juliaio.github.io/HDF5.jl/stable/#Passing-parameters).
 
 Property lists are passed to
 [`h5f_create`](https://portal.hdfgroup.org/display/HDF5/H5F_CREATE).
@@ -119,7 +119,7 @@ as a single component of a higher-dimension dataset.
 
 - additional property lists may be specified by name-value pairs in
   `prop_lists`, following the [HDF5.jl
-  syntax](https://github.com/JuliaIO/HDF5.jl/blob/master/doc/hdf5.md#passing-parameters).
+  syntax](https://juliaio.github.io/HDF5.jl/stable/#Passing-parameters).
   These property lists take precedence over keyword arguments.
   For instance, if the `"dxpl_mpio", HDF5.H5FD_MPIO_COLLECTIVE` pair is passed,
   then the value of the `collective` argument is ignored.
