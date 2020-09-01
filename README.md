@@ -49,8 +49,7 @@ provides efficient and highly scalable distributed FFTs.
 
 ## Installation
 
-PencilArrays will soon be registered as a Julia package.
-Then, it will be installable using the Julia package manager:
+PencilArrays can be installed using the Julia package manager:
 
     julia> ] add PencilArrays
 
