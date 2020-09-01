@@ -8,7 +8,6 @@ A pencil configuration includes:
 - [MPI topology](@ref sec:mpi_topology) information,
 - global and local dimensions of the numerical grid,
 - subset of decomposed dimensions,
-- type of decomposed data (e.g. `Float64`),
 - definition of optional permutation of dimensions.
 
 ```@docs
@@ -19,8 +18,7 @@ Pencils
 
 The creation of a new [`Pencil`](@ref) requires a [`MPITopology`](@ref), as
 well as the global data dimensions and a list of decomposed dimensions.
-Optionally, one can also specify the data type (the default is `Float64`) and
-a permutation of dimensions.
+Optionally, one can also specify a permutation of dimensions.
 
 For instance, to decompose along the first and third dimensions of a complex
 3D dataset,
@@ -28,7 +26,7 @@ For instance, to decompose along the first and third dimensions of a complex
 topology = MPITopology(#= ... =#)
 dims_global = (16, 32, 64)
 decomp_dims = (1, 3)  # this requires ndims(topology) == 2
-pencil = Pencil(topology, dims_global, decomp_dims, Complex{Float64})
+pencil = Pencil(topology, dims_global, decomp_dims)
 ```
 
 One may also want to create multiple pencil configurations that differ, for
