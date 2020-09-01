@@ -60,6 +60,7 @@ struct MPITopology{N}
     subcomm_ranks :: NTuple{N,Vector{Int}}
 
     function MPITopology(comm::MPI.Comm, pdims::Dims{N}) where N
+        check_topology(comm, pdims)
         # Create Cartesian communicator.
         comm_cart = let dims = collect(pdims) :: Vector{Int}
             periods = zeros(Int, N)  # this is not very important...
@@ -95,6 +96,21 @@ struct MPITopology{N}
 
         new{N}(comm_cart, subcomms, dims, coords_local, ranks, subcomm_ranks)
     end
+end
+
+# Check that `pdims` argument is compatible with the number of processes in
+# communicator. This is done to avoid fatal MPI error in MPI.Cart_create. Error
+# message is adapted from MPICH.
+function check_topology(comm, pdims)
+    Nproc = MPI.Comm_size(comm)
+    Ntopo = prod(pdims)
+    # Note that MPI_Cart_create allows Nproc > Ntopo, setting some processes as
+    # MPI_COMM_NULL. We disallow that here.
+    if Nproc != Ntopo
+        throw(ArgumentError(
+            "size of communicator ($Nproc) is different from size of Cartesian topology ($Ntopo)"))
+    end
+    nothing
 end
 
 function Base.show(io::IO, t::MPITopology)
