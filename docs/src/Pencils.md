@@ -75,6 +75,9 @@ permutations (this is the default).
 Pencil
 Permutation
 NoPermutation
+AbstractIndexOrder
+MemoryOrder
+LogicalOrder
 ```
 
 ## Methods
