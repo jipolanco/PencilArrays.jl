@@ -9,10 +9,10 @@ pencil.
 !!! note "Index permutations"
 
     If the `Pencil` has an associated index permutation, then `data` must have
-    its dimensions permuted accordingly.
+    its dimensions permuted accordingly (in *memory* order).
 
     Unlike `data`, the resulting `PencilArray` should be accessed with
-    unpermuted indices.
+    unpermuted indices (in *logical* order).
 
     ##### Example
 
@@ -20,7 +20,7 @@ pencil.
     has an asociated permutation `(2, 3, 1)`.
     Then:
     ```julia
-    data = zeros(20, 30, 10)       # parent array (with permuted dimensions)
+    data = zeros(20, 30, 10)       # parent array (with dimensions in memory order)
 
     u = PencilArray(pencil, data)  # wrapper with dimensions (10, 20, 30)
     @assert size(u) === (10, 20, 30)
@@ -73,7 +73,7 @@ struct PencilArray{
     } <: AbstractArray{T,N}
     pencil   :: P
     data     :: A
-    space_dims :: Dims{Np}  # *unpermuted* spatial dimensions
+    space_dims :: Dims{Np}  # spatial dimensions in *logical* order
     extra_dims :: Dims{E}
 
     function PencilArray(pencil::Pencil{Np, Mp} where {Np, Mp},
@@ -87,7 +87,7 @@ struct PencilArray{
         geom_dims = ntuple(n -> size_data[n], Np)  # = size_data[1:Np]
         extra_dims = ntuple(n -> size_data[Np + n], E)  # = size_data[Np+1:N]
 
-        dims_local = size_local(pencil, permute=true)
+        dims_local = size_local(pencil, MemoryOrder())
 
         if geom_dims !== dims_local
             throw(DimensionMismatch(
@@ -103,7 +103,7 @@ struct PencilArray{
 end
 
 function PencilArray{T}(init, pencil::Pencil, extra_dims::Vararg{Integer}) where {T}
-    dims = (size_local(pencil, permute=true)..., extra_dims...)
+    dims = (size_local(pencil, MemoryOrder())..., extra_dims...)
     PencilArray(pencil, Array{T}(init, dims))
 end
 
@@ -160,22 +160,22 @@ end
 """
     size(x::PencilArray)
 
-Return logical (unpermuted) local dimensions of a `PencilArray`.
+Return local dimensions of a `PencilArray` in logical order.
 """
 Base.size(x::PencilArray) = (x.space_dims..., extra_dims(x)...)
 
 """
-    size_local(x::PencilArray; permute=false)
-    size_local(x::PencilArrayCollection; permute=false)
+    size_local(x::PencilArray, [order = LogicalOrder()])
+    size_local(x::PencilArrayCollection, [order = LogicalOrder()])
 
 Local dimensions of the data held by the `PencilArray`.
 
-If `permute=false`, this is the same as `size(x)`.
+If `order = LogicalOrder()`, this is the same as `size(x)`.
 
 See also [`size_local(::Pencil)`](@ref).
 """
-size_local(x::MaybePencilArrayCollection; kwargs...) =
-    (size_local(pencil(x); kwargs...)..., extra_dims(x)...)
+size_local(x::MaybePencilArrayCollection, args...; kwargs...) =
+    (size_local(pencil(x), args...; kwargs...)..., extra_dims(x)...)
 
 # TODO this won't work with extra_dims...
 function Base.axes(x::PencilArray)
@@ -305,29 +305,28 @@ extra_dims(x::PencilArray) = x.extra_dims
 extra_dims(x::PencilArrayCollection) = _apply(extra_dims, x)
 
 """
-    size_global(x::PencilArray; permute=false)
-    size_global(x::PencilArrayCollection; permute=false)
+    size_global(x::PencilArray, [order = LogicalOrder()])
+    size_global(x::PencilArrayCollection, [order = LogicalOrder()])
 
 Global dimensions associated to the given array.
 
-By default, the logical (unpermuted) dimensions of the dataset are returned.
+By default, the logical dimensions of the dataset are returned.
 
 See also [`size_global(::Pencil)`](@ref).
 """
-size_global(x::MaybePencilArrayCollection; permute=false) =
-    (size_global(pencil(x), permute=permute)..., extra_dims(x)...)
+size_global(x::MaybePencilArrayCollection, args...; kw...) =
+    (size_global(pencil(x), args...; kw...)..., extra_dims(x)...)
 
 """
-    range_local(x::PencilArray; permute=false)
-    range_local(x::PencilArrayCollection; permute=false)
+    range_local(x::PencilArray, [order = LogicalOrder()])
+    range_local(x::PencilArrayCollection, [order = LogicalOrder()])
 
 Local data range held by the `PencilArray`.
 
-By default the dimensions are not permuted, i.e. they are returned in logical
-order.
+By default the dimensions are returned in logical order.
 """
-range_local(x::MaybePencilArrayCollection; permute=false) =
-    (range_local(pencil(x), permute=permute)..., Base.OneTo.(extra_dims(x))...)
+range_local(x::MaybePencilArrayCollection, args...; kw...) =
+    (range_local(pencil(x), args...; kw...)..., Base.OneTo.(extra_dims(x))...)
 
 """
     get_comm(x::PencilArray)
