@@ -296,7 +296,7 @@ function main()
         end
     end
 
-    transpose_methods = (Transpositions.IsendIrecv(),
+    transpose_methods = (Transpositions.PointToPoint(),
                          Transpositions.Alltoallv())
 
     @testset "transpose! $method" for method in transpose_methods
