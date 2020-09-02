@@ -12,8 +12,10 @@ using ..Permutations
 # Declare transposition approaches.
 abstract type AbstractTransposeMethod end
 
-struct IsendIrecv <: AbstractTransposeMethod end
+struct PointToPoint <: AbstractTransposeMethod end
 struct Alltoallv <: AbstractTransposeMethod end
+
+Base.@deprecate_binding IsendIrecv PointToPoint
 
 function Base.show(io::IO, ::T) where {T<:AbstractTransposeMethod}
     print(io, nameof(T))
@@ -27,7 +29,7 @@ Holds data for transposition between two pencil configurations.
 ---
 
     Transposition(dest::PencilArray{T,N}, src::PencilArray{T,N};
-                  method=Transpositions.IsendIrecv())
+                  method = Transpositions.PointToPoint())
 
 Prepare transposition of arrays from one pencil configuration to the other.
 
@@ -51,13 +53,13 @@ The `method` argument allows to choose between transposition implementations.
 This can be useful to tune performance of MPI data transfers.
 Two values are currently accepted:
 
-- `Transpositions.IsendIrecv()` uses non-blocking point-to-point data transfers
+- `Transpositions.PointToPoint()` uses non-blocking point-to-point data transfers
   (`MPI_Isend` and `MPI_Irecv`).
   This may be more performant since data transfers are interleaved with local
   data transpositions (index permutation of received data).
   This is the default.
 
-- `Transpositions.Alltoallv()` uses `MPI_Alltoallv` for global data
+- `Transpositions.Alltoallv()` uses collective `MPI_Alltoallv` for global data
   transpositions.
 """
 struct Transposition{T, N,
@@ -76,7 +78,7 @@ struct Transposition{T, N,
     send_requests :: Vector{MPI.Request}
 
     function Transposition(Ao::PencilArray{T,N}, Ai::PencilArray{T,N};
-                           method=IsendIrecv()) where {T,N}
+                           method = PointToPoint()) where {T,N}
         Pi = pencil(Ai)
         Po = pencil(Ao)
 
@@ -113,7 +115,7 @@ MPI.Waitall!(t::Transposition) =
 """
     transpose!(t::Transposition; waitall=true)
     transpose!(dest::PencilArray{T,N}, src::PencilArray{T,N};
-               method=Transpositions.IsendIrecv())
+               method = Transpositions.PointToPoint())
 
 Transpose data from one pencil configuration to the other.
 
@@ -124,7 +126,7 @@ To do this, the caller should pass `waitall=false`, and manually invoke
 [`MPI.Waitall!`](@ref) on the `Transposition` object once the operations are
 done.
 Note that this option only has an effect when the transposition method is
-`IsendIrecv`.
+`PointToPoint`.
 
 See [`Transposition`](@ref) for details.
 """
@@ -132,7 +134,7 @@ function transpose! end
 
 function transpose!(
         dest::PencilArray, src::PencilArray;
-        method::AbstractTransposeMethod = IsendIrecv(),
+        method::AbstractTransposeMethod = PointToPoint(),
     )
     dest === src && return dest  # same pencil & same data
     t = Transposition(dest, src, method=method)
@@ -395,7 +397,7 @@ function _transpose_send!(
     index_local_req
 end
 
-function _make_buffer_info(::IsendIrecv, (send_buf, recv_buf), Nproc)
+function _make_buffer_info(::PointToPoint, (send_buf, recv_buf), Nproc)
     (
         send_ptr = Ref(pointer(send_buf)),
         recv_ptr = Ref(pointer(recv_buf)),
@@ -410,7 +412,7 @@ function _make_buffer_info(::Alltoallv, bufs, Nproc)
     )
 end
 
-function _transpose_send_self!(::IsendIrecv, n, (send_req, recv_req), etc...)
+function _transpose_send_self!(::PointToPoint, n, (send_req, recv_req), etc...)
     send_req[n] = recv_req[n] = MPI.REQUEST_NULL
     nothing
 end
@@ -422,7 +424,7 @@ function _transpose_send_self!(::Alltoallv, n, reqs, buf_info)
 end
 
 function _transpose_send_other!(
-        ::IsendIrecv, buf_info, (length_send_n, length_recv_n),
+        ::PointToPoint, buf_info, (length_send_n, length_recv_n),
         n, (send_req, recv_req), (rank, comm), ::Type{T}
     ) where {T}
     # Exchange data with the other process (non-blocking operations).
