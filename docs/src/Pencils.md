@@ -1,3 +1,7 @@
+```@meta
+CurrentModule = PencilArrays.Pencils
+```
+
 # [Pencil configurations](@id sec:pencil_configs)
 
 A *pencil* configuration refers to a given distribution of multidimensional
@@ -75,7 +79,7 @@ permutations (this is the default).
 Pencil
 Permutation
 NoPermutation
-AbstractIndexOrder
+Pencils.AbstractIndexOrder
 MemoryOrder
 LogicalOrder
 ```
@@ -89,9 +93,9 @@ get_permutation(::Pencil)
 get_timer(::Pencil)
 length(::Pencil)
 ndims(::Pencil)
-range_local(::Pencil{N}) where N
-size_global(::Pencil)
-size_local(::Pencil)
+range_local(::Pencil, ::LogicalOrder)
+size_global(::Pencil, ::LogicalOrder)
+size_local(::Pencil, etc...)
 to_local(::Pencil)
 ```
 
