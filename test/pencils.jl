@@ -197,7 +197,14 @@ function main()
         pdims[1], pdims[2]
     end
 
+    @test_throws ArgumentError MPITopology(comm, proc_dims .- 1)
+    @test_throws ArgumentError MPITopology(comm, proc_dims .+ 1)
     topo = MPITopology(comm, proc_dims)
+    @test match(
+        r"^MPI topology: 2D decomposition \(\d+×\d+ processes\)$",
+        string(topo),
+    ) !== nothing
+    @test ndims(topo) == length(proc_dims) == 2
 
     pen1 = Pencil(topo, Nxyz, (2, 3))
     pen2 = Pencil(pen1, decomp_dims=(1, 3), permute=Permutation(2, 3, 1))
@@ -353,6 +360,7 @@ function main()
     @testset "1D decomposition" begin
         T = Float32
         topo = MPITopology(comm, (Nproc, ))
+        @test ndims(topo) == 1
 
         pen1 = Pencil(topo, Nxyz, (1, ))
         pen2 = Pencil(pen1, decomp_dims=(2, ))
@@ -390,6 +398,7 @@ function main()
         periods = zeros(Int, length(proc_dims))
         comm_cart = MPI.Cart_create(comm, collect(proc_dims), periods, false)
         @inferred MPITopologies.create_subcomms(Val(2), comm_cart)
+        @test_throws ArgumentError MPITopology{3}(comm_cart)  # wrong dimensionality
         @inferred MPITopology{2}(comm_cart)
         @inferred MPITopologies.get_cart_ranks_subcomm(pen1.topology.subcomms[1])
 

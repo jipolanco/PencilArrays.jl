@@ -93,7 +93,7 @@ struct MPITopology{N}
                 "Cartesian communicator must have $N dimensions."))
         end
 
-        dims, coords_local = begin
+        dims, coords_local = let
             dims_vec, _, coords_vec = MPI.Cart_get(comm_cart)
             coords_vec .+= 1  # switch to one-based indexing
             map(X -> ntuple(n -> Int(X[n]), Val(N)), (dims_vec, coords_vec))
@@ -166,7 +166,7 @@ function get_cart_ranks(::Val{N}, comm::MPI.Comm) where N
     @assert MPI.Cartdim_get(comm) == N  # communicator should be N-dimensional
     Nproc = MPI.Comm_size(comm)
 
-    dims = begin
+    dims = let
         dims_vec, _, _ = MPI.Cart_get(comm)
         ntuple(n -> Int(dims_vec[n]), N)
     end
