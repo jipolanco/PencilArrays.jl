@@ -182,8 +182,6 @@ function compare_distributed_arrays(u_local::PencilArray, v_local::PencilArray)
 end
 
 function main()
-    MPI.Init()
-
     Nxyz = (16, 21, 41)
     comm = MPI.COMM_WORLD
     Nproc = MPI.Comm_size(comm)
@@ -335,9 +333,9 @@ function main()
     # Test arrays with extra dimensions.
     @testset "extra dimensions" begin
         T = Float32
-        u1 = PencilArray{T}(undef, pen1, (3, 4))
-        u2 = PencilArray{T}(undef, pen2, (3, 4))
-        u3 = PencilArray{T}(undef, pen3, (3, 4))
+        u1 = PencilArray{T}(undef, pen1, 3, 4)
+        u2 = PencilArray{T}(undef, pen2, 3, 4)
+        u3 = PencilArray{T}(undef, pen3, 3, 4)
         randn!(rng, u1)
         transpose!(u2, u1)
         @test compare_distributed_arrays(u1, u2)
@@ -392,7 +390,7 @@ function main()
         periods = zeros(Int, length(proc_dims))
         comm_cart = MPI.Cart_create(comm, collect(proc_dims), periods, false)
         @inferred MPITopologies.create_subcomms(Val(2), comm_cart)
-        @inferred PencilArrays.MPITopology{2}(comm_cart)
+        @inferred MPITopology{2}(comm_cart)
         @inferred MPITopologies.get_cart_ranks_subcomm(pen1.topology.subcomms[1])
 
         @inferred PencilArrays.to_local(pen2, (1:2, 1:2, 1:2), permute=true)
@@ -401,7 +399,7 @@ function main()
 
         T = Int
         @inferred PencilArray{T}(undef, pen2)
-        @inferred PencilArray{T}(undef, pen2, (3, 4))
+        @inferred PencilArray{T}(undef, pen2, 3, 4)
 
         @inferred PA.permute_indices(Nxyz, Permutation(2, 3, 1))
         @inferred PA.relative_permutation(Permutation(1, 2, 3),
@@ -416,7 +414,8 @@ function main()
         @inferred Transpositions._get_remote_indices(1, (2, 3), 8)
     end
 
-    MPI.Finalize()
+    nothing
 end
 
+MPI.Init()
 main()
