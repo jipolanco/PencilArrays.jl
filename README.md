@@ -13,8 +13,8 @@ Julia arrays distributed among MPI processes.
 
 The name of this package originates from the decomposition of 3D domains along
 two out of three dimensions, sometimes called *pencil* decomposition.
-This is illustrated by the figure below, where each coloured block is managed
-by a different MPI process.
+This is illustrated by the figure below, which represents a distributed 3D array.
+Each coloured block is managed by a different MPI process.
 
 <p align="center">
   <br/>
