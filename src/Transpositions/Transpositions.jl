@@ -352,7 +352,7 @@ function _transpose_send!(
         # Global data range that I need to send to process n.
         srange = intersect.(idims_local, odims[ind])
         length_send_n = prod(length.(srange)) * prod_extra_dims
-        local_send_range = to_local(Pi, srange, permute=true)
+        local_send_range = to_local(Pi, srange, MemoryOrder())
 
         # Determine amount of data to be received.
         rrange = intersect.(odims_local, idims[ind])
@@ -491,7 +491,7 @@ function _transpose_recv!(
 
         # Local output data range in the **input** permutation.
         o_range_iperm =
-            permute_indices(to_local(Po, g_range, permute=false), Pi)
+            permute_indices(to_local(Po, g_range, LogicalOrder()), Pi)
 
         # Copy data to `Ao`, permuting dimensions if required.
         @timeit_debug timer "copy_permuted!" copy_permuted!(

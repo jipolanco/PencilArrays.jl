@@ -13,6 +13,7 @@ using TimerOutputs
 
 export Pencil, MPITopology
 export Permutation, NoPermutation
+export MemoryOrder, LogicalOrder
 export get_decomposition, get_permutation
 export get_comm, get_timer
 export range_local, size_local, size_global, to_local
@@ -25,6 +26,7 @@ using .MPITopologies
 import .MPITopologies: get_comm
 
 include("data_ranges.jl")
+include("index_orders.jl")
 
 """
     Pencil{N,M}
@@ -229,55 +231,71 @@ Get linear length of data associated to the local pencil layout.
 Base.length(p::Pencil) = prod(size_local(p))
 
 """
-    range_local(p::Pencil; permute=false)
+    range_local(p::Pencil, [order = LogicalOrder()])
 
 Local data range held by the pencil.
 
 By default the dimensions are not permuted, i.e. they follow the logical order
 of dimensions.
 """
-range_local(p::Pencil{N}; permute::Bool=false) where N =
-    (permute ? p.axes_local_perm : p.axes_local) :: ArrayRegion{N}
+range_local(p::Pencil, ::LogicalOrder) = p.axes_local
+range_local(p::Pencil, ::MemoryOrder) = p.axes_local_perm
+
+# TODO in the future, the deprecated function should be replaced by this
+# range_local(p) = range_local(p, DefaultOrder())
+range_local(p; permute=nothing) = range_local(p, _index_order_deprecated(permute))
+
+# Deprecations
+_index_order_deprecated(::Nothing) = DefaultOrder()
+function _index_order_deprecated(permute::Bool)
+    Base.depwarn("`permute` argument is deprecated; use LogicalOrder() or MemoryOrder() instead", :pencil_permute)
+    permute ? MemoryOrder() : LogicalOrder()
+end
 
 """
-    size_local(p::Pencil; permute=false)
+    size_local(p::Pencil, [order = LogicalOrder()])
 
 Local dimensions of the data held by the pencil.
 
 By default the dimensions are not permuted, i.e. they follow the logical order
 of dimensions.
 """
-size_local(p::Pencil; permute::Bool=false) =
-    map(length, range_local(p, permute=permute))
+size_local(p::Pencil, etc...) = map(length, range_local(p, etc...))
+size_local(p; permute=nothing) = size_local(p, _index_order_deprecated(permute))
 
 """
-    size_global(p::Pencil; permute=false)
+    size_global(p::Pencil, [order = LogicalOrder()])
 
 Global dimensions of the Cartesian grid associated to the given domain
 decomposition.
 
-Like [`size_local`](@ref), by default the returned dimensions are not permuted.
+Like [`size_local`](@ref), by default the returned dimensions are in logical
+order.
 """
-size_global(p::Pencil; permute::Bool=false) =
-    permute ? permute_indices(p.size_global, p.perm) : p.size_global
+size_global(p::Pencil, ::LogicalOrder) = p.size_global
+size_global(p::Pencil, ::MemoryOrder) = permute_indices(p.size_global, p.perm)
+# size_global(p) = size_global(p, DefaultOrder())
+size_global(p; permute=nothing) = size_global(p, _index_order_deprecated(permute))
 
 """
-    to_local(p::Pencil, global_inds; permute=false)
+    to_local(p::Pencil, global_inds, [order = LogicalOrder()])
 
-Convert non-permuted global indices to local indices.
+Convert non-permuted (logical) global indices to local indices.
 
-Indices can be optionally permuted using the permutation associated to the
-pencil configuration `p`.
+If `order = MemoryOrder()`, returned indices will be permuted using the
+permutation associated to the pencil configuration `p`.
 """
-function to_local(p::Pencil{N}, global_inds::ArrayRegion{N};
-                  permute=false) where N
+function to_local(p::Pencil{N}, global_inds::ArrayRegion{N},
+                  order::AbstractIndexOrder = DefaultOrder()) where {N}
     ind = map(global_inds, p.axes_local) do rg, rl
         @assert step(rg) == 1
         δ = 1 - first(rl)
         (first(rg) + δ):(last(rg) + δ)
     end :: ArrayRegion{N}
-    permute ? permute_indices(ind, p.perm) : ind
+    order === MemoryOrder() ? permute_indices(ind, p.perm) : ind
 end
+
+to_local(p, inds; permute) = to_local(p, inds, _index_order_deprecated(permute))
 
 Permutations.permute_indices(t::Tuple, p::Pencil) = permute_indices(t, p.perm)
 

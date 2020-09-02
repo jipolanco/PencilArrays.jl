@@ -15,10 +15,10 @@ const GlobalPencilArray{T,N} = OffsetArray{T,N,A} where {A <: PencilArray}
     global_view(x::PencilArray)
 
 Create an [`OffsetArray`](https://github.com/JuliaArrays/OffsetArrays.jl) of a
-`PencilArray` that takes unpermuted global indices.
+`PencilArray` that takes global indices in logical order.
 """
 function global_view(x::PencilArray)
-    r = range_local(x, permute=false)
+    r = range_local(x, LogicalOrder())
     offsets = first.(r) .- 1
     xo = OffsetArray(x, offsets)
     @assert parent(xo) === x  # OffsetArray shouldn't create a copy...

@@ -53,10 +53,9 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     let v = similar(u)
         @test typeof(v) === typeof(u)
 
-        psize = size_local(p, permute=false)
+        psize = size_local(p, LogicalOrder())
         @test psize === size(v) === size(u)
-        @test psize ===
-            size_local(u, permute=false) === size_local(v, permute=false)
+        @test psize === size_local(u, LogicalOrder()) === size_local(v, LogicalOrder())
 
         vp = parent(v)
         randn!(vp)
@@ -65,7 +64,7 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
         @test v[I...] == vp[J...]  # the parent takes permuted indices
     end
 
-    let psize = size_local(p, permute=true)
+    let psize = size_local(p, MemoryOrder())
         a = zeros(T, psize)
         u = PencilArray(p, a)
         @test u.data === a
@@ -402,9 +401,10 @@ function main()
         @inferred MPITopology{2}(comm_cart)
         @inferred MPITopologies.get_cart_ranks_subcomm(pen1.topology.subcomms[1])
 
-        @inferred PencilArrays.to_local(pen2, (1:2, 1:2, 1:2), permute=true)
+        @inferred PencilArrays.to_local(pen2, (1:2, 1:2, 1:2), MemoryOrder())
+        @inferred PencilArrays.to_local(pen2, (1:2, 1:2, 1:2), LogicalOrder())
 
-        @inferred PencilArrays.size_local(pen2, permute=true)
+        @inferred PencilArrays.size_local(pen2, MemoryOrder())
 
         T = Int
         @inferred PencilArray{T}(undef, pen2)

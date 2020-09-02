@@ -171,7 +171,7 @@ function Base.setindex!(
     props = collect(Any, prop_pairs)
 
     if chunks && "chunk" ∉ prop_pairs
-        chunk = h5_chunk_size(x, permute=true)
+        chunk = h5_chunk_size(x, MemoryOrder())
         push!(props, "chunk", chunk)
     end
 
@@ -182,7 +182,7 @@ function Base.setindex!(
     dims_global = h5_dataspace_dims(x)
     @timeit_debug to "create dataset" dset =
         d_create(g, name, h5_datatype(x), dataspace(dims_global), props...)
-    inds = range_local(x, permute=true)
+    inds = range_local(x, MemoryOrder())
     @timeit_debug to "write data" to_hdf5(dset, x, inds)
 
     end
@@ -254,7 +254,7 @@ function Base.read!(g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
             "incompatible dimensions of HDF5 dataset and PencilArray"))
     end
 
-    inds = range_local(x, permute=true)
+    inds = range_local(x, MemoryOrder())
     @timeit_debug to "read data" from_hdf5!(dset, x, inds)
 
     end
@@ -339,17 +339,17 @@ end
 h5_datatype(x::PencilArray) = datatype(eltype(x))
 h5_datatype(x::PencilArrayCollection) = h5_datatype(first(x))
 
-h5_dataspace_dims(x::PencilArray) = size_global(x, permute=true)
+h5_dataspace_dims(x::PencilArray) = size_global(x, MemoryOrder())
 h5_dataspace_dims(x::PencilArrayCollection) =
     (h5_dataspace_dims(first(x))..., collection_size(x)...)
 
-function h5_chunk_size(x::PencilArray; permute=true)
+function h5_chunk_size(x::PencilArray, order = MemoryOrder())
     # Determine chunk size for writing to HDF5 dataset.
     # The idea is that each process writes to a single separate chunk of the
     # dataset, of size `dims_local`.
     # This only works if the data is ideally balanced among processes, i.e. if
     # the local dimensions of the dataset are the same for all processes.
-    dims_local = size_local(x, permute=permute)
+    dims_local = size_local(x, order)
 
     # In the general case that the data is not well balanced, we take the
     # minimum size along each dimension.
@@ -360,8 +360,8 @@ function h5_chunk_size(x::PencilArray; permute=true)
     ntuple(d -> chunk[d], Val(N))
 end
 
-h5_chunk_size(x::PencilArrayCollection; kwargs...) =
-    (h5_chunk_size(first(x); kwargs...)..., collection_size(x)...)
+h5_chunk_size(x::PencilArrayCollection, args...) =
+    (h5_chunk_size(first(x), args...)..., collection_size(x)...)
 
 function _h5p_get_fapl_mpio(fapl_id)
     h5comm, h5info = HDF5.h5p_get_fapl_mpio(fapl_id, H5MPIHandle)

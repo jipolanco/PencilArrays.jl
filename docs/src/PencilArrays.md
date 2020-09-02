@@ -38,7 +38,7 @@ One can also construct a `PencilArray` wrapper from an existing
 configuration.
 For instance, the following works:
 ```julia
-dims = size_local(pencil, permute=true)  # dimensions of data array must be permuted!
+dims = size_local(pencil, MemoryOrder())  # dimensions must be in memory order!
 data = zeros(dims)
 A = PencilArray(pencil, data)
 ```
@@ -56,8 +56,8 @@ processes.
 
 ## Dimension permutations
 
-Unlike the wrapped `AbstractArray`, the `PencilArray` wrapper takes
-non-permuted indices.
+Unlike the wrapped `AbstractArray`, the `PencilArray` wrapper takes indices in
+logical order.
 For instance, if the underlying permutation of the `Pencil` is `(2, 3, 1)`,
 then `A[i, j, k]` points to the same value as `parent(A)[j, k, i]`.
 
