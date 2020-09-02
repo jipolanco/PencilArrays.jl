@@ -12,7 +12,7 @@ Describes an N-dimensional Cartesian MPI decomposition topology.
 
 ---
 
-    MPITopology(comm::MPI.Comm, pdims::Dims{N}) where N
+    MPITopology(comm::MPI.Comm, pdims::Dims{N})
 
 Create N-dimensional MPI topology information.
 
@@ -31,11 +31,24 @@ topology = MPITopology(comm, (4, 2))
 
 ---
 
-    MPITopology{N}(comm_cart::MPI.Comm) where N
+    MPITopology{N}(comm_cart::MPI.Comm)
 
 Create topology information from MPI communicator with Cartesian topology
 (typically constructed using `MPI.Cart_create`).
 The topology must have dimension `N`.
+
+# Example
+
+```julia
+# Divide 2D topology into 4×2 blocks.
+comm = MPI.COMM_WORLD
+@assert MPI.Comm_size(comm) == 8
+dims = [4, 2]
+periods = [0, 0]
+reorder = false
+comm_cart = MPI.Cart_create(comm, pdims, periods, reorder)
+topology = MPITopology{2}(comm_cart)
+```
 
 """
 struct MPITopology{N}
