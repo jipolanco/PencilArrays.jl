@@ -3,12 +3,13 @@ using HDF5  # to load HDF5 code via Requires
 using PencilArrays
 using Documenter
 
+DocMeta.setdocmeta!(PencilArrays.Permutations, :DocTestSetup,
+                    :(using PencilArrays.Permutations); recursive=true)
+
 function main()
+    fastmode = get(ENV, "JULIA_DOCS_FAST", "") ∈ ("1", "true", "yes")
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
     keepdocs = rank == 0  # the docs from this process will be kept and deployed
-
-    DocMeta.setdocmeta!(PencilArrays.Permutations, :DocTestSetup,
-                        :(using PencilArrays.Permutations); recursive=true)
 
     mktempdir() do tempdir
         makedocs(;
@@ -37,7 +38,7 @@ function main()
                     "Internals" => ["PermutationUtils.md"]
                 ],
             ],
-            linkcheck = keepdocs,
+            linkcheck = keepdocs && !fastmode,
         )
     end
 

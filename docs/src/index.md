@@ -13,8 +13,8 @@ Julia arrays distributed among MPI processes.
 
 The name of this package originates from the decomposition of 3D domains along
 two out of three dimensions, sometimes called *pencil* decomposition.
-This is illustrated by the figure below,[^1] where each coloured block is
-managed by a different MPI process.
+This is illustrated by the figure below, where each coloured block is managed
+by a different MPI process.
 
 ```@raw html
 <div class="figure">
@@ -62,17 +62,20 @@ PencilArrays can be installed using the Julia package manager:
 The following example assumes that the code is executed on 12 MPI processes.
 The processes are distributed on a $3×4$ grid, as in the figure above.
 
-```julia
+```@example getting_started
 using MPI
 using PencilArrays
 using LinearAlgebra: transpose!
 
+MPI.Initialized() || # hide
 MPI.Init()
 comm = MPI.COMM_WORLD       # we assume MPI.Comm_size(comm) == 12
-rank = MPI.Comm_rank(comm)  # rank of local process, in 0:11
+rank = MPI.Comm_rank(comm)  # rank of local process (in 0:11)
 
 # Define MPI Cartesian topology: distribute processes on a 3×4 grid.
+topology = MPITopology(comm, (MPI.Comm_size(comm), 1)); if false # hide
 topology = MPITopology(comm, (3, 4))
+end # hide
 
 # Let's decompose 3D arrays along dimensions (2, 3).
 # This corresponds to the "x-pencil" configuration in the figure.
@@ -97,7 +100,5 @@ pen_y = Pencil(pen_x, decomp_dims=(1, 3))
 # the data initially in Ax.
 Ay = PencilArray{Float64}(undef, pen_y)
 transpose!(Ay, Ax)
+nothing # hide
 ```
-
-[^1]:
-    Figure adapted from [this PhD thesis](https://hal.archives-ouvertes.fr/tel-02084215v1).
