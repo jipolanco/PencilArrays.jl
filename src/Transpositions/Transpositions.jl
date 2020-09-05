@@ -246,7 +246,7 @@ function permute_local!(out::PencilArray{T,N},
     out
 end
 
-_mpi_buffer(p::Ptr{T}, count) where {T} =
+mpi_buffer(p::Ptr{T}, count) where {T} =
     MPI.Buffer(p, Cint(count), MPI.Datatype(T))
 
 # Transposition among MPI processes in a subcommunicator.
@@ -270,7 +270,7 @@ function transpose_impl!(R::Int, t::Transposition{T}) where {T}
     subcomm_ranks = topology.subcomm_ranks[R]
     myrank = subcomm_ranks[topology.coords_local[R]]  # rank in subgroup
 
-    remote_inds = _get_remote_indices(R, topology.coords_local, Nproc)
+    remote_inds = get_remote_indices(R, topology.coords_local, Nproc)
 
     # Length of data that I will "send" to myself.
     length_self = let range_intersect = intersect.(Pi.axes_local, Po.axes_local)
@@ -297,14 +297,14 @@ function transpose_impl!(R::Int, t::Transposition{T}) where {T}
     requests = (send_req, recv_req)
 
     # 1. Pack and send data.
-    @timeit_debug timer "pack data" index_local_req = _transpose_send!(
+    @timeit_debug timer "pack data" index_local_req = transpose_send!(
         buffers, recv_offsets, requests, length_self, remote_inds,
         (comm, subcomm_ranks, myrank),
         Ao, Ai, method, timer,
     )
 
     # 2. Unpack data and perform local transposition.
-    @timeit_debug timer "unpack data" _transpose_recv!(
+    @timeit_debug timer "unpack data" transpose_recv!(
         recv_buf, recv_offsets, recv_req,
         remote_inds, index_local_req,
         Ao, Ai, method, timer,
@@ -313,7 +313,7 @@ function transpose_impl!(R::Int, t::Transposition{T}) where {T}
     t
 end
 
-function _transpose_send!(
+function transpose_send!(
         (send_buf, recv_buf),
         recv_offsets, requests,
         length_self, remote_inds,
@@ -346,7 +346,7 @@ function _transpose_send!(
     @assert Nproc == MPI.Comm_size(comm)
     @assert myrank == MPI.Comm_rank(comm)
 
-    buf_info = _make_buffer_info(method, (send_buf, recv_buf), Nproc)
+    buf_info = make_buffer_info(method, (send_buf, recv_buf), Nproc)
 
     for (n, ind) in enumerate(remote_inds)
         # Global data range that I need to send to process n.
@@ -369,13 +369,13 @@ function _transpose_send!(
             recv_offsets[n] = length_recv
             @timeit_debug timer "copy_range!" copy_range!(
                 recv_buf, length_recv, Ai, local_send_range, exdims, timer)
-            _transpose_send_self!(method, n, requests, buf_info)
+            transpose_send_self!(method, n, requests, buf_info)
             index_local_req = n
         else
             # Copy data into contiguous buffer, then send the buffer.
             @timeit_debug timer "copy_range!" copy_range!(
                 send_buf, isend, Ai, local_send_range, exdims, timer)
-            _transpose_send_other!(
+            transpose_send_other!(
                 method, buf_info, (length_send_n, length_recv_n), n,
                 requests, (rank, comm), eltype(Ai),
             )
@@ -397,14 +397,14 @@ function _transpose_send!(
     index_local_req
 end
 
-function _make_buffer_info(::PointToPoint, (send_buf, recv_buf), Nproc)
+function make_buffer_info(::PointToPoint, (send_buf, recv_buf), Nproc)
     (
         send_ptr = Ref(pointer(send_buf)),
         recv_ptr = Ref(pointer(recv_buf)),
     )
 end
 
-function _make_buffer_info(::Alltoallv, bufs, Nproc)
+function make_buffer_info(::Alltoallv, bufs, Nproc)
     counts = Vector{Cint}(undef, Nproc)
     (
         send_counts = counts,
@@ -412,18 +412,18 @@ function _make_buffer_info(::Alltoallv, bufs, Nproc)
     )
 end
 
-function _transpose_send_self!(::PointToPoint, n, (send_req, recv_req), etc...)
+function transpose_send_self!(::PointToPoint, n, (send_req, recv_req), etc...)
     send_req[n] = recv_req[n] = MPI.REQUEST_NULL
     nothing
 end
 
-function _transpose_send_self!(::Alltoallv, n, reqs, buf_info)
+function transpose_send_self!(::Alltoallv, n, reqs, buf_info)
     # Don't send data to myself via Alltoallv.
     buf_info.send_counts[n] = buf_info.recv_counts[n] = zero(Cint)
     nothing
 end
 
-function _transpose_send_other!(
+function transpose_send_other!(
         ::PointToPoint, buf_info, (length_send_n, length_recv_n),
         n, (send_req, recv_req), (rank, comm), ::Type{T}
     ) where {T}
@@ -431,11 +431,11 @@ function _transpose_send_other!(
     # Note: data is sent and received with the permutation associated to Pi.
     tag = 42
     send_req[n] = MPI.Isend(
-        _mpi_buffer(buf_info.send_ptr[], length_send_n),
+        mpi_buffer(buf_info.send_ptr[], length_send_n),
         rank, tag, comm
     )
     recv_req[n] = MPI.Irecv!(
-        _mpi_buffer(buf_info.recv_ptr[], length_recv_n),
+        mpi_buffer(buf_info.recv_ptr[], length_recv_n),
         rank, tag, comm
     )
     buf_info.send_ptr[] += length_send_n * sizeof(T)
@@ -443,7 +443,7 @@ function _transpose_send_other!(
     nothing
 end
 
-function _transpose_send_other!(
+function transpose_send_other!(
         ::Alltoallv, buf_info, (length_send_n, length_recv_n), n, args...
     )
     buf_info.send_counts[n] = length_send_n
@@ -451,7 +451,7 @@ function _transpose_send_other!(
     nothing
 end
 
-function _transpose_recv!(
+function transpose_recv!(
         recv_buf, recv_offsets, recv_req,
         remote_inds, index_local_req,
         Ao::PencilArray, Ai::PencilArray,
@@ -505,7 +505,7 @@ end
 # index `R`.
 # Example: if coords_local = (2, 3, 5) and R = 1, then this function returns the
 # indices corresponding to (:, 3, 5).
-function _get_remote_indices(R::Int, coords_local::Dims{M}, Nproc::Int) where M
+function get_remote_indices(R::Int, coords_local::Dims{M}, Nproc::Int) where M
     t = ntuple(Val(M)) do i
         if i == R
             1:Nproc
