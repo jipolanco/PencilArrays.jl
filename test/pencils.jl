@@ -21,8 +21,9 @@ BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1.0
 Indexation(::Type{IndexLinear}) = LinearIndices
 Indexation(::Type{IndexCartesian}) = CartesianIndices
 
-function test_fill!(::Type{T}, u, val) where {T <: IndexStyle}
-    for I in Indexation(T)(u)
+function benchmark_fill!(::Type{T}, u, val) where {T <: IndexStyle}
+    indices = Indexation(T)(u)
+    @inbounds for I in indices
         u[I] = val
     end
     u
@@ -44,11 +45,11 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
 
     if BENCHMARK_ARRAYS
         for S in (IndexLinear, IndexCartesian)
-            @info("Filling arrays using $S (Array, PencilArray)",
+            @info("Filling arrays using $S (Array, PencilArray, GlobalPencilArray)",
                   get_permutation(p))
             for v in (parent(u), u, ug)
                 val = 3 * oneunit(eltype(v))
-                @btime test_fill!($S, $v, $val)
+                @btime benchmark_fill!($S, $v, $val)
             end
             println()
         end
@@ -314,19 +315,19 @@ function main()
         u1_orig = copy(u1)
 
         # Direct u1 -> u3 transposition is not possible!
-        @test_throws ArgumentError transpose!(u3, u1)
+        @test_throws ArgumentError transpose!(u3, u1, method=method)
 
         # Transpose back and forth between different pencil configurations
-        transpose!(u2, u1)
+        transpose!(u2, u1, method=method)
         @test compare_distributed_arrays(u1, u2)
 
-        transpose!(u3, u2)
+        transpose!(u3, u2, method=method)
         @test compare_distributed_arrays(u2, u3)
 
-        transpose!(u2, u3)
+        transpose!(u2, u3, method=method)
         @test compare_distributed_arrays(u2, u3)
 
-        transpose!(u1, u2)
+        transpose!(u1, u2, method=method)
         @test compare_distributed_arrays(u1, u2)
 
         @test u1_orig == u1
@@ -334,7 +335,7 @@ function main()
         # Test transpositions without permutations.
         let pen2 = Pencil(pen1, decomp_dims=(1, 3))
             u2 = PencilArray{T}(undef, pen2)
-            transpose!(u2, u1)
+            transpose!(u2, u1, method=method)
             @test compare_distributed_arrays(u1, u2)
         end
 
