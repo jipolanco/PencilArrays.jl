@@ -1,8 +1,3 @@
-"""
-    Pencils
-
-Base module defining types for multidimensional data decompositions using MPI.
-"""
 module Pencils
 
 using ..Permutations

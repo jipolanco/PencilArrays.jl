@@ -4,8 +4,7 @@
 CurrentModule = PencilArrays
 ```
 
-The [`PencilArrays`](@ref) module defines types for handling MPI-distributed
-data.
+The `PencilArrays` module defines types for handling MPI-distributed data.
 
 The most important types are:
 
@@ -16,10 +15,6 @@ The most important types are:
 - [`GlobalPencilArray`](@ref): `PencilArray` wrapper that takes *global*
   indices, which generally don't start at 1.
   See also [Global views](@ref).
-
-```@docs
-PencilArrays
-```
 
 ## Construction
 

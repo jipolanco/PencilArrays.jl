@@ -1,8 +1,3 @@
-"""
-    PencilArrays
-
-Array wrappers for MPI-distributed data.
-"""
 module PencilArrays
 
 using MPI

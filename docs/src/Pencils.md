@@ -14,10 +14,6 @@ A pencil configuration includes:
 - subset of decomposed dimensions,
 - definition of optional permutation of dimensions.
 
-```@docs
-Pencils
-```
-
 ## Construction
 
 The creation of a new [`Pencil`](@ref) requires a [`MPITopology`](@ref), as
@@ -27,9 +23,9 @@ Optionally, one can also specify a permutation of dimensions.
 For instance, to decompose along the first and third dimensions of a complex
 3D dataset,
 ```julia
-topology = MPITopology(#= ... =#)
+topology = MPITopology(comm, (8, 4))  # assuming 8×4 = 32 processes
 dims_global = (16, 32, 64)
-decomp_dims = (1, 3)  # this requires ndims(topology) == 2
+decomp_dims = (1, 3)
 pencil = Pencil(topology, dims_global, decomp_dims)
 ```
 
