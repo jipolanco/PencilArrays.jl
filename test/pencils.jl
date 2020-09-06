@@ -23,7 +23,7 @@ Indexation(::Type{IndexCartesian}) = CartesianIndices
 
 function test_fill!(::Type{T}, u, val) where {T <: IndexStyle}
     for I in Indexation(T)(u)
-        @inbounds u[I] = val
+        u[I] = val
     end
     u
 end
