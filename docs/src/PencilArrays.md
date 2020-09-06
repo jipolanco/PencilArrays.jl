@@ -82,7 +82,6 @@ in the PencilFFTs docs.
 PencilArray
 GlobalPencilArray
 PencilArrayCollection
-MaybePencilArrayCollection
 ManyPencilArray
 ```
 

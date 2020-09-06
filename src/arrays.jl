@@ -57,7 +57,7 @@ These dimensions are added to the rightmost (slowest) indices of the resulting
 array.
 
 # Example
-Suppose `pencil` has local dimensions `(20, 10, 30)` after permutation. Then:
+Suppose `pencil` has local dimensions `(20, 10, 30)`. Then:
 ```julia
 PencilArray{Float64}(undef, pencil)        # array dimensions are (20, 10, 30)
 PencilArray{Float64}(undef, pencil, 4, 3)  # array dimensions are (20, 10, 30, 4, 3)
@@ -139,14 +139,6 @@ const PencilArrayCollection =
 collection_size(x::Tuple{Vararg{<:PencilArray}}) = (length(x), )
 collection_size(x::AbstractArray{<:PencilArray}) = size(x)
 
-"""
-    MaybePencilArrayCollection
-
-`UnionAll` type representing either a [`PencilArray`](@ref) or a collection of
-[`PencilArray`](@ref)s.
-
-See also [`PencilArrayCollection`](@ref).
-"""
 const MaybePencilArrayCollection = Union{PencilArray, PencilArrayCollection}
 
 function _apply(f::Function, x::PencilArrayCollection, args...; kwargs...)
