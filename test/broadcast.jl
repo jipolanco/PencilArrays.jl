@@ -31,14 +31,15 @@ end
 end
 
 @testset "Combinations" begin
-    # Combine PencilArray and GlobalPencilArray
-    @test typeof(A .+ G) == typeof(G)
-    @test A .+ G == global_view(A) .+ G
-
     # Combine with regular Array
     P = parent(A) :: Array
     @test typeof(P .+ A) == typeof(A)
-    @test typeof(P .+ G) == typeof(G)
+
+    # Combine PencilArray and GlobalPencilArray
+    # TODO should this be allowed? how?
+    # @test typeof(A .+ G) == typeof(G)
+    # @test A .+ G == global_view(A) .+ G
+    # @test typeof(P .+ G) == typeof(G)
 end
 
 # TODO
