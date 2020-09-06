@@ -420,7 +420,7 @@ function main()
 
         @inferred Nothing gather(u2)
         @inferred transpose!(u2, u1)
-        @inferred Transpositions._get_remote_indices(1, (2, 3), 8)
+        @inferred Transpositions.get_remote_indices(1, (2, 3), 8)
     end
 
     nothing
