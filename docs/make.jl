@@ -8,8 +8,12 @@ DocMeta.setdocmeta!(PencilArrays.Permutations, :DocTestSetup,
 
 function main()
     fastmode = get(ENV, "JULIA_DOCS_FAST", "") ∈ ("1", "true", "yes")
+    comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
-    keepdocs = rank == 0  # the docs from this process will be kept and deployed
+    Nproc = MPI.Comm_size(comm)
+    keeprank = div(Nproc, 3)  # the docs from this process will be kept and deployed
+    keepdocs = rank == keeprank
+    @info "Keeping docs from process $keeprank"
 
     mktempdir() do tempdir
         makedocs(;
