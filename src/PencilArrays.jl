@@ -28,6 +28,8 @@ include("multiarrays.jl")  # ManyPencilArray
 include("global_view.jl")  # GlobalPencilArray
 include("cartesian_indices.jl")  # PermutedLinearIndices, PermutedCartesianIndices
 
+include("broadcast.jl")
+
 include("Transpositions/Transpositions.jl")
 export Transpositions
 
