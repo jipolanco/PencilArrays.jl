@@ -16,7 +16,7 @@ include("Pencils/Pencils.jl")
 import .Pencils:
     get_comm, get_permutation, range_local, size_local, size_global
 
-export PencilArray, PencilArrayCollection, ManyPencilArray
+export PencilArray, GlobalPencilArray, PencilArrayCollection, ManyPencilArray
 export pencil
 export gather
 export global_view

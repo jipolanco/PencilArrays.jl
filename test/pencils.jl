@@ -38,11 +38,15 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     randn!(u)
     @test check_iteration_order(u)
 
+    @inferred global_view(u)
+    ug = global_view(u)
+    @test check_iteration_order(ug)
+
     if BENCHMARK_ARRAYS
         for S in (IndexLinear, IndexCartesian)
             @info("Filling arrays using $S (Array, PencilArray)",
                   get_permutation(p))
-            for v in (parent(u), u)
+            for v in (parent(u), u, ug)
                 val = 3 * oneunit(eltype(v))
                 @btime test_fill!($S, $v, $val)
             end
@@ -138,8 +142,8 @@ function test_multiarrays(pencils::Vararg{Pencil,M};
     nothing
 end
 
-function check_iteration_order(u::PencilArray)
-    p = parent(u)
+function check_iteration_order(u::Union{PencilArray,GlobalPencilArray})
+    p = parent(parent(u)) :: Array  # two `parent` are needed for GlobalPencilArray
     cart = CartesianIndices(u)
     lin = LinearIndices(u)
 
