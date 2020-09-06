@@ -5,7 +5,8 @@ Container holding `M` different [`PencilArray`](@ref) views to the same
 underlying data buffer. All views share the same element type `T` and
 dimensionality `N`.
 
-This can be useful to perform in-place operations on `PencilArray` data.
+This can be used to perform in-place data transpositions with
+[`transpose!`](@ref Transpositions.transpose!).
 
 ---
 
@@ -98,7 +99,7 @@ u2 = A[Val(2)]  # faster!
 """
 Base.getindex(A::ManyPencilArray, ::Val{i}) where {i} =
     _getindex(Val(i), A.arrays...)
-Base.getindex(A::ManyPencilArray, i) = A[Val(i)]
+@inline Base.getindex(A::ManyPencilArray, i) = A[Val(i)]
 
 @inline function _getindex(::Val{i}, a, t::Vararg) where {i}
     i :: Integer
