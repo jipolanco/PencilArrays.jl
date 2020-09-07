@@ -36,13 +36,14 @@ end
     @test typeof(P .+ A) == typeof(A)
 
     # Combine PencilArray and GlobalPencilArray
-    # TODO should this be allowed? how?
-    # @test typeof(A .+ G) == typeof(G)
-    # @test A .+ G == global_view(A) .+ G
-    # @test typeof(P .+ G) == typeof(G)
+    @test_throws ArgumentError A .+ G
+    # @test_throws ArgumentError P .+ G  # this is still allowed...
 end
 
 # TODO
+# - global and local indexing: make them incompatible?
+# - in-place broadcasting?
+#   * check that it doesn't allocate
 # - permutations?
 #   * performance / iteration order?
 #   * combinations with non-permuted arrays?
