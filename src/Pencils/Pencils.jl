@@ -3,6 +3,7 @@ module Pencils
 using ..Permutations
 
 using MPI
+using Reexport
 using StaticArrays: SVector
 using TimerOutputs
 
@@ -18,7 +19,7 @@ export range_local, range_remote, size_local, size_global, to_local
 const ArrayRegion{N} = NTuple{N,UnitRange{Int}} where N
 
 include("MPITopologies.jl")
-using .MPITopologies
+@reexport using .MPITopologies
 import .MPITopologies: get_comm
 
 include("data_ranges.jl")
