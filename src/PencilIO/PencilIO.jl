@@ -15,20 +15,25 @@ Abstract type specifying a parallel I/O driver.
 abstract type ParallelIODriver end
 
 """
-    open([f::Function], driver::ParallelIODriver, filename,
-         comm::MPI.Comm, [info::MPI.Info]; keywords...)
+    open([f::Function], driver::ParallelIODriver, filename, comm::MPI.Comm; keywords...)
 
 Open parallel file using the chosen driver.
 
-## I/O mode
+## Keyword arguments
 
-Keyword arguments control the I/O mode.
-Possible keywords are `read`, `write`, `create`, `append` and `truncate`,
-although certain drivers ignore some of these keywords (see below).
+Supported keyword arguments include:
 
-Mode keywords have the same behaviour and defaults as `Base.open`.
+- open mode arguments: `read`, `write`, `create`, `append` and `truncate`.
+  These have the same behaviour and defaults as `Base.open`.
+  Some of them may not be supported by the chosen driver (see below).
 
-## Parallel drivers
+- as in [`MPI.File.open`](https://juliaparallel.github.io/MPI.jl/latest/io/#MPI.File.open),
+  other arguments are passed via an `MPI.Info` object.
+
+Note that driver-specific options (such as HDF5 property lists) must be passed
+to each driver's constructor.
+
+## Parallel I/O drivers
 
 The following drivers are supported:
 

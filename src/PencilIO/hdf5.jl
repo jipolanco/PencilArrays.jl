@@ -4,6 +4,7 @@ import Libdl
 export PHDF5Driver
 export ph5open
 
+# TODO include property lists in driver
 """
     PHDF5Driver <: ParallelIODriver
 
@@ -53,21 +54,23 @@ function check_hdf5_parallel()
     )
 end
 
-function keywords_to_h5open(; kw...)
-    flags = Base.open_flags(; kw...)
+function keywords_to_h5open(; read=nothing, write=nothing, create=nothing,
+                            truncate=nothing, append=nothing, other_kws...)
+    flags = Base.open_flags(read=read, write=write, create=create,
+                            truncate=truncate, append=append)
     (
         flags.read,
         flags.write,
         flags.create,
         flags.truncate,
         flags.append,
-    )
+    ), other_kws
 end
 
-function Base.open(::PHDF5Driver, filename::AbstractString, comm::MPI.Comm,
-                   info::MPI.Info = MPI.Info(); kw...)
-    mode_args = keywords_to_h5open(; kw...)
+function Base.open(::PHDF5Driver, filename::AbstractString, comm::MPI.Comm; kw...)
     check_hdf5_parallel()
+    mode_args, other_kws = keywords_to_h5open(; kw...)
+    info = MPI.Info(other_kws...)
     # TODO accept other property lists
     fcpl = HDF5.p_create(HDF5.H5P_FILE_CREATE)
     fapl = HDF5.p_create(
