@@ -32,6 +32,10 @@ end
 function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     u = PencilArray{T}(undef, p)
     perm = get_permutation(p)
+    let topo = topology(p)
+        I = topo.coords_local
+        @test range_remote(u, I) === range_remote(p, I)
+    end
 
     @test eltype(u) === eltype(u.data) === T
     @test length.(axes(u)) === size(u)
@@ -359,6 +363,10 @@ function main()
         u1 = PencilArray{T}(undef, pen1, 3, 4)
         u2 = PencilArray{T}(undef, pen2, 3, 4)
         u3 = PencilArray{T}(undef, pen3, 3, 4)
+        @test range_local(u2) ===
+            (range_local(pen2)..., Base.OneTo.((3, 4))...)
+        @test range_remote(u2, 1) ===
+            (range_remote(pen2, 1)..., Base.OneTo.((3, 4))...)
         randn!(rng, u1)
         transpose!(u2, u1)
         @test compare_distributed_arrays(u1, u2)

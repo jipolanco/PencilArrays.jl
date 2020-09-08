@@ -90,7 +90,7 @@ get_permutation(::Pencil)
 get_timer(::Pencil)
 length(::Pencil)
 ndims(::Pencil)
-range_remote
+range_remote(::Pencil, ::Integer, ::LogicalOrder)
 range_local(::Pencil, ::LogicalOrder)
 size_global(::Pencil, ::LogicalOrder)
 size_local(::Pencil, etc...)

@@ -14,7 +14,7 @@ using .Permutations
 include("Pencils/Pencils.jl")
 @reexport using .Pencils
 import .Pencils:
-    get_comm, get_permutation, range_local, size_local, size_global
+    get_comm, get_permutation, range_local, range_remote, size_local, size_global
 
 export PencilArray, GlobalPencilArray, PencilArrayCollection, ManyPencilArray
 export pencil
