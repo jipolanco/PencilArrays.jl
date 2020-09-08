@@ -17,7 +17,22 @@ using Test
 include("include/MPITools.jl")
 using .MPITools
 
-function test_write(filename, u::PencilArray)
+function test_write_mpiio(filename, u::PencilArray)
+    comm = get_comm(u)
+
+    @test_nowarn open(MPIIODriver(), filename, comm, write=true) do ff
+        write(ff, u, collective=true)
+    end
+
+    # TODO
+    # - append data
+    # - collections
+    # - read contents
+
+    nothing
+end
+
+function test_write_hdf5(filename, u::PencilArray)
     comm = get_comm(u)
     info = MPI.Info()
     rank = MPI.Comm_rank(comm)
@@ -101,8 +116,12 @@ function main()
 
     filename = MPI.bcast(tempname(), 0, comm)
 
+    @testset "write mpi-io" begin
+        test_write_mpiio(filename, u)
+    end
+
     @testset "write HDF5" begin
-        test_write(filename, u)
+        test_write_hdf5(filename, u)
     end
 
     HDF5.h5_close()
