@@ -161,6 +161,10 @@ Get MPI communicator associated to an MPI Cartesian topology.
 """
 get_comm(t::MPITopology) = t.comm
 
+Base.CartesianIndices(t::MPITopology) = CartesianIndices(axes(t))
+Base.LinearIndices(t::MPITopology) = LinearIndices(axes(t))
+Base.eachindex(t::MPITopology) = LinearIndices(t)
+
 # Get ranks of N-dimensional Cartesian communicator.
 function get_cart_ranks(::Val{N}, comm::MPI.Comm) where N
     @assert MPI.Cartdim_get(comm) == N  # communicator should be N-dimensional
