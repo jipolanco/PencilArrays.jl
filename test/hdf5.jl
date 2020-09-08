@@ -44,6 +44,11 @@ function test_write(filename, u::PencilArray)
         @test_nowarn ff["vector_array", collective=true, chunks=true] = [u, v, w]
     end
 
+    @test_nowarn open(PHDF5Driver(), filename, append=true, comm, info) do ff
+        @test isopen(ff)
+        @test_nowarn ff["scalar_again"] = u
+    end
+
     @test_nowarn ph5open(filename, "r", comm, info) do ff
         @test isopen(ff)
         uvw = (u, v, w)
@@ -52,6 +57,8 @@ function test_write(filename, u::PencilArray)
 
         read!(ff, ur, "scalar")
         @test u == ur
+        read!(ff, vr, "scalar_again")
+        @test vr == ur
 
         read!(ff, uvw_r, "vector_tuple")
         @test all(uvw .== uvw_r)
@@ -59,6 +66,10 @@ function test_write(filename, u::PencilArray)
         fill!.(uvw_r, 0)
         read!(ff, collect(uvw_r), "vector_array", collective=false)
         @test all(uvw .== uvw_r)
+    end
+
+    @test_nowarn open(PHDF5Driver(), filename, read=true, comm, info) do ff
+        @test isopen(ff)
     end
 
     nothing

@@ -86,6 +86,10 @@ using PencilArrays
 ## Library
 
 ```@docs
+open
+PencilIO.ParallelIODriver
+MPIIODriver
+PHDF5Driver
 ph5open
 setindex!
 read!

@@ -1,7 +1,15 @@
 using .HDF5
 import Libdl
 
+export PHDF5Driver
 export ph5open
+
+"""
+    PHDF5Driver <: ParallelIODriver
+
+Parallel HDF5 driver using the HDF5.jl package.
+"""
+struct PHDF5Driver <: ParallelIODriver end
 
 const HDF5FileOrGroup = Union{HDF5.HDF5File, HDF5.HDF5Group}
 
@@ -45,6 +53,32 @@ function check_hdf5_parallel()
     )
 end
 
+function keywords_to_h5open(; kw...)
+    flags = Base.open_flags(; kw...)
+    (
+        flags.read,
+        flags.write,
+        flags.create,
+        flags.truncate,
+        flags.append,
+    )
+end
+
+function Base.open(::PHDF5Driver, filename::AbstractString, comm::MPI.Comm,
+                   info::MPI.Info = MPI.Info(); kw...)
+    mode_args = keywords_to_h5open(; kw...)
+    check_hdf5_parallel()
+    # TODO accept other property lists
+    fcpl = HDF5.p_create(HDF5.H5P_FILE_CREATE)
+    fapl = HDF5.p_create(
+        HDF5.H5P_FILE_ACCESS,
+        "fapl_mpio", mpi_to_h5_handle.((comm, info)),
+        "fclose_degree", HDF5.H5F_CLOSE_STRONG,  # default in HDF5.jl -- makes sense due to GC
+    )
+    h5open(filename, mode_args..., fcpl, fapl)
+end
+
+# TODO deprecate and use Base.open instead
 """
     ph5open([f::Function], filename, [mode="r"], comm::MPI.Comm,
             [info::MPI.Info=MPI.Info()], prop_lists...) -> HDF5.File
