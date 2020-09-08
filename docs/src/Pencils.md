@@ -83,12 +83,14 @@ LogicalOrder
 ## Methods
 
 ```@docs
+topology(::Pencil)
 get_comm(::Pencil)
 get_decomposition(::Pencil)
 get_permutation(::Pencil)
 get_timer(::Pencil)
 length(::Pencil)
 ndims(::Pencil)
+range_remote
 range_local(::Pencil, ::LogicalOrder)
 size_global(::Pencil, ::LogicalOrder)
 size_local(::Pencil, etc...)

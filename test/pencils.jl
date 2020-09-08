@@ -222,6 +222,18 @@ function main()
         test_multiarrays(pen1, pen2, pen3)
     end
 
+    @testset "Topology" begin
+        @test topology(pen2) === topo
+        @test range_remote(pen2, topo.coords_local) == range_local(pen2)
+        @test eachindex(topo) isa LinearIndices
+        for (n, I) in zip(eachindex(topo), CartesianIndices(topo))
+            for order in (MemoryOrder(), LogicalOrder())
+                @test range_remote(pen2, Tuple(I), order) ==
+                    range_remote(pen2, n, order)
+            end
+        end
+    end
+
     # Note: the permutation of pen2 was chosen such that the inverse permutation
     # is different.
     @assert pen2.perm !== PA.inverse_permutation(pen2.perm)

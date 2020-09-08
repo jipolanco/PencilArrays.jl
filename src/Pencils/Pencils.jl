@@ -11,7 +11,8 @@ export Permutation, NoPermutation
 export MemoryOrder, LogicalOrder
 export get_decomposition, get_permutation
 export get_comm, get_timer
-export range_local, size_local, size_global, to_local
+export topology
+export range_local, range_remote, size_local, size_global, to_local
 
 # Describes the portion of an array held by a given MPI process.
 const ArrayRegion{N} = NTuple{N,UnitRange{Int}} where N
@@ -219,6 +220,13 @@ Get tuple with decomposed dimensions of the given pencil configuration.
 get_decomposition(p::Pencil) = p.decomp_dims
 
 """
+    topology(p::Pencil)
+
+Get [`MPITopology`](@ref) attached to `Pencil`.
+"""
+topology(p::Pencil) = p.topology
+
+"""
     length(p::Pencil)
 
 Get linear length of data associated to the local pencil layout.
@@ -239,6 +247,28 @@ range_local(p::Pencil, ::MemoryOrder) = p.axes_local_perm
 # TODO in the future, the deprecated function should be replaced by this
 # range_local(p) = range_local(p, DefaultOrder())
 range_local(p; permute=nothing) = range_local(p, _index_order_deprecated(permute))
+
+"""
+    range_remote(p::Pencil, (i, j, ...), [order = LogicalOrder()])
+    range_remote(p::Pencil, n::Integer, [order = LogicalOrder()])
+
+Get data range held by a given MPI process.
+
+In the first variant, `(i, j, ...)` are the coordinates of the MPI process in
+the Cartesian topology. It can also be given as a `CartesianIndex`.
+
+In the second variant, `n` is the linear index of a given process in the
+topology.
+"""
+range_remote(p::Pencil, n::Integer, ::LogicalOrder) = p.axes_all[n]
+range_remote(p::Pencil{N,M}, I::CartesianIndex{M}, ::LogicalOrder) where {N,M} =
+    p.axes_all[I]
+range_remote(p::Pencil{N,M}, I::Dims{M}, ::LogicalOrder) where {N,M} =
+    range_remote(p, CartesianIndex(I), LogicalOrder())
+range_remote(p, I) = range_remote(p, I, LogicalOrder())
+
+range_remote(p, I, ::MemoryOrder) =
+    permute_indices(range_remote(p, I, LogicalOrder()), p.perm)
 
 # Deprecations
 _index_order_deprecated(::Nothing) = DefaultOrder()
