@@ -33,7 +33,7 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     u = PencilArray{T}(undef, p)
     perm = get_permutation(p)
     let topo = topology(p)
-        I = topo.coords_local
+        I = coords_local(topo)
         @test range_remote(u, I) === range_remote(p, I)
     end
 
@@ -228,7 +228,7 @@ function main()
 
     @testset "Topology" begin
         @test topology(pen2) === topo
-        @test range_remote(pen2, topo.coords_local) == range_local(pen2)
+        @test range_remote(pen2, coords_local(topo)) == range_local(pen2)
         @test eachindex(topo) isa LinearIndices
         for (n, I) in zip(eachindex(topo), CartesianIndices(topo))
             for order in (MemoryOrder(), LogicalOrder())

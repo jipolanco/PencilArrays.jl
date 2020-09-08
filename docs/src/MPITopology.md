@@ -40,6 +40,7 @@ MPITopology
 
 ```@docs
 get_comm(::MPITopology)
+coords_local(::MPITopology)
 length(::MPITopology)
 ndims(::MPITopology)
 size(::MPITopology)

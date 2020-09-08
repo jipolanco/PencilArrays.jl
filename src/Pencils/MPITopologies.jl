@@ -1,7 +1,7 @@
 module MPITopologies
 
 export MPITopology
-export get_comm
+export get_comm, coords_local
 
 import MPI
 
@@ -153,6 +153,13 @@ Base.size(t::MPITopology) = t.dims
 Get total size of Cartesian topology (i.e. total number of MPI processes).
 """
 Base.length(t::MPITopology) = prod(size(t))
+
+"""
+    coords_local(t::MPITopology)
+
+Get coordinates of local process in MPI topology.
+"""
+coords_local(t::MPITopology) = t.coords_local
 
 """
     get_comm(t::MPITopology)

@@ -127,7 +127,7 @@ struct Pencil{
         _check_selected_dimensions(N, decomp_dims)
         decomp_dims = _sort_dimensions(decomp_dims)
         axes_all = get_axes_matrix(decomp_dims, topology.dims, size_global)
-        axes_local = axes_all[topology.coords_local...]
+        axes_local = axes_all[coords_local(topology)...]
         axes_local_perm = permute_indices(axes_local, permute)
         P = typeof(permute)
         new{N,M,P}(topology, size_global, decomp_dims, axes_all, axes_local,
