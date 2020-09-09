@@ -25,5 +25,4 @@ end
 
 # Find PencilArray or GlobalPencilArray among broadcast arguments.
 find_pa(bc::Broadcasted) = find_pa(bc.args...)
-find_pa() = nothing
 find_pa(::Any, args...) = find_pa(args...)
