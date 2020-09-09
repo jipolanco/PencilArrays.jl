@@ -31,20 +31,89 @@ Base.open(D::MPIIODriver, filename::AbstractString, comm::MPI.Comm; keywords...)
 # - optionally write metadata file?
 
 """
-    write(ff::MPI.FileHandle, x::PencilArray; collective=true)
+    write(ff::MPI.FileHandle, x::PencilArray; chunks=false, collective=true)
 
 Write [`PencilArray`](@ref) to binary file using MPI-IO.
 
-Each process writes to a separate block. Blocks are sorted by MPI rank.
-Data must be read back with the same number and distribution of MPI processes
-used for writing.
+# Optional arguments
+
+- if `chunks = true`, data is written in contiguous blocks, with one block per
+  process.
+  Otherwise, each process writes to discontiguous sections of disk, using
+  `MPI.File.set_view!` and custom datatypes.
+  Note that discontiguous I/O (the default) is more convenient, as it allows to
+  read back the data using a different number (or distribution) of MPI
+  processes.
+
+- if `collective = true`, the dataset is written collectivelly. This is
+  usually recommended for performance.
+
 """
-function Base.write(ff::MPI.FileHandle, x::PencilArray; collective=true)
+function Base.write(ff::MPI.FileHandle, x::PencilArray;
+                    collective=true, chunks=false)
+    if chunks
+        write_contiguous(ff, x, collective=collective)
+    else
+        write_discontiguous(ff, x, collective=collective)
+    end
+    nothing
+end
+
+function write_discontiguous(ff::MPI.FileHandle, x::PencilArray; collective)
     to = get_timer(pencil(x))
-    @timeit_debug to "Write MPI-IO" begin
+    @timeit_debug to "Write MPI-IO discontiguous" begin
+        disp = 0
+        etype = MPI.Datatype(eltype(x))
+        filetype = create_discontiguous_datatype(x, MemoryOrder())  # TODO cache datatype?
+        MPI.File.set_view!(ff, 0, etype, filetype)
+        A = parent(x)
+        if collective
+            MPI_File_write_all(ff, A)
+        else
+            MPI_File_write(ff, A)
+        end
+    end
+    nothing
+end
+
+# TODO add these to MPI.jl
+function MPI_File_write(file::MPI.FileHandle, buf::MPI.Buffer)
+    stat_ref = Ref{MPI.Status}(MPI.STATUS_EMPTY)
+    # int MPI_File_write(MPI_File fh, const void *buf,
+    #                    int count, MPI_Datatype datatype, MPI_Status *status)
+    MPI.@mpichk ccall((:MPI_File_write, MPI.libmpi), Cint,
+                      (MPI.MPI_File, MPI.MPIPtr, Cint, MPI.MPI_Datatype, Ptr{MPI.Status}),
+                      file, buf.data, buf.count, buf.datatype, stat_ref)
+    return stat_ref[]
+end
+
+function MPI_File_write_all(file::MPI.FileHandle, buf::MPI.Buffer)
+    stat_ref = Ref{MPI.Status}(MPI.STATUS_EMPTY)
+    # int MPI_File_write_all(MPI_File fh, const void *buf,
+    #                        int count, MPI_Datatype datatype, MPI_Status *status)
+    MPI.@mpichk ccall((:MPI_File_write_all, MPI.libmpi), Cint,
+                      (MPI.MPI_File, MPI.MPIPtr, Cint, MPI.MPI_Datatype, Ptr{MPI.Status}),
+                      file, buf.data, buf.count, buf.datatype, stat_ref)
+    return stat_ref[]
+end
+
+MPI_File_write(file::MPI.FileHandle, data) = MPI_File_write(file, MPI.Buffer_send(data))
+MPI_File_write_all(file::MPI.FileHandle, data) = MPI_File_write_all(file, MPI.Buffer_send(data))
+
+function create_discontiguous_datatype(x::PencilArray, order=MemoryOrder())
+    sizes = size_global(x, order)
+    subsizes = size_local(x, order)
+    offsets = map(r -> first(r) - 1, range_local(x, order))
+    oldtype = MPI.Datatype(eltype(x), commit=false)
+    dtype = MPI.Types.create_subarray(sizes, subsizes, offsets, oldtype)
+    MPI.Types.commit!(dtype)
+    dtype
+end
+
+function write_contiguous(ff::MPI.FileHandle, x::PencilArray; collective)
+    to = get_timer(pencil(x))
+    @timeit_debug to "Write MPI-IO contiguous" begin
         offset = mpi_io_offset(x)
-        # dtype = MPI.Datatype(T)
-        # MPI.File.set_view!(ff, dest, dtype, dtype)
         A = parent(x)
         if collective
             MPI.File.write_at_all(ff, offset, A)

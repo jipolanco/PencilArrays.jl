@@ -20,8 +20,19 @@ using .MPITools
 function test_write_mpiio(filename, u::PencilArray)
     comm = get_comm(u)
 
+    # TODO simplify this once broadcasting works properly...
+    # (example: u .+ 1 should return a PencilArray)
+    X = (u, copy(u), copy(u), copy(u))
+    X[2] .+= 1
+    X[3] .+= 2
+    X[4] .+= 3
+    
+    kws = Iterators.product((false, true), (false, true))
+
     @test_nowarn open(MPIIODriver(), filename, comm, write=true) do ff
-        write(ff, u, collective=true)
+        for (n, (collective, chunks)) in enumerate(kws)
+            write(ff, X[n], collective=collective, chunks=chunks)
+        end
     end
 
     # TODO
@@ -116,11 +127,11 @@ function main()
 
     filename = MPI.bcast(tempname(), 0, comm)
 
-    @testset "write mpi-io" begin
+    @testset "Write MPI-IO" begin
         test_write_mpiio(filename, u)
     end
 
-    @testset "write HDF5" begin
+    @testset "Write HDF5" begin
         test_write_hdf5(filename, u)
     end
 
