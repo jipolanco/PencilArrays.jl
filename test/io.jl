@@ -31,15 +31,28 @@ function test_write_mpiio(filename, u::PencilArray)
 
     @test_nowarn open(MPIIODriver(), filename, comm,
                       write=true, create=true) do ff
-        for (n, (collective, chunks)) in enumerate(kws)
-            write(ff, X[n], collective=collective, chunks=chunks)
+        off = 0
+        for (u, (collective, chunks)) in zip(X, kws)
+            off += write(ff, u, offset=off, collective=collective, chunks=chunks)
         end
     end
 
     # TODO
     # - append data
     # - collections
-    # - read contents
+
+    # Read stuff
+    Y = similar.(X)
+    @test_nowarn open(MPIIODriver(), filename, comm, read=true) do ff
+        off = 0
+        for (u, (collective, chunks)) in zip(Y, kws)
+            off += read!(ff, u, offset=off, collective=collective, chunks=chunks)
+        end
+    end
+
+    for (x, y) in zip(X, Y)
+        @test x == y
+    end
 
     nothing
 end

@@ -92,6 +92,7 @@ MPIIODriver
 PHDF5Driver
 ph5open
 setindex!
+write
 read!
 hdf5_has_parallel
 ```
