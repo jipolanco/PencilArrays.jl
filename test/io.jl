@@ -29,7 +29,8 @@ function test_write_mpiio(filename, u::PencilArray)
     
     kws = Iterators.product((false, true), (false, true))
 
-    @test_nowarn open(MPIIODriver(), filename, comm, write=true) do ff
+    @test_nowarn open(MPIIODriver(), filename, comm,
+                      write=true, create=true) do ff
         for (n, (collective, chunks)) in enumerate(kws)
             write(ff, X[n], collective=collective, chunks=chunks)
         end

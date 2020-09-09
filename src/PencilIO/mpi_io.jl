@@ -1,3 +1,7 @@
+# TODO
+# - provide setindex! for compat with HDF5
+# - support array collections?
+
 export MPIIODriver
 
 """
@@ -8,12 +12,10 @@ MPI-IO driver using the MPI.jl package.
 Keyword arguments are passed to
 [`MPI.File.open`](https://juliaparallel.github.io/MPI.jl/latest/io/#MPI.File.open).
 """
-struct MPIIODriver <: ParallelIODriver
-    sequential :: Bool
-    uniqueopen :: Bool
-    deleteonclose :: Bool
-    MPIIODriver(; sequential=false, uniqueopen=false, deleteonclose=false) =
-        new(sequential, uniqueopen, deleteonclose)
+Base.@kwdef struct MPIIODriver <: ParallelIODriver
+    sequential    :: Bool = false
+    uniqueopen    :: Bool = false
+    deleteonclose :: Bool = false
 end
 
 Base.open(D::MPIIODriver, filename::AbstractString, comm::MPI.Comm; keywords...) =
@@ -23,15 +25,9 @@ Base.open(D::MPIIODriver, filename::AbstractString, comm::MPI.Comm; keywords...)
         deleteonclose=D.deleteonclose, keywords...,
     )
 
-# TODO
-# - provide setindex! for compat with HDF5
-# - collective / independent I/O
-# - support array collections?
-# - write data into one block per rank
-# - optionally write metadata file?
-
 """
-    write(ff::MPI.FileHandle, x::PencilArray; chunks=false, collective=true)
+    write(ff::MPI.FileHandle, x::PencilArray;
+          chunks=false, collective=true, infokws...)
 
 Write [`PencilArray`](@ref) to binary file using MPI-IO.
 
@@ -42,30 +38,33 @@ Write [`PencilArray`](@ref) to binary file using MPI-IO.
   Otherwise, each process writes to discontiguous sections of disk, using
   `MPI.File.set_view!` and custom datatypes.
   Note that discontiguous I/O (the default) is more convenient, as it allows to
-  read back the data using a different number (or distribution) of MPI
-  processes.
+  read back the data using a different number or distribution of MPI processes.
 
 - if `collective = true`, the dataset is written collectivelly. This is
   usually recommended for performance.
 
+- when writing discontiguous blocks, additional keyword arguments are passed via
+  a `MPI.Info` object to `MPI.File.set_view!`. This is ignored if `chunks = true`.
+
 """
 function Base.write(ff::MPI.FileHandle, x::PencilArray;
-                    collective=true, chunks=false)
+                    collective=true, chunks=false, kw...)
     if chunks
-        write_contiguous(ff, x, collective=collective)
+        write_contiguous(ff, x; collective=collective, kw...)
     else
-        write_discontiguous(ff, x, collective=collective)
+        write_discontiguous(ff, x; collective=collective, kw...)
     end
     nothing
 end
 
-function write_discontiguous(ff::MPI.FileHandle, x::PencilArray; collective)
+function write_discontiguous(ff::MPI.FileHandle, x::PencilArray;
+                             collective, infokws...)
     to = get_timer(pencil(x))
     @timeit_debug to "Write MPI-IO discontiguous" begin
         disp = 0
         etype = MPI.Datatype(eltype(x))
         filetype = create_discontiguous_datatype(x, MemoryOrder())  # TODO cache datatype?
-        MPI.File.set_view!(ff, 0, etype, filetype)
+        MPI.File.set_view!(ff, 0, etype, filetype; infokws...)
         A = parent(x)
         if collective
             MPI_File_write_all(ff, A)
@@ -110,7 +109,8 @@ function create_discontiguous_datatype(x::PencilArray, order=MemoryOrder())
     dtype
 end
 
-function write_contiguous(ff::MPI.FileHandle, x::PencilArray; collective)
+function write_contiguous(ff::MPI.FileHandle, x::PencilArray;
+                          collective, infokws...)
     to = get_timer(pencil(x))
     @timeit_debug to "Write MPI-IO contiguous" begin
         offset = mpi_io_offset(x)
