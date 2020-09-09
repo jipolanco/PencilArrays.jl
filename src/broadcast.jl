@@ -1,4 +1,4 @@
-using Base.Broadcast: BroadcastStyle, ArrayStyle, Broadcasted
+using Base.Broadcast: BroadcastStyle, ArrayStyle, DefaultArrayStyle, Broadcasted
 
 for PA in (PencilArray, GlobalPencilArray)
     @eval begin
@@ -22,6 +22,15 @@ function BroadcastStyle(
     ) where {A <: AbstractArray}
     throw(ArgumentError("cannot combine $A and GlobalPencilArray in broadcast"))
 end
+
+# For the same reasons, disallow broadcasting between generic array and
+# GlobalPencilArray.
+function BroadcastStyle(::ArrayStyle{GlobalPencilArray}, ::DefaultArrayStyle)
+    throw(ArgumentError("cannot combine generic arrays and GlobalPencilArray in broadcast"))
+end
+
+# Exception: broadcasting with scalars.
+BroadcastStyle(style::ArrayStyle{GlobalPencilArray}, ::DefaultArrayStyle{0}) = style
 
 # Find PencilArray or GlobalPencilArray among broadcast arguments.
 find_pa(bc::Broadcasted) = find_pa(bc.args...)

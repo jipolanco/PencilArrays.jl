@@ -11,6 +11,10 @@ comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 Nproc = MPI.Comm_size(comm)
 
+let dev_null = @static Sys.iswindows() ? "nul" : "/dev/null"
+    rank == 0 || redirect_stdout(open(dev_null, "w"))
+end
+
 topo = MPITopology(comm, (Nproc, ))
 
 pen = Pencil(topo, (11, 12), (2, ))
@@ -37,13 +41,7 @@ end
 
     # Combine PencilArray and GlobalPencilArray
     @test_throws ArgumentError A .+ G
-    # @test_throws ArgumentError P .+ G  # this is still allowed...
-end
 
-# TODO
-# - global and local indexing: make them incompatible?
-# - in-place broadcasting?
-#   * check that it doesn't allocate
-# - permutations?
-#   * performance / iteration order?
-#   * combinations with non-permuted arrays?
+    # Combine Array and GlobalPencilArray
+    @test_throws ArgumentError P .+ G
+end
