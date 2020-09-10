@@ -13,17 +13,6 @@ for PA in (PencilArray, GlobalPencilArray)
     end
 end
 
-# For some reason, defining this improves performance a bit, and doesn't change
-# the result.
-function Base.copyto!(dest::Union{PencilArray,GlobalPencilArray},
-                      bc::Broadcasted{Nothing})
-    @assert size(dest) === size(bc)
-    @inbounds for n in eachindex(dest)
-        dest[n] = bc[n]
-    end
-    dest
-end
-
 # Make PencilArray and GlobalPencilArray incompatible for broadcasting.
 # Without this, broadcasting will work with 1 MPI process, but fail with more
 # (with an error by OffsetArrays), which is annoying when testing code.
