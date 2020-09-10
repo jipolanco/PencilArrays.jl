@@ -26,7 +26,9 @@ function test_pencil(pen)
         let y = similar(x)
             broadcast!(+, y, x, x, 3)  # precompile before measuring allocations
             alloc = @allocated broadcast!(+, y, x, x, 3)
-            @test alloc == 0
+            if VERSION ≥ v"1.5"  # there are small allocations in Julia 1.3
+                @test alloc == 0
+            end
             @test y ≈ 2x .+ 3
         end
     end
