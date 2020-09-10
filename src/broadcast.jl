@@ -9,7 +9,7 @@ for PA in (PencilArray, GlobalPencilArray)
             similar(A, T, axes(bc))
         end
 
-        find_pa(A::$PA, args...) = A
+        find_pa(A::$PA, rest) = A
     end
 end
 
@@ -44,5 +44,7 @@ end
 BroadcastStyle(style::ArrayStyle{GlobalPencilArray}, ::DefaultArrayStyle{0}) = style
 
 # Find PencilArray or GlobalPencilArray among broadcast arguments.
-find_pa(bc::Broadcasted) = find_pa(bc.args...)
-find_pa(::Any, args...) = find_pa(args...)
+find_pa(bc::Broadcasted) = find_pa(bc.args)
+find_pa(args::Tuple) = find_pa(find_pa(args[1]), Base.tail(args))
+find_pa(x) = x
+find_pa(::Any, rest) = find_pa(rest)
