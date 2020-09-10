@@ -24,6 +24,7 @@ function test_pencil(pen)
     @testset "Broadcast $(nameof(typeof(x)))" for x in (A, G)
         test_broadcast(x)
         let y = similar(x)
+            broadcast!(+, y, x, x, 3)  # precompile before measuring allocations
             alloc = @allocated broadcast!(+, y, x, x, 3)
             @test alloc == 0
             @test y ≈ 2x .+ 3
