@@ -23,6 +23,11 @@ function test_pencil(pen)
 
     @testset "Broadcast $(nameof(typeof(x)))" for x in (A, G)
         test_broadcast(x)
+        let y = similar(x)
+            alloc = @allocated broadcast!(+, y, x, x, 3)
+            @test alloc == 0
+            @test y ≈ 2x .+ 3
+        end
     end
 
     @testset "Combinations" begin
@@ -42,6 +47,7 @@ end
 function test_broadcast(A)
     @test typeof(2A) == typeof(A)
     @test typeof(A .+ A) == typeof(A)
+    @test typeof(A .+ A .+ 3) == typeof(A)
     @test parent(2A) == 2parent(A)
     nothing
 end
