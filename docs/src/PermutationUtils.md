@@ -7,6 +7,7 @@ CurrentModule = PencilArrays.Permutations
 ```
 
 ```@docs
+Tuple
 append_to_permutation
 check_permutation
 inverse_permutation

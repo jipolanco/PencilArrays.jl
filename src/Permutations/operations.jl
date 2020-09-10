@@ -1,9 +1,26 @@
 ## Permutation operations ##
 
-# Extract tuple representation of Permutation.
-# The result can be passed to functions like permutedims.
+"""
+    Tuple(perm::Permutation)
+
+Extract tuple representation of Permutation.
+
+The result can be passed to `permutedims` and `PermutedDimsArray`.
+
+Returns `nothing` if `perm` is a `NoPermutation`.
+
+# Examples
+
+```jldoctest
+julia> Tuple(Permutation(3, 2, 1))
+(3, 2, 1)
+
+julia> Tuple(NoPermutation()) === nothing
+true
+```
+"""
 Base.Tuple(::Permutation{p}) where {p} = p
-Base.Tuple(::NoPermutation) = error("cannot convert NoPermutation to tuple")
+Base.Tuple(::NoPermutation) = nothing
 
 Base.length(::Permutation{p}) where {p} = length(p)
 
