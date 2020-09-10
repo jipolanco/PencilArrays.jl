@@ -15,13 +15,29 @@ let dev_null = @static Sys.iswindows() ? "nul" : "/dev/null"
     rank == 0 || redirect_stdout(open(dev_null, "w"))
 end
 
-topo = MPITopology(comm, (Nproc, ))
+function test_pencil(pen)
+    A = PencilArray{Float64}(undef, pen)
+    G = global_view(A)
+    randn!(A)
+    perm = Tuple(get_permutation(A))
 
-pen = Pencil(topo, (11, 12), (2, ))
+    @testset "Broadcast $(nameof(typeof(x)))" for x in (A, G)
+        test_broadcast(x)
+    end
 
-A = PencilArray{Float64}(undef, pen)
-G = global_view(A)
-randn!(A)
+    @testset "Combinations" begin
+        # Combine with regular Array
+        P = parent(A) :: Array
+        P′ = perm === nothing ? P : PermutedDimsArray(P, perm)
+        @test typeof(P′ .+ A) == typeof(A)
+
+        # Combine PencilArray and GlobalPencilArray
+        @test_throws ArgumentError A .+ G
+
+        # Combine Array and GlobalPencilArray
+        @test_throws ArgumentError P .+ G
+    end
+end
 
 function test_broadcast(A)
     @test typeof(2A) == typeof(A)
@@ -30,18 +46,13 @@ function test_broadcast(A)
     nothing
 end
 
-@testset "Broadcast $(typeof(x))" for x in (A, G)
-    test_broadcast(x)
-end
+topo = MPITopology(comm, (Nproc, ))
 
-@testset "Combinations" begin
-    # Combine with regular Array
-    P = parent(A) :: Array
-    @test typeof(P .+ A) == typeof(A)
+pencils = (
+    "Non-permuted" => Pencil(topo, (11, 12), (2, )),
+    "Permuted" => Pencil(topo, (11, 12), (2, ), permute=Permutation(2, 1)),
+)
 
-    # Combine PencilArray and GlobalPencilArray
-    @test_throws ArgumentError A .+ G
-
-    # Combine Array and GlobalPencilArray
-    @test_throws ArgumentError P .+ G
+@testset "$s" for (s, pen) in pencils
+    test_pencil(pen)
 end
