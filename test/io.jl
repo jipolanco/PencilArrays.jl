@@ -20,13 +20,8 @@ using .MPITools
 function test_write_mpiio(filename, u::PencilArray)
     comm = get_comm(u)
 
-    # TODO simplify this once broadcasting works properly...
-    # (example: u .+ 1 should return a PencilArray)
-    X = (u, copy(u), copy(u), copy(u))
-    X[2] .+= 1
-    X[3] .+= 2
-    X[4] .+= 3
-    
+    X = (u, u .+ 1, u .+ 2, u .+ 3)
+
     kws = Iterators.product((false, true), (false, true))
 
     @test_nowarn open(MPIIODriver(), filename, comm,
@@ -61,11 +56,8 @@ function test_write_hdf5(filename, u::PencilArray)
     comm = get_comm(u)
     info = MPI.Info()
     rank = MPI.Comm_rank(comm)
-
-    v = copy(u)
-    w = copy(u)
-    v .+= 1
-    w .+= 2
+    v = u .+ 1
+    w = u .+ 2
 
     # Open file in serial mode first.
     if rank == 0
