@@ -19,16 +19,19 @@ using .MPITools
 
 function test_write_mpiio(filename, u::PencilArray)
     comm = get_comm(u)
+    root = 0
+    rank = MPI.Comm_rank(comm)
 
     X = (u, u .+ 1, u .+ 2, u .+ 3)
+    Xfull = gather.(X)
 
     kws = Iterators.product((false, true), (false, true))
 
     @test_nowarn open(MPIIODriver(), filename, comm,
                       write=true, create=true) do ff
         off = 0
-        for (u, (collective, chunks)) in zip(X, kws)
-            off += write(ff, u, offset=off, collective=collective, chunks=chunks)
+        for (i, (collective, chunks)) in enumerate(kws)
+            off += write(ff, X[i], offset=off, collective=collective, chunks=chunks)
         end
     end
 
@@ -37,16 +40,19 @@ function test_write_mpiio(filename, u::PencilArray)
     # - collections
 
     # Read stuff
-    Y = similar.(X)
+    y = similar(X[1])
     @test_nowarn open(MPIIODriver(), filename, comm, read=true) do ff
         off = 0
-        for (u, (collective, chunks)) in zip(Y, kws)
-            off += read!(ff, u, offset=off, collective=collective, chunks=chunks)
+        for (i, (collective, chunks)) in enumerate(kws)
+            off += read!(ff, y, offset=off, collective=collective, chunks=chunks)
+            @test X[i] == y
+            let yfull = gather(y, root)
+                @test (yfull === nothing) == (rank != root)
+                if yfull !== nothing
+                    @test Xfull[i] == yfull
+                end
+            end
         end
-    end
-
-    for (x, y) in zip(X, Y)
-        @test x == y
     end
 
     nothing
