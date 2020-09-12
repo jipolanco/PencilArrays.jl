@@ -1,7 +1,3 @@
-# TODO
-# - provide setindex! for compat with HDF5
-# - support array collections?
-
 export MPIIODriver
 
 """
@@ -18,26 +14,44 @@ Base.@kwdef struct MPIIODriver <: ParallelIODriver
     deleteonclose :: Bool = false
 end
 
+"""
+    MPIFile
+
+Wraps a `MPI.FileHandle`, also including file position information.
+
+File position is updated when reading and writing data, and is independent of
+the individual and shared file pointers defined by MPI.
+"""
+mutable struct MPIFile
+    file     :: MPI.FileHandle
+    position :: Int  # file position in bytes
+    MPIFile(file) = new(file, 0)
+end
+
+MPIFile(comm::MPI.Comm, filename; kw...) =
+    MPIFile(MPI.File.open(comm, filename; kw...))
+
+Base.parent(ff::MPIFile) = ff.file
+Base.close(ff::MPIFile) = close(parent(ff))
+Base.position(ff::MPIFile) = ff.position
+Base.skip(ff::MPIFile, offset) = ff.position += offset
+
 Base.open(D::MPIIODriver, filename::AbstractString, comm::MPI.Comm; keywords...) =
-    MPI.File.open(
+    MPIFile(
         comm, filename;
         sequential=D.sequential, uniqueopen=D.uniqueopen,
         deleteonclose=D.deleteonclose, keywords...,
     )
 
 """
-    write(file::MPI.FileHandle, x::PencilArray; offset=0, chunks=false,
-          collective=true, infokws...) -> Int
+    write(file::MPIFile, x::PencilArray;
+          chunks = false, collective = true, infokws...)
 
 Write [`PencilArray`](@ref) to binary file using MPI-IO.
 
 Returns the number of bytes written by all processes.
-This may be useful for setting the `offset` argument in a future call to this
-function.
 
 # Optional arguments
-
-- `offset` is the number of bytes to skip from the beginning of the file.
 
 - if `chunks = true`, data is written in contiguous blocks, with one block per
   process.
@@ -53,36 +67,42 @@ function.
   an `MPI.Info` object to `MPI.File.set_view!`. This is ignored if `chunks = true`.
 
 """
-function Base.write(ff::MPI.FileHandle, x::PencilArray;
-                    offset=0, collective=true, chunks=false, kw...)
+function Base.write(ff::MPIFile, x::PencilArray;
+                    collective=true, chunks=false, kw...)
+    file = parent(ff)
+    offset = position(ff)
     if chunks
-        write_contiguous(ff, x; offset=offset, collective=collective, kw...)
+        write_contiguous(file, x; offset=offset, collective=collective, kw...)
     else
-        write_discontiguous(ff, x; offset=offset, collective=collective, kw...)
+        write_discontiguous(file, x; offset=offset, collective=collective, kw...)
     end
-    prod(size_global(x)) * sizeof(eltype(x))
+    nb = sizeof_global(x)
+    skip(ff, nb)
+    nb
 end
 
 """
-    read!(file::MPI.FileHandle, x::PencilArray; offset=0, chunks=false,
-          collective=true, infokws...) -> Int
+    read!(file::MPIFile, x::PencilArray;
+          chunks = false, collective = true, infokws...)
 
 Read binary data from an MPI-IO stream, filling in [`PencilArray`](@ref).
 
-Returns the number of bytes written by all processes.
-This may be useful for setting the `offset` argument in a future call to this
-function.
+Returns the number of bytes read by all processes.
 
-See [`write`](@ref write(::MPI.FileHandle)) for details on keyword arguments.
+See [`write`](@ref write(::MPIFile)) for details on keyword arguments.
 """
-function Base.read!(ff::MPI.FileHandle, x::PencilArray;
-                    offset=0, collective=true, chunks=false, kw...)
+function Base.read!(ff::MPIFile, x::PencilArray;
+                    collective=true, chunks=false, kw...)
+    file = parent(ff)
+    offset = position(ff)
     if chunks
-        read_contiguous!(ff, x; offset=offset, collective=collective, kw...)
+        read_contiguous!(file, x; offset=offset, collective=collective, kw...)
     else
-        read_discontiguous!(ff, x; offset=offset, collective=collective, kw...)
+        read_discontiguous!(file, x; offset=offset, collective=collective, kw...)
     end
-    prod(size_global(x)) * sizeof(eltype(x))
+    nb = sizeof_global(x)
+    skip(ff, nb)
+    nb
 end
 
 function write_discontiguous(ff::MPI.FileHandle, x::PencilArray;

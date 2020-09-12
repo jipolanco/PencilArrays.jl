@@ -90,6 +90,7 @@ open
 PencilIO.ParallelIODriver
 MPIIODriver
 PHDF5Driver
+PencilIO.MPIFile
 ph5open
 setindex!
 write

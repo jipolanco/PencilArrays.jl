@@ -31,7 +31,10 @@ function test_write_mpiio(filename, u::PencilArray)
                       write=true, create=true) do ff
         off = 0
         for (i, (collective, chunks)) in enumerate(kws)
-            off += write(ff, X[i], offset=off, collective=collective, chunks=chunks)
+            nb = write(ff, X[i], collective=collective, chunks=chunks)
+            @test nb == sizeof_global(X[i])
+            off += nb
+            @test position(ff) == off
         end
     end
 
@@ -42,10 +45,9 @@ function test_write_mpiio(filename, u::PencilArray)
     # Read stuff
     y = similar(X[1])
     @test_nowarn open(MPIIODriver(), filename, comm, read=true) do ff
-        off = 0
         for (i, (collective, chunks)) in enumerate(kws)
-            off += read!(ff, y, offset=off, collective=collective, chunks=chunks)
-            @test X[i] == y
+            nb = read!(ff, y, collective=collective, chunks=chunks)
+            @test nb == sizeof_global(y)
             let yfull = gather(y, root)
                 @test (yfull === nothing) == (rank != root)
                 if yfull !== nothing
