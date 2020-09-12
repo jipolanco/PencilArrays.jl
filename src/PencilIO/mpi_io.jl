@@ -28,8 +28,16 @@ mutable struct MPIFile
     MPIFile(file) = new(file, 0)
 end
 
-MPIFile(comm::MPI.Comm, filename; kw...) =
-    MPIFile(MPI.File.open(comm, filename; kw...))
+function MPIFile(comm::MPI.Comm, filename; append=false, kw...)
+    # Append mode is not supported.
+    # Appending can be unpredictable, because the MPI implementation may pad
+    # each dataset (or file?) with extra (mega)bytes, I guess for alignment
+    # purposes.
+    if append
+        throw(ArgumentError("append=true not supported by MPI-IO driver"))
+    end
+    MPIFile(MPI.File.open(comm, filename; append=append, kw...))
+end
 
 Base.parent(ff::MPIFile) = ff.file
 Base.close(ff::MPIFile) = close(parent(ff))
@@ -87,8 +95,6 @@ end
 
 Read binary data from an MPI-IO stream, filling in [`PencilArray`](@ref).
 
-Returns the number of bytes read by all processes.
-
 See [`write`](@ref write(::MPIFile)) for details on keyword arguments.
 """
 function Base.read!(ff::MPIFile, x::PencilArray;
@@ -100,9 +106,8 @@ function Base.read!(ff::MPIFile, x::PencilArray;
     else
         read_discontiguous!(file, x; offset=offset, collective=collective, kw...)
     end
-    nb = sizeof_global(x)
-    skip(ff, nb)
-    nb
+    skip(ff, sizeof_global(x))
+    x
 end
 
 function write_discontiguous(ff::MPI.FileHandle, x::PencilArray;

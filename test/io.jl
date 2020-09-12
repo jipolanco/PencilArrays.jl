@@ -5,6 +5,7 @@ using MPI
 using HDF5
 using PencilArrays
 using PencilArrays.PencilIO
+using InteractiveUtils
 
 if !PencilIO.hdf5_has_parallel()
     @warn "HDF5 has no parallel support. Skipping HDF5 tests."
@@ -23,37 +24,54 @@ function test_write_mpiio(filename, u::PencilArray)
     rank = MPI.Comm_rank(comm)
 
     X = (u, u .+ 1, u .+ 2, u .+ 3)
-    Xfull = gather.(X)
 
     kws = Iterators.product((false, true), (false, true))
 
-    @test_nowarn open(MPIIODriver(), filename, comm,
-                      write=true, create=true) do ff
-        off = 0
+    @test_nowarn open(MPIIODriver(), filename, comm, write=true, create=true) do ff
+        pos = 0
         for (i, (collective, chunks)) in enumerate(kws)
             nb = write(ff, X[i], collective=collective, chunks=chunks)
             @test nb == sizeof_global(X[i])
-            off += nb
-            @test position(ff) == off
+            pos += nb
+            @test position(ff) == pos
         end
     end
 
-    # TODO
-    # - append data
-    # - collections
+    # Append mode is not supported.
+    @test_throws ArgumentError open(MPIIODriver(), filename, comm, write=true,
+                                    append=true)
+
+    # Test file contents in serial mode.
+    # First, gather data from all processes.
+    # Note that we may need to permute indices of data, since data on disk is
+    # written in memory (not logical) order.
+    perm = Tuple(get_permutation(u))
+    Xg = map(X) do x
+        xg = gather(x, root)  # note: data is in logical order
+        xg === nothing && return xg
+        perm === nothing && return xg
+        PermutedDimsArray(xg, perm)
+    end
+
+    @test (Xg[1] === nothing) == (rank != root)
+    if rank == root
+        open(filename, "r") do ff
+            y = similar(Xg[1])
+            for (i, (collective, chunks)) in enumerate(kws)
+                read!(ff, y)
+                if !chunks  # if chunks = true, data is reordered into blocks
+                    @test y ≈ Xg[i]
+                end
+            end
+        end
+    end
 
     # Read stuff
     y = similar(X[1])
     @test_nowarn open(MPIIODriver(), filename, comm, read=true) do ff
         for (i, (collective, chunks)) in enumerate(kws)
-            nb = read!(ff, y, collective=collective, chunks=chunks)
-            @test nb == sizeof_global(y)
-            let yfull = gather(y, root)
-                @test (yfull === nothing) == (rank != root)
-                if yfull !== nothing
-                    @test Xfull[i] == yfull
-                end
-            end
+            read!(ff, y, collective=collective, chunks=chunks)
+            @test y == X[i]
         end
     end
 
