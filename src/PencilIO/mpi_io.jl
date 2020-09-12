@@ -155,8 +155,11 @@ function MPI_File_read_all!(file::MPI.FileHandle, buf::MPI.Buffer)
     return stat_ref[]
 end
 
-for f in (:MPI_File_write, :MPI_File_write_all, :MPI_File_read!, :MPI_File_read_all!)
+for f in (:MPI_File_write, :MPI_File_write_all)
     @eval $f(file::MPI.FileHandle, data) = $f(file, MPI.Buffer_send(data))
+end
+for f in (:MPI_File_read!, :MPI_File_read_all!)
+    @eval $f(file::MPI.FileHandle, data) = $f(file, MPI.Buffer(data))
 end
 
 function set_view!(ff, x::PencilArray, offset; infokws...)
