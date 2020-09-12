@@ -20,7 +20,7 @@ export PencilArray, GlobalPencilArray, PencilArrayCollection, ManyPencilArray
 export pencil
 export gather
 export global_view
-export ndims_extra, ndims_space, extra_dims
+export ndims_extra, ndims_space, extra_dims, sizeof_global
 
 # Type definitions
 include("arrays.jl")       # PencilArray

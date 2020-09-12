@@ -39,6 +39,11 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
 
     @test eltype(u) === eltype(u.data) === T
     @test length.(axes(u)) === size(u)
+    @test sizeof_global(u) == sizeof(T) * prod(size_global(u))
+    @test sizeof_global((u, u)) == 2 * sizeof_global(u)
+    let umat = [u for i = 1:2, j = 1:3]
+        @test sizeof_global(umat) == 6 * sizeof_global(u)
+    end
 
     randn!(u)
     @test check_iteration_order(u)

@@ -129,7 +129,7 @@ for `PencilArrayCollection`, and return the same value as for a single
 Some examples are [`pencil`](@ref), [`range_local`](@ref) and
 [`get_comm`](@ref).
 
-Also note that functions from `Base`, such as `size` or `ndims`, are **not**
+Also note that functions from `Base`, such as `size`, `ndims` and `eltype`, are **not**
 overloaded for `PencilArrayCollection`, since they already have a definition
 for tuples and arrays (and redefining them would be type piracy...).
 """
@@ -308,6 +308,15 @@ See also [`size_global(::Pencil)`](@ref).
 """
 size_global(x::MaybePencilArrayCollection, args...; kw...) =
     (size_global(pencil(x), args...; kw...)..., extra_dims(x)...)
+
+"""
+    sizeof_global(x::PencilArray)
+    sizeof_global(x::PencilArrayCollection)
+
+Global size of array in bytes.
+"""
+sizeof_global(x::PencilArray) = prod(size_global(x)) * sizeof(eltype(x))
+sizeof_global(x::PencilArrayCollection) = sum(sizeof_global.(x))
 
 """
     range_local(x::PencilArray, [order = LogicalOrder()])
