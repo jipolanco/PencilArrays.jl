@@ -5,7 +5,6 @@ using MPI
 using HDF5
 using PencilArrays
 using PencilArrays.PencilIO
-using InteractiveUtils
 
 if !PencilIO.hdf5_has_parallel()
     @warn "HDF5 has no parallel support. Skipping HDF5 tests."
