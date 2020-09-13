@@ -100,6 +100,7 @@ size(::PencilArray)
 size_local(::MaybePencilArrayCollection)
 size_global(::MaybePencilArrayCollection)
 sizeof_global(::PencilArray)
+topology(::MaybePencilArrayCollection)
 ```
 
 ### ManyPencilArray

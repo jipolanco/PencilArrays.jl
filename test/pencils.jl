@@ -33,6 +33,7 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     u = PencilArray{T}(undef, p)
     perm = get_permutation(p)
     let topo = topology(p)
+        @test topo === topology(u)
         I = coords_local(topo)
         @test range_remote(u, I) === range_remote(p, I)
     end

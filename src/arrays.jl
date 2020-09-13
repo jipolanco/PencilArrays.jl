@@ -369,6 +369,14 @@ function get_permutation(x::MaybePencilArrayCollection)
 end
 
 """
+    topology(x::PencilArray)
+    topology(x::PencilArrayCollection)
+
+Get [`MPITopology`](@ref) associated to a `PencilArray`.
+"""
+topology(x::MaybePencilArrayCollection) = topology(pencil(x))
+
+"""
     gather(x::PencilArray, [root::Integer=0])
 
 Gather data from all MPI processes into one (big) array.
