@@ -10,7 +10,7 @@ const MPIIO_VERSION = v"0.3"
 StructTypes.StructType(::Type{typeof(MPIIO_VERSION)}) = StructTypes.Struct()
 
 """
-    MPIIODriver(; sequential=false, uniqueopen=false, deleteonclose=false)
+    MPIIODriver(; sequential = false, uniqueopen = false, deleteonclose = false)
 
 MPI-IO driver using the MPI.jl package.
 

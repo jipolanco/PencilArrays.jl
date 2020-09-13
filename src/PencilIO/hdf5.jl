@@ -2,15 +2,37 @@ using .HDF5
 import Libdl
 
 export PHDF5Driver
-export ph5open
 
-# TODO include property lists in driver
 """
-    PHDF5Driver <: ParallelIODriver
+    PHDF5Driver(; fcpl, fapl)
 
 Parallel HDF5 driver using the HDF5.jl package.
+
+HDF5 file creation and file access property lists may be specified via the
+`fcpl` and `fapl` keyword arguments respectively.
+
+Note that the MPIO file access property list does not need to be set, as this is
+done automatically by this driver when the file is opened.
 """
-struct PHDF5Driver <: ParallelIODriver end
+struct PHDF5Driver <: ParallelIODriver
+    fcpl :: HDF5Properties
+    fapl :: HDF5Properties
+    function PHDF5Driver(;
+            fcpl = HDF5.DEFAULT_PROPERTIES,
+            fapl = HDF5.DEFAULT_PROPERTIES,
+        )
+        check_hdf5_parallel()
+        if fcpl == HDF5.DEFAULT_PROPERTIES
+            fcpl = HDF5.p_create(HDF5.H5P_FILE_CREATE)
+        end
+        if fapl == HDF5.DEFAULT_PROPERTIES
+            fapl = HDF5.p_create(HDF5.H5P_FILE_ACCESS)
+            # This is the default in HDF5.jl -- makes sense due to GC
+            fapl["fclose_degree"] = HDF5.H5F_CLOSE_STRONG
+        end
+        new(fcpl, fapl)
+    end
+end
 
 const HDF5FileOrGroup = Union{HDF5.HDF5File, HDF5.HDF5Group}
 
@@ -60,68 +82,11 @@ function keywords_to_h5open(; kws...)
     ), other_kws
 end
 
-function Base.open(::PHDF5Driver, filename::AbstractString, comm::MPI.Comm; kw...)
-    check_hdf5_parallel()
+function Base.open(D::PHDF5Driver, filename::AbstractString, comm::MPI.Comm; kw...)
     mode_args, other_kws = keywords_to_h5open(; kw...)
     info = MPI.Info(other_kws...)
-    # TODO accept other property lists
-    fcpl = HDF5.p_create(HDF5.H5P_FILE_CREATE)
-    fapl = HDF5.p_create(
-        HDF5.H5P_FILE_ACCESS,
-        "fapl_mpio", mpi_to_h5_handle.((comm, info)),
-        "fclose_degree", HDF5.H5F_CLOSE_STRONG,  # default in HDF5.jl -- makes sense due to GC
-    )
-    h5open(filename, mode_args..., fcpl, fapl)
-end
-
-# TODO deprecate and use Base.open instead
-"""
-    ph5open([f::Function], filename, [mode="r"], comm::MPI.Comm,
-            [info::MPI.Info=MPI.Info()], prop_lists...) -> HDF5.File
-
-Open parallel HDF5 file.
-
-This function is a thin wrapper over `HDF5.h5open`.
-It converts MPI.jl types (`MPI.Comm` and `MPI.Info`) to their counterparts in
-HDF5.jl.
-It also throws an informative error if the loaded HDF5 libraries do not include
-parallel support.
-
-# Property lists
-
-This function automatically sets the
-[`fapl_mpio`](https://portal.hdfgroup.org/display/HDF5/H5P_SET_FAPL_MPIO) file
-access property list to the given MPI communicator and info object.
-Other property lists should be given as name-value pairs, following the
-[`h5open`
-syntax](https://juliaio.github.io/HDF5.jl/stable/#Passing-parameters).
-
-Property lists are passed to
-[`h5f_create`](https://portal.hdfgroup.org/display/HDF5/H5F_CREATE).
-The following property types are recognised:
-- [file creation properties](https://portal.hdfgroup.org/display/HDF5/File+Creation+Properties),
-- [file access properties](https://portal.hdfgroup.org/display/HDF5/File+Access+Properties).
-"""
-function ph5open(
-        filename::AbstractString, mode::AbstractString,
-        comm::MPI.Comm, info::MPI.Info = MPI.Info(),
-        plist_pairs...,
-    )
-    check_hdf5_parallel()
-    fapl_mpio = mpi_to_h5_handle.((comm, info))
-    h5open(filename, mode, "fapl_mpio", fapl_mpio, plist_pairs...)
-end
-
-ph5open(filename::AbstractString, comm::MPI.Comm, args...; kwargs...) =
-    ph5open(filename, "r", comm, args...; kwargs...)
-
-function ph5open(f::Function, args...; kwargs...)
-    fid = ph5open(args...; kwargs...)
-    try
-        f(fid)
-    finally
-        close(fid)
-    end
+    D.fapl["fapl_mpio"] = mpi_to_h5_handle.((comm, info))
+    h5open(filename, mode_args..., D.fcpl, D.fapl)
 end
 
 """
@@ -178,9 +143,8 @@ v = similar(u)
 # [fill the arrays with interesting values...]
 
 comm = get_comm(u)
-info = MPI.Info()
 
-ph5open("filename.h5", "w", comm, info) do ff
+open(PHDF5Driver(), "filename.h5", comm, write=true) do ff
     ff["u", chunks=true] = u
     ff["uv"] = (u, v)  # this is a two-component PencilArrayCollection (assuming equal dimensions of `u` and `v`)
 end
@@ -267,7 +231,7 @@ v = similar(u)
 comm = get_comm(u)
 info = MPI.Info()
 
-ph5open("filename.h5", "r", comm, info) do ff
+open(PHDF5Driver(), "filename.h5", comm, read=true) do ff
     read!(ff, u, "u")
     read!(ff, (u, v), "uv")
 end

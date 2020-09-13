@@ -86,12 +86,11 @@ using PencilArrays
 ## Library
 
 ```@docs
-open
 PencilIO.ParallelIODriver
 MPIIODriver
 PHDF5Driver
 PencilIO.MPIFile
-ph5open
+open
 setindex!
 read!
 hdf5_has_parallel

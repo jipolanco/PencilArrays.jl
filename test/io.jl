@@ -98,7 +98,6 @@ end
 
 function test_write_hdf5(filename, u::PencilArray)
     comm = get_comm(u)
-    info = MPI.Info()
     rank = MPI.Comm_rank(comm)
     v = u .+ 1
     w = u .+ 2
@@ -113,7 +112,7 @@ function test_write_hdf5(filename, u::PencilArray)
 
     MPI.Barrier(comm)
 
-    @test_nowarn ph5open(filename, "w", comm, info) do ff
+    @test_nowarn open(PHDF5Driver(), filename, comm, write=true) do ff
         @test isopen(ff)
         @test_nowarn ff["scalar", collective=true, chunks=false] = u
         @test_nowarn ff["vector_tuple", collective=false, chunks=true] = (u, v, w)
@@ -125,7 +124,7 @@ function test_write_hdf5(filename, u::PencilArray)
         @test_nowarn ff["scalar_again"] = u
     end
 
-    @test_nowarn ph5open(filename, "r", comm, info) do ff
+    @test_nowarn open(PHDF5Driver(), filename, comm, read=true) do ff
         @test isopen(ff)
         uvw = (u, v, w)
         uvw_r = similar.(uvw)
@@ -148,10 +147,6 @@ function test_write_hdf5(filename, u::PencilArray)
         fill!.(uvw_r, 0)
         read!(ff, collect(uvw_r), "vector_array", collective=false)
         @test all(uvw .== uvw_r)
-    end
-
-    @test_nowarn open(PHDF5Driver(), filename, comm, read=true) do ff
-        @test isopen(ff)
     end
 
     nothing
