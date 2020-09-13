@@ -1,9 +1,13 @@
-import JSON
 export MPIIODriver
+
+import JSON3
+import JSON3.StructTypes
 
 # Version of internal MPIIO format.
 # If the version is updated, it should match the upcoming PencilArrays version.
 const MPIIO_VERSION = v"0.3"
+
+StructTypes.StructType(::Type{typeof(MPIIO_VERSION)}) = StructTypes.Struct()
 
 """
     MPIIODriver(; sequential=false, uniqueopen=false, deleteonclose=false)
@@ -31,11 +35,13 @@ the individual and shared file pointers defined by MPI.
 """
 mutable struct MPIFile
     file       :: MPI.FileHandle
+    comm       :: MPI.Comm
     filename   :: String
-    meta       :: Union{Nothing,MetadataDict}
+    meta       :: MetadataDict
     position   :: Int  # file position in bytes
     write_mode :: Bool
-    MPIFile(file, filename, meta; write) = new(file, filename, meta, 0, write)
+    MPIFile(file, comm, filename, meta; write) =
+        new(file, comm, filename, meta, 0, write)
 end
 
 function MPIFile(comm::MPI.Comm, filename; kws...)
@@ -48,36 +54,38 @@ function MPIFile(comm::MPI.Comm, filename; kws...)
     if flags.append
         throw(ArgumentError("append=true not supported by MPI-IO driver"))
     end
-    meta = if MPI.Comm_rank(comm) == 0
-        if flags.write && !flags.append
-            mpiio_init_metadata()
-        else
-            mpiio_load_metadata(filename_meta(filename))
-        end
+    meta = if flags.write && !flags.append
+        mpiio_init_metadata()
     else
-        nothing
+        mpiio_load_metadata(filename_meta(filename))
     end
-    MPIFile(MPI.File.open(comm, filename; kws...), filename, meta, write=flags.write)
+    MPIFile(MPI.File.open(comm, filename; kws...), comm, filename, meta,
+            write=flags.write)
 end
 
 mpiio_init_metadata() = MetadataDict(
-    :MPIIODriver => (version = MPIIO_VERSION, ),
-    :Datasets => Dict{String,Any}(),
+    :driver => (type = "MPIIODriver", version = MPIIO_VERSION),
+    :datasets => Dict{String,Any}(),
 )
 
-mpiio_load_metadata(filename) = JSON.parsefile(filename, dicttype=MetadataDict)
+function mpiio_load_metadata(filename)
+    isfile(filename) || error("metadata file not found: $filename")
+    open(JSON3.read, filename, "r")
+end
 
 function Base.close(ff::MPIFile)
     if should_write_metadata(ff)
-        meta = metadata(ff)
-        if meta !== nothing
-            open(filename_meta(ff), "w") do io
-                indent = 2
-                JSON.print(io, meta, indent)
-            end
-        end
+        write_metadata(ff, metadata(ff))
     end
     close(parent(ff))
+end
+
+function write_metadata(ff, meta)
+    MPI.Comm_rank(ff.comm) == 0 || return
+    open(filename_meta(ff), "w") do io
+        JSON3.write(io, meta)
+    end
+    nothing
 end
 
 filename_meta(fname) = string(fname, ".json")
@@ -135,7 +143,7 @@ end
 function add_metadata(file::MPIFile, x, name, chunks::Bool)
     meta = metadata(file)
     meta === nothing && return
-    meta[:Datasets][name] = (
+    meta[:datasets][name] = (
         metadata(x)...,
         dims_logical = size_global(x, LogicalOrder()),
         dims_memory = size_global(x, MemoryOrder()),
@@ -147,24 +155,36 @@ function add_metadata(file::MPIFile, x, name, chunks::Bool)
 end
 
 """
-    read!(file::MPIFile, x::PencilArray;
-          chunks = false, collective = true, infokws...)
+    read!(file::MPIFile, x::PencilArray, name::AbstractString;
+          collective = true, infokws...)
 
 Read binary data from an MPI-IO stream, filling in [`PencilArray`](@ref).
 
 See [`setindex!`](@ref setindex!(::MPIFile)) for details on keyword arguments.
 """
-function Base.read!(ff::MPIFile, x::PencilArray;
-                    collective=true, chunks=false, kw...)
+function Base.read!(ff::MPIFile, x::PencilArray, name::AbstractString;
+                    collective=true, kw...)
+    meta = get(metadata(ff)[:datasets], name, nothing)
+    meta === nothing && error("dataset '$name' not found")
     file = parent(ff)
-    offset = position(ff)
+    offset = meta.offset_bytes :: Int
+    chunks = meta.chunks :: Bool
     if chunks
+        check_read_chunks(x, meta.process_dims, name)
         read_contiguous!(file, x; offset=offset, collective=collective, kw...)
     else
         read_discontiguous!(file, x; offset=offset, collective=collective, kw...)
     end
-    skip(ff, sizeof_global(x))
     x
+end
+
+function check_read_chunks(x, pdims_file, name)
+    pdims = size(topology(x))
+    if length(pdims) != length(pdims_file) || any(pdims .!= pdims_file)
+        error("dataset '$name' was written in chunks with a different MPI topology" *
+              " ($pdims ≠ $pdims_file)")
+    end
+    nothing
 end
 
 function write_discontiguous(ff::MPI.FileHandle, x::PencilArray;

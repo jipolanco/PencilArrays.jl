@@ -59,6 +59,7 @@ function test_write_mpiio(filename, u::PencilArray)
         open(filename, "r") do ff
             y = similar(Xg[1])
             for (i, (collective, chunks)) in enumerate(kws)
+                # TODO use offset from metadata
                 read!(ff, y)
                 if !chunks  # if chunks = true, data is reordered into blocks
                     @test y ≈ Xg[i]
@@ -70,8 +71,10 @@ function test_write_mpiio(filename, u::PencilArray)
     # Read stuff
     y = similar(X[1])
     @test_nowarn open(MPIIODriver(), filename, comm, read=true) do ff
-        for (i, (collective, chunks)) in enumerate(kws)
-            read!(ff, y, collective=collective, chunks=chunks)
+        @test_throws ErrorException read!(ff, y, "field not in file")
+        for (i, (collective, _)) in enumerate(kws)
+            name = "field_$i"
+            read!(ff, y, name, collective=collective)
             @test y == X[i]
         end
     end
