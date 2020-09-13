@@ -138,6 +138,7 @@ const PencilArrayCollection =
 
 collection_size(x::Tuple{Vararg{<:PencilArray}}) = (length(x), )
 collection_size(x::AbstractArray{<:PencilArray}) = size(x)
+collection_size(::PencilArray) = ()
 
 const MaybePencilArrayCollection = Union{PencilArray, PencilArrayCollection}
 

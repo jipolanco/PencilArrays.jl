@@ -154,6 +154,7 @@ function add_metadata(file::MPIFile, x, name, chunks::Bool)
     meta === nothing && return
     meta[:datasets][DatasetKey(name)] = (
         metadata(x)...,
+        element_type = eltype(x),
         dims_logical = size_global(x, LogicalOrder()),
         dims_memory = size_global(x, MemoryOrder()),
         chunks = chunks,
@@ -178,6 +179,7 @@ function Base.read!(ff::MPIFile, x::PencilArray, name::AbstractString;
     file = parent(ff)
     offset = meta.offset_bytes :: Int
     chunks = meta.chunks :: Bool
+    check_metadata(x, meta.element_type, Tuple(meta.dims_memory), meta.size_bytes)
     if chunks
         check_read_chunks(x, meta.process_dims, name)
         read_contiguous!(file, x; offset=offset, collective=collective, kw...)
@@ -185,6 +187,19 @@ function Base.read!(ff::MPIFile, x::PencilArray, name::AbstractString;
         read_discontiguous!(file, x; offset=offset, collective=collective, kw...)
     end
     x
+end
+
+function check_metadata(x, file_eltype, file_dims, file_sizeof)
+    T = eltype(x)
+    if string(T) != file_eltype
+        error("incompatible type of file and array: $file_eltype ≠ $T")
+    end
+    sz = (size_global(x, MemoryOrder())..., collection_size(x)...)
+    if sz !== file_dims
+        error("incompatible dimensions of dataset in file and array: $file_dims ≠ $sz")
+    end
+    @assert sizeof_global(x) == file_sizeof
+    nothing
 end
 
 function check_read_chunks(x, pdims_file, name)
