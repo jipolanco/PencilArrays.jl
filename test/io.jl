@@ -6,6 +6,8 @@ using HDF5
 using PencilArrays
 using PencilArrays.PencilIO
 
+import JSON3
+
 if !PencilIO.hdf5_has_parallel()
     @warn "HDF5 has no parallel support. Skipping HDF5 tests."
     exit(0)
@@ -36,12 +38,13 @@ function test_write_mpiio(filename, u::PencilArray)
         end
     end
 
-    @test isfile("$filename.json")
-
     # Append some data.
     open(MPIIODriver(), filename, comm, write=true, append=true) do ff
-        ff["field_5"] = X[5]
+        ff["field_5", chunks=false] = X[5]
     end
+
+    @test isfile("$filename.json")
+    meta = open(JSON3.read, "$filename.json", "r").datasets
 
     # Test file contents in serial mode.
     # First, gather data from all processes.
@@ -60,11 +63,20 @@ function test_write_mpiio(filename, u::PencilArray)
         open(filename, "r") do ff
             y = similar(Xg[1])
             for (i, (collective, chunks)) in enumerate(kws)
+                name = Symbol("field_$i")
+                offset = meta[name].offset_bytes :: Int
+                seek(ff, offset)
                 read!(ff, y)
                 if !chunks  # if chunks = true, data is reordered into blocks
-                    @test y ≈ Xg[i]
+                    @test y == Xg[i]
                 end
             end
+            # Verify appended data
+            name = Symbol("field_5")
+            offset = meta[name].offset_bytes :: Int
+            seek(ff, offset)
+            read!(ff, y)
+            @test y == Xg[5]
         end
     end
 
