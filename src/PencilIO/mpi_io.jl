@@ -135,28 +135,40 @@ Write [`PencilArray`](@ref) to binary file using MPI-IO.
   an `MPI.Info` object to `MPI.File.set_view!`. This is ignored if `chunks = true`.
 
 """
-function Base.setindex!(ff::MPIFile, x::PencilArray, name::AbstractString;
-                        collective=true, chunks=false, kw...)
+function Base.setindex!(
+        ff::MPIFile, x::MaybePencilArrayCollection, name::AbstractString;
+        collective=true, chunks=false, kw...,
+    )
     file = parent(ff)
     offset = position(ff)
-    if chunks
-        write_contiguous(file, x; offset=offset, collective=collective, kw...)
-    else
-        write_discontiguous(file, x; offset=offset, collective=collective, kw...)
+    for u in collection(x)
+        # TODO write all collection components at once (should be easier in the
+        # discontiguous case)
+        if chunks
+            write_contiguous(file, u; offset=offset, collective=collective, kw...)
+        else
+            write_discontiguous(file, u; offset=offset, collective=collective, kw...)
+        end
+        offset += sizeof_global(u)
     end
     add_metadata(ff, x, name, chunks)
     skip(ff, sizeof_global(x))
     x
 end
 
+eltype_collection(x::PencilArray) = eltype(x)
+eltype_collection(x::PencilArrayCollection) = eltype(first(x))
+
 function add_metadata(file::MPIFile, x, name, chunks::Bool)
     meta = metadata(file)
-    meta === nothing && return
+    size_col = collection_size(x)
+    size_log = size_global(x, LogicalOrder())
+    size_mem = size_global(x, MemoryOrder())
     meta[:datasets][DatasetKey(name)] = (
         metadata(x)...,
-        element_type = eltype(x),
-        dims_logical = size_global(x, LogicalOrder()),
-        dims_memory = size_global(x, MemoryOrder()),
+        element_type = eltype_collection(x),
+        dims_logical = (size_log..., size_col...),
+        dims_memory = (size_mem..., size_col...),
         chunks = chunks,
         offset_bytes = position(file),
         size_bytes = sizeof_global(x),
@@ -172,7 +184,7 @@ Read binary data from an MPI-IO stream, filling in [`PencilArray`](@ref).
 
 See [`setindex!`](@ref setindex!(::MPIFile)) for details on keyword arguments.
 """
-function Base.read!(ff::MPIFile, x::PencilArray, name::AbstractString;
+function Base.read!(ff::MPIFile, x::MaybePencilArrayCollection, name::AbstractString;
                     collective=true, kw...)
     meta = get(metadata(ff)[:datasets], DatasetKey(name), nothing)
     meta === nothing && error("dataset '$name' not found")
@@ -180,17 +192,20 @@ function Base.read!(ff::MPIFile, x::PencilArray, name::AbstractString;
     offset = meta.offset_bytes :: Int
     chunks = meta.chunks :: Bool
     check_metadata(x, meta.element_type, Tuple(meta.dims_memory), meta.size_bytes)
-    if chunks
-        check_read_chunks(x, meta.process_dims, name)
-        read_contiguous!(file, x; offset=offset, collective=collective, kw...)
-    else
-        read_discontiguous!(file, x; offset=offset, collective=collective, kw...)
+    chunks && check_read_chunks(x, meta.process_dims, name)
+    for u in collection(x)
+        if chunks
+            read_contiguous!(file, u; offset=offset, collective=collective, kw...)
+        else
+            read_discontiguous!(file, u; offset=offset, collective=collective, kw...)
+        end
+        offset += sizeof_global(u)
     end
     x
 end
 
 function check_metadata(x, file_eltype, file_dims, file_sizeof)
-    T = eltype(x)
+    T = eltype_collection(x)
     if string(T) != file_eltype
         error("incompatible type of file and array: $file_eltype ≠ $T")
     end

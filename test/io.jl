@@ -41,6 +41,7 @@ function test_write_mpiio(filename, u::PencilArray)
     # Append some data.
     open(MPIIODriver(), filename, comm, write=true, append=true) do ff
         ff["field_5", chunks=false] = X[5]
+        ff["collection"] = X
     end
 
     @test isfile("$filename.json")
@@ -63,20 +64,18 @@ function test_write_mpiio(filename, u::PencilArray)
         open(filename, "r") do ff
             y = similar(Xg[1])
             for (i, (collective, chunks)) in enumerate(kws)
-                name = Symbol("field_$i")
-                offset = meta[name].offset_bytes :: Int
-                seek(ff, offset)
-                read!(ff, y)
+                mpiio_read_serial!(ff, y, meta, "field_$i")
                 if !chunks  # if chunks = true, data is reordered into blocks
                     @test y == Xg[i]
                 end
             end
             # Verify appended data
-            name = Symbol("field_5")
-            offset = meta[name].offset_bytes :: Int
-            seek(ff, offset)
-            read!(ff, y)
+            mpiio_read_serial!(ff, y, meta, "field_5")
             @test y == Xg[5]
+            let y = similar.(Xg)
+                mpiio_read_serial!(ff, y, meta, "collection")
+                @test all(y .== Xg)
+            end
         end
     end
 
@@ -84,6 +83,10 @@ function test_write_mpiio(filename, u::PencilArray)
     y = similar(X[1])
     @test_nowarn open(MPIIODriver(), filename, comm, read=true) do ff
         @test_throws ErrorException read!(ff, y, "field not in file")
+        let y = similar.(X)
+            read!(ff, y, "collection")
+            @test all(y .== X)
+        end
         for (i, (collective, _)) in enumerate(kws)
             name = "field_$i"
             read!(ff, y, name, collective=collective)
@@ -94,6 +97,15 @@ function test_write_mpiio(filename, u::PencilArray)
     end
 
     nothing
+end
+
+read_array!(ff, x) = read!(ff, x)
+read_array!(ff, t::Tuple) = map(x -> read_array!(ff, x), t)
+
+function mpiio_read_serial!(ff, x, meta, name)
+    offset = meta[Symbol(name)].offset_bytes :: Int
+    seek(ff, offset)
+    read_array!(ff, x)
 end
 
 function test_write_hdf5(filename, u::PencilArray)
@@ -181,6 +193,7 @@ function main()
         filename = MPI.bcast(tempname(), 0, comm)
 
         @testset "MPI-IO" begin
+            filename = "tmp.bin"
             test_write_mpiio(filename, u)
         end
 

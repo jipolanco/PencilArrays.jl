@@ -140,6 +140,11 @@ collection_size(x::Tuple{Vararg{<:PencilArray}}) = (length(x), )
 collection_size(x::AbstractArray{<:PencilArray}) = size(x)
 collection_size(::PencilArray) = ()
 
+# This is convenient for iterating over one or more PencilArrays.
+# A single PencilArray is treated as a "collection" of one array.
+collection(x::PencilArrayCollection) = x
+collection(x::PencilArray) = (x, )
+
 const MaybePencilArrayCollection = Union{PencilArray, PencilArrayCollection}
 
 function _apply(f::Function, x::PencilArrayCollection, args...; kwargs...)
