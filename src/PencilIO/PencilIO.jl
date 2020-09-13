@@ -5,6 +5,7 @@ import ..PencilArrays: MaybePencilArrayCollection, collection_size
 
 using MPI
 using Requires: @require
+using StaticArrays: SVector
 using TimerOutputs
 
 """
@@ -50,6 +51,17 @@ function Base.open(f::Function, driver::ParallelIODriver, args...; kw...)
     finally
         close(fid)
     end
+end
+
+function metadata(x::MaybePencilArrayCollection)
+    pen = pencil(x)
+    topo = topology(x)
+    (
+        permutation = Tuple(get_permutation(x)),
+        extra_dims = extra_dims(x),
+        decomposed_dims = get_decomposition(pen),
+        process_dims = size(topo),
+    )
 end
 
 include("mpi_io.jl")

@@ -216,11 +216,27 @@ function Base.setindex!(
         d_create(g, name, h5_datatype(x), dataspace(dims_global), props...)
     inds = range_local(x, MemoryOrder())
     @timeit_debug to "write data" to_hdf5(dset, x, inds)
+    @timeit_debug to "write metadata" write_metadata(dset, x)
 
     end
 
     x
 end
+
+# Write metadata as HDF5 attributes attached to a dataset.
+# Note that this is a collective operation (all processes must call this).
+function write_metadata(dset::HDF5Dataset, x)
+    meta = metadata(x)
+    for (name, val) in pairs(meta)
+        dset[string(name)] = to_hdf5(val)
+    end
+    dset
+end
+
+to_hdf5(val) = val
+to_hdf5(val::Tuple{}) = false  # empty tuple
+to_hdf5(val::Tuple) = SVector(val)
+to_hdf5(::Nothing) = false
 
 """
     read!(g::Union{HDF5File,HDF5Group}, x::MaybePencilArrayCollection,

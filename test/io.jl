@@ -118,6 +118,12 @@ function test_write_hdf5(filename, u::PencilArray)
         read!(ff, vr, "scalar_again")
         @test vr == ur
 
+        let perm = Tuple(get_permutation(ur))
+            @test exists(attrs(ff["scalar"]), "permutation")
+            expected = perm === nothing ? false : collect(perm)
+            @test read(ff["scalar"]["permutation"]) == expected
+        end
+
         read!(ff, uvw_r, "vector_tuple")
         @test all(uvw .== uvw_r)
 
@@ -152,19 +158,24 @@ function main()
     rng = MersenneTwister(42)
 
     topo = MPITopology(comm, proc_dims)
-    pen = Pencil(topo, Nxyz, (1, 3), permute=Permutation(2, 3, 1))
-    u = PencilArray{Float64}(undef, pen)
-    randn!(rng, u)
-    u .+= 10 * myrank
 
-    filename = MPI.bcast(tempname(), 0, comm)
+    perms = (NoPermutation(), Permutation(2, 3, 1))
 
-    @testset "Write MPI-IO" begin
-        test_write_mpiio(filename, u)
-    end
+    @testset "$perm" for perm in perms
+        pen = Pencil(topo, Nxyz, (1, 3), permute=perm)
+        u = PencilArray{Float64}(undef, pen)
+        randn!(rng, u)
+        u .+= 10 * myrank
 
-    @testset "Write HDF5" begin
-        test_write_hdf5(filename, u)
+        filename = MPI.bcast(tempname(), 0, comm)
+
+        @testset "MPI-IO" begin
+            test_write_mpiio(filename, u)
+        end
+
+        @testset "HDF5" begin
+            test_write_hdf5(filename, u)
+        end
     end
 
     HDF5.h5_close()
