@@ -1,4 +1,9 @@
+import JSON
 export MPIIODriver
+
+# Version of internal MPIIO format.
+# If the version is updated, it should match the upcoming PencilArrays version.
+const MPIIO_VERSION = v"0.3"
 
 """
     MPIIODriver(; sequential=false, uniqueopen=false, deleteonclose=false)
@@ -14,33 +19,73 @@ Base.@kwdef struct MPIIODriver <: ParallelIODriver
     deleteonclose :: Bool = false
 end
 
+const MetadataDict = Dict{Symbol,Any}
+
 """
     MPIFile
 
-Wraps a `MPI.FileHandle`, also including file position information.
+Wraps a `MPI.FileHandle`, also including file position information and metadata.
 
 File position is updated when reading and writing data, and is independent of
 the individual and shared file pointers defined by MPI.
 """
 mutable struct MPIFile
-    file     :: MPI.FileHandle
-    position :: Int  # file position in bytes
-    MPIFile(file) = new(file, 0)
+    file       :: MPI.FileHandle
+    filename   :: String
+    meta       :: Union{Nothing,MetadataDict}
+    position   :: Int  # file position in bytes
+    write_mode :: Bool
+    MPIFile(file, filename, meta; write) = new(file, filename, meta, 0, write)
 end
 
-function MPIFile(comm::MPI.Comm, filename; append=false, kw...)
+function MPIFile(comm::MPI.Comm, filename; kws...)
+    flags, other_kws = keywords_to_open(; kws...)
+    # TODO support appending with metadata file
     # Append mode is not supported.
     # Appending can be unpredictable, because the MPI implementation may pad
     # each dataset (or file?) with extra (mega)bytes, I guess for alignment
     # purposes.
-    if append
+    if flags.append
         throw(ArgumentError("append=true not supported by MPI-IO driver"))
     end
-    MPIFile(MPI.File.open(comm, filename; append=append, kw...))
+    meta = if MPI.Comm_rank(comm) == 0
+        if flags.write && !flags.append
+            mpiio_init_metadata()
+        else
+            mpiio_load_metadata(filename_meta(filename))
+        end
+    else
+        nothing
+    end
+    MPIFile(MPI.File.open(comm, filename; kws...), filename, meta, write=flags.write)
 end
 
+mpiio_init_metadata() = MetadataDict(
+    :MPIIODriver => (version = MPIIO_VERSION, ),
+    :Datasets => Dict{String,Any}(),
+)
+
+mpiio_load_metadata(filename) = JSON.parsefile(filename, dicttype=MetadataDict)
+
+function Base.close(ff::MPIFile)
+    if should_write_metadata(ff)
+        meta = metadata(ff)
+        if meta !== nothing
+            open(filename_meta(ff), "w") do io
+                indent = 2
+                JSON.print(io, meta, indent)
+            end
+        end
+    end
+    close(parent(ff))
+end
+
+filename_meta(fname) = string(fname, ".json")
+filename_meta(ff::MPIFile) = filename_meta(get_filename(ff))
+metadata(ff::MPIFile) = ff.meta
+should_write_metadata(ff::MPIFile) = ff.write_mode
+get_filename(ff::MPIFile) = ff.filename
 Base.parent(ff::MPIFile) = ff.file
-Base.close(ff::MPIFile) = close(parent(ff))
 Base.position(ff::MPIFile) = ff.position
 Base.skip(ff::MPIFile, offset) = ff.position += offset
 
@@ -52,12 +97,10 @@ Base.open(D::MPIIODriver, filename::AbstractString, comm::MPI.Comm; keywords...)
     )
 
 """
-    write(file::MPIFile, x::PencilArray;
-          chunks = false, collective = true, infokws...)
+    setindex!(file::MPIFile, x::PencilArray, name::AbstractString;
+              chunks = false, collective = true, infokws...)
 
 Write [`PencilArray`](@ref) to binary file using MPI-IO.
-
-Returns the number of bytes written by all processes.
 
 # Optional arguments
 
@@ -75,8 +118,8 @@ Returns the number of bytes written by all processes.
   an `MPI.Info` object to `MPI.File.set_view!`. This is ignored if `chunks = true`.
 
 """
-function Base.write(ff::MPIFile, x::PencilArray;
-                    collective=true, chunks=false, kw...)
+function Base.setindex!(ff::MPIFile, x::PencilArray, name::AbstractString;
+                        collective=true, chunks=false, kw...)
     file = parent(ff)
     offset = position(ff)
     if chunks
@@ -84,9 +127,23 @@ function Base.write(ff::MPIFile, x::PencilArray;
     else
         write_discontiguous(file, x; offset=offset, collective=collective, kw...)
     end
-    nb = sizeof_global(x)
-    skip(ff, nb)
-    nb
+    add_metadata(ff, x, name, chunks)
+    skip(ff, sizeof_global(x))
+    x
+end
+
+function add_metadata(file::MPIFile, x, name, chunks::Bool)
+    meta = metadata(file)
+    meta === nothing && return
+    meta[:Datasets][name] = (
+        metadata(x)...,
+        dims_logical = size_global(x, LogicalOrder()),
+        dims_memory = size_global(x, MemoryOrder()),
+        chunks = chunks,
+        offset_bytes = position(file),
+        size_bytes = sizeof_global(x),
+    )
+    nothing
 end
 
 """
@@ -95,7 +152,7 @@ end
 
 Read binary data from an MPI-IO stream, filling in [`PencilArray`](@ref).
 
-See [`write`](@ref write(::MPIFile)) for details on keyword arguments.
+See [`setindex!`](@ref setindex!(::MPIFile)) for details on keyword arguments.
 """
 function Base.read!(ff::MPIFile, x::PencilArray;
                     collective=true, chunks=false, kw...)

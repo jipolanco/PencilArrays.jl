@@ -49,10 +49,8 @@ function check_hdf5_parallel()
     )
 end
 
-function keywords_to_h5open(; read=nothing, write=nothing, create=nothing,
-                            truncate=nothing, append=nothing, other_kws...)
-    flags = Base.open_flags(read=read, write=write, create=create,
-                            truncate=truncate, append=append)
+function keywords_to_h5open(; kws...)
+    flags, other_kws = keywords_to_open(; kws...)
     (
         flags.read,
         flags.write,
@@ -128,7 +126,8 @@ end
 
 """
     setindex!(g::Union{HDF5File,HDF5Group}, x::MaybePencilArrayCollection,
-              name::String, prop_lists...; chunks=false, collective=true)
+              name::String, prop_lists...;
+              chunks = false, collective = true)
 
 Write [`PencilArray`](@ref) or [`PencilArrayCollection`](@ref) to parallel HDF5
 file.

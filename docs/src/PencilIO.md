@@ -93,7 +93,6 @@ PHDF5Driver
 PencilIO.MPIFile
 ph5open
 setindex!
-write
 read!
 hdf5_has_parallel
 ```

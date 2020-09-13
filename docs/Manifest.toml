@@ -150,7 +150,7 @@ uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "1.0.11"
 
 [[PencilArrays]]
-deps = ["Libdl", "LinearAlgebra", "MPI", "OffsetArrays", "Reexport", "Requires", "StaticArrays", "TimerOutputs"]
+deps = ["JSON", "Libdl", "LinearAlgebra", "MPI", "OffsetArrays", "Reexport", "Requires", "StaticArrays", "TimerOutputs"]
 path = ".."
 uuid = "0e08944d-e94e-41b1-9406-dcf66b6a9d2e"
 version = "0.2.0"

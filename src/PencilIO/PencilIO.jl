@@ -53,15 +53,25 @@ function Base.open(f::Function, driver::ParallelIODriver, args...; kw...)
     end
 end
 
+# Metadata to be attached to each dataset (as HDF5 attributes or in an external
+# metadata file).
 function metadata(x::MaybePencilArrayCollection)
     pen = pencil(x)
     topo = topology(x)
+    edims = extra_dims(x)  # this may be an empty tuple, with no type information
     (
         permutation = Tuple(get_permutation(x)),
-        extra_dims = extra_dims(x),
+        extra_dims = SVector{length(edims),Int}(edims),
         decomposed_dims = get_decomposition(pen),
         process_dims = size(topo),
     )
+end
+
+function keywords_to_open(; read=nothing, write=nothing, create=nothing,
+                          truncate=nothing, append=nothing, other_kws...)
+    flags = Base.open_flags(read=read, write=write, create=create,
+                            truncate=truncate, append=append)
+    flags, other_kws
 end
 
 include("mpi_io.jl")

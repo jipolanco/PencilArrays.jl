@@ -30,12 +30,14 @@ function test_write_mpiio(filename, u::PencilArray)
     @test_nowarn open(MPIIODriver(), filename, comm, write=true, create=true) do ff
         pos = 0
         for (i, (collective, chunks)) in enumerate(kws)
-            nb = write(ff, X[i], collective=collective, chunks=chunks)
-            @test nb == sizeof_global(X[i])
-            pos += nb
+            name = "field_$i"
+            ff[name, collective=collective, chunks=chunks] = X[i]
+            pos += sizeof_global(X[i])
             @test position(ff) == pos
         end
     end
+
+    @test isfile("$filename.json")
 
     # Append mode is not supported.
     @test_throws ArgumentError open(MPIIODriver(), filename, comm, write=true,
@@ -156,9 +158,7 @@ function main()
     end
 
     rng = MersenneTwister(42)
-
     topo = MPITopology(comm, proc_dims)
-
     perms = (NoPermutation(), Permutation(2, 3, 1))
 
     @testset "$perm" for perm in perms
