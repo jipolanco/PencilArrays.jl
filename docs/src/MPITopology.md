@@ -45,3 +45,9 @@ length(::MPITopology)
 ndims(::MPITopology)
 size(::MPITopology)
 ```
+
+## Index
+
+```@index
+Pages = ["MPITopology.md"]
+```

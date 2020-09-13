@@ -97,6 +97,12 @@ size_local(::Pencil, etc...)
 to_local(::Pencil)
 ```
 
+## Index
+
+```@index
+Pages = ["Pencils.md"]
+```
+
 [^1]:
     Why would we want this?
     Perhaps because we want to efficiently perform FFTs along $y$, which, under

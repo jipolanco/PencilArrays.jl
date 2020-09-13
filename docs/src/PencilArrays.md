@@ -110,3 +110,9 @@ getindex(::ManyPencilArray)
 last(::ManyPencilArray)
 length(::ManyPencilArray)
 ```
+
+## Index
+
+```@index
+Pages = ["PencilArrays.md"]
+```

@@ -91,3 +91,9 @@ setindex!
 read!
 hdf5_has_parallel
 ```
+
+## Index
+
+```@index
+Pages = ["PencilIO.md"]
+```

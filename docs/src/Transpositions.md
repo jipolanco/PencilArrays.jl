@@ -23,9 +23,17 @@ datasets.
 It is generally useful for small problems where the global size of the data can
 easily fit the locally available memory.
 
+## Library
+
 ```@docs
 Transpositions.Transposition
 Transpositions.transpose!
 MPI.Waitall!
 gather
+```
+
+## Index
+
+```@index
+Pages = ["Transpositions.md"]
 ```
