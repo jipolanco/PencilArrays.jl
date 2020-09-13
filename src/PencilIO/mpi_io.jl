@@ -24,6 +24,8 @@ Base.@kwdef struct MPIIODriver <: ParallelIODriver
 end
 
 const MetadataDict = Dict{Symbol,Any}
+const DatasetKey = Symbol
+const DatasetDict = Dict{DatasetKey,Any}
 
 """
     MPIFile
@@ -46,31 +48,36 @@ end
 
 function MPIFile(comm::MPI.Comm, filename; kws...)
     flags, other_kws = keywords_to_open(; kws...)
-    # TODO support appending with metadata file
-    # Append mode is not supported.
-    # Appending can be unpredictable, because the MPI implementation may pad
-    # each dataset (or file?) with extra (mega)bytes, I guess for alignment
-    # purposes.
-    if flags.append
-        throw(ArgumentError("append=true not supported by MPI-IO driver"))
-    end
     meta = if flags.write && !flags.append
         mpiio_init_metadata()
     else
         mpiio_load_metadata(filename_meta(filename))
     end
-    MPIFile(MPI.File.open(comm, filename; kws...), comm, filename, meta,
-            write=flags.write)
+    file = MPIFile(
+        MPI.File.open(comm, filename; kws...),
+        comm, filename, meta, write=flags.write,
+    )
+    if flags.append
+        # Synchronise position in file.
+        pos = MPI.File.get_position_shared(parent(file))
+        seek(file, pos)
+    end
+    file
 end
 
 mpiio_init_metadata() = MetadataDict(
     :driver => (type = "MPIIODriver", version = MPIIO_VERSION),
-    :datasets => Dict{String,Any}(),
+    :datasets => DatasetDict(),
 )
 
 function mpiio_load_metadata(filename)
     isfile(filename) || error("metadata file not found: $filename")
-    open(JSON3.read, filename, "r")
+    meta = open(JSON3.read, filename, "r")
+    # Convert from specific JSON3 type to Dict, so that datasets can be appended.
+    MetadataDict(
+        :driver => meta.driver,
+        :datasets => DatasetDict(meta.datasets),
+    )
 end
 
 function Base.close(ff::MPIFile)
@@ -84,6 +91,7 @@ function write_metadata(ff, meta)
     MPI.Comm_rank(ff.comm) == 0 || return
     open(filename_meta(ff), "w") do io
         JSON3.write(io, meta)
+        write(io, '\n')
     end
     nothing
 end
@@ -96,6 +104,7 @@ get_filename(ff::MPIFile) = ff.filename
 Base.parent(ff::MPIFile) = ff.file
 Base.position(ff::MPIFile) = ff.position
 Base.skip(ff::MPIFile, offset) = ff.position += offset
+Base.seek(ff::MPIFile, pos) = ff.position = pos
 
 Base.open(D::MPIIODriver, filename::AbstractString, comm::MPI.Comm; keywords...) =
     MPIFile(
@@ -143,7 +152,7 @@ end
 function add_metadata(file::MPIFile, x, name, chunks::Bool)
     meta = metadata(file)
     meta === nothing && return
-    meta[:datasets][name] = (
+    meta[:datasets][DatasetKey(name)] = (
         metadata(x)...,
         dims_logical = size_global(x, LogicalOrder()),
         dims_memory = size_global(x, MemoryOrder()),
@@ -164,7 +173,7 @@ See [`setindex!`](@ref setindex!(::MPIFile)) for details on keyword arguments.
 """
 function Base.read!(ff::MPIFile, x::PencilArray, name::AbstractString;
                     collective=true, kw...)
-    meta = get(metadata(ff)[:datasets], name, nothing)
+    meta = get(metadata(ff)[:datasets], DatasetKey(name), nothing)
     meta === nothing && error("dataset '$name' not found")
     file = parent(ff)
     offset = meta.offset_bytes :: Int

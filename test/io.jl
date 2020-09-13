@@ -22,7 +22,7 @@ function test_write_mpiio(filename, u::PencilArray)
     root = 0
     rank = MPI.Comm_rank(comm)
 
-    X = (u, u .+ 1, u .+ 2, u .+ 3)
+    X = (u, u .+ 1, u .+ 2, u .+ 3, u .+ 4)
 
     kws = Iterators.product((false, true), (false, true))
 
@@ -38,9 +38,10 @@ function test_write_mpiio(filename, u::PencilArray)
 
     @test isfile("$filename.json")
 
-    # Append mode is not supported.
-    @test_throws ArgumentError open(MPIIODriver(), filename, comm, write=true,
-                                    append=true)
+    # Append some data.
+    open(MPIIODriver(), filename, comm, write=true, append=true) do ff
+        ff["field_5"] = X[5]
+    end
 
     # Test file contents in serial mode.
     # First, gather data from all processes.
@@ -59,7 +60,6 @@ function test_write_mpiio(filename, u::PencilArray)
         open(filename, "r") do ff
             y = similar(Xg[1])
             for (i, (collective, chunks)) in enumerate(kws)
-                # TODO use offset from metadata
                 read!(ff, y)
                 if !chunks  # if chunks = true, data is reordered into blocks
                     @test y ≈ Xg[i]
@@ -77,6 +77,8 @@ function test_write_mpiio(filename, u::PencilArray)
             read!(ff, y, name, collective=collective)
             @test y == X[i]
         end
+        read!(ff, y, "field_5")
+        @test y == X[5]
     end
 
     nothing

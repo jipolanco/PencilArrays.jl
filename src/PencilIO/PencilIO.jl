@@ -40,9 +40,7 @@ The following drivers are supported:
 
 - [`PHDF5Driver`](@ref)
 
-- [`MPIIODriver`](@ref)
-    * setting `append = true` is unsupported and throws `ArgumentError`
-    * the `truncate` keyword is ignored
+- [`MPIIODriver`](@ref): the `truncate` keyword is ignored
 """
 function Base.open(f::Function, driver::ParallelIODriver, args...; kw...)
     fid = open(driver, args...; kw...)
