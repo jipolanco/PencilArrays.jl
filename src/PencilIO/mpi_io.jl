@@ -1,13 +1,10 @@
 export MPIIODriver
 
 import JSON3
-import JSON3.StructTypes
 
 # Version of internal MPIIO format.
 # If the version is updated, it should match the upcoming PencilArrays version.
-const MPIIO_VERSION = v"0.3"
-
-StructTypes.StructType(::Type{typeof(MPIIO_VERSION)}) = StructTypes.Struct()
+const MPIIO_VERSION = 0.3
 
 """
     MPIIODriver(; sequential = false, uniqueopen = false, deleteonclose = false)
