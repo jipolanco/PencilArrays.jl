@@ -4,8 +4,8 @@ using MPI: mpiexec
 
 test_files = [
     "broadcast.jl",
+    "io.jl",
     "pencils.jl",
-    "hdf5.jl",
 ]
 
 Nproc = clamp(Sys.CPU_THREADS, 4, 8)

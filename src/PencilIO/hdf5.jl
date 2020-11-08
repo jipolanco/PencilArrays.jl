@@ -1,7 +1,38 @@
 using .HDF5
 import Libdl
 
-export ph5open
+export PHDF5Driver
+
+"""
+    PHDF5Driver(; fcpl, fapl)
+
+Parallel HDF5 driver using the HDF5.jl package.
+
+HDF5 file creation and file access property lists may be specified via the
+`fcpl` and `fapl` keyword arguments respectively.
+
+Note that the MPIO file access property list does not need to be set, as this is
+done automatically by this driver when the file is opened.
+"""
+struct PHDF5Driver <: ParallelIODriver
+    fcpl :: HDF5Properties
+    fapl :: HDF5Properties
+    function PHDF5Driver(;
+            fcpl = HDF5.DEFAULT_PROPERTIES,
+            fapl = HDF5.DEFAULT_PROPERTIES,
+        )
+        check_hdf5_parallel()
+        if fcpl == HDF5.DEFAULT_PROPERTIES
+            fcpl = HDF5.p_create(HDF5.H5P_FILE_CREATE)
+        end
+        if fapl == HDF5.DEFAULT_PROPERTIES
+            fapl = HDF5.p_create(HDF5.H5P_FILE_ACCESS)
+            # This is the default in HDF5.jl -- makes sense due to GC
+            fapl["fclose_degree"] = HDF5.H5F_CLOSE_STRONG
+        end
+        new(fcpl, fapl)
+    end
+end
 
 const HDF5FileOrGroup = Union{HDF5.HDF5File, HDF5.HDF5Group}
 
@@ -22,11 +53,6 @@ const _HAS_PARALLEL_HDF5 = Libdl.dlopen(HDF5.libhdf5) do lib
     Libdl.dlsym(lib, :H5Pget_fapl_mpio, throw_error=false) !== nothing
 end
 
-# This is for compatibility among HDF5 versions.
-# The `toclose` argument of `HDF5Properties` was removed in HDF5 v0.13.3.
-const HDF5PROPERTIES_HAS_TOCLOSE =
-    hasmethod(HDF5Properties, Tuple{Any, Bool, HDF5.Hid})
-
 """
     hdf5_has_parallel() -> Bool
 
@@ -45,58 +71,40 @@ function check_hdf5_parallel()
     )
 end
 
-"""
-    ph5open([f::Function], filename, [mode="r"], comm::MPI.Comm,
-            [info::MPI.Info=MPI.Info()], prop_lists...) -> HDF5.File
-
-Open parallel HDF5 file.
-
-This function is a thin wrapper over `HDF5.h5open`.
-It converts MPI.jl types (`MPI.Comm` and `MPI.Info`) to their counterparts in
-HDF5.jl.
-It also throws an informative error if the loaded HDF5 libraries do not include
-parallel support.
-
-# Property lists
-
-This function automatically sets the
-[`fapl_mpio`](https://portal.hdfgroup.org/display/HDF5/H5P_SET_FAPL_MPIO) file
-access property list to the given MPI communicator and info object.
-Other property lists should be given as name-value pairs, following the
-[`h5open`
-syntax](https://juliaio.github.io/HDF5.jl/stable/#Passing-parameters).
-
-Property lists are passed to
-[`h5f_create`](https://portal.hdfgroup.org/display/HDF5/H5F_CREATE).
-The following property types are recognised:
-- [file creation properties](https://portal.hdfgroup.org/display/HDF5/File+Creation+Properties),
-- [file access properties](https://portal.hdfgroup.org/display/HDF5/File+Access+Properties).
-"""
-function ph5open(
-        filename::AbstractString, mode::AbstractString,
-        comm::MPI.Comm, info::MPI.Info = MPI.Info(),
-        plist_pairs...,
-    )
-    check_hdf5_parallel()
-    fapl_mpio = mpi_to_h5_handle.((comm, info))
-    h5open(filename, mode, "fapl_mpio", fapl_mpio, plist_pairs...)
+function keywords_to_h5open(; kws...)
+    flags, other_kws = keywords_to_open(; kws...)
+    (
+        flags.read,
+        flags.write,
+        flags.create,
+        flags.truncate,
+        flags.append,
+    ), other_kws
 end
 
-ph5open(filename::AbstractString, comm::MPI.Comm, args...; kwargs...) =
-    ph5open(filename, "r", comm, args...; kwargs...)
+"""
+    open([f::Function], driver::PHDF5Driver, filename, comm::MPI.Comm; keywords...)
 
-function ph5open(f::Function, args...; kwargs...)
-    fid = ph5open(args...; kwargs...)
-    try
-        f(fid)
-    finally
-        close(fid)
-    end
+Open parallel file using the Parallel HDF5 driver.
+
+See [`open(::ParallelIODriver)`](@ref) for common options for all drivers.
+
+Driver-specific options may be passed via the `driver` argument. See
+[`PHDF5Driver`](@ref) for details.
+"""
+function Base.open(::PHDF5Driver) end
+
+function Base.open(D::PHDF5Driver, filename::AbstractString, comm::MPI.Comm; kw...)
+    mode_args, other_kws = keywords_to_h5open(; kw...)
+    info = MPI.Info(other_kws...)
+    D.fapl["fapl_mpio"] = mpi_to_h5_handle.((comm, info))
+    h5open(filename, mode_args..., D.fcpl, D.fapl)
 end
 
 """
     setindex!(g::Union{HDF5File,HDF5Group}, x::MaybePencilArrayCollection,
-              name::String, prop_lists...; chunks=false, collective=true)
+              name::String, prop_lists...;
+              chunks = false, collective = true)
 
 Write [`PencilArray`](@ref) or [`PencilArrayCollection`](@ref) to parallel HDF5
 file.
@@ -147,9 +155,8 @@ v = similar(u)
 # [fill the arrays with interesting values...]
 
 comm = get_comm(u)
-info = MPI.Info()
 
-ph5open("filename.h5", "w", comm, info) do ff
+open(PHDF5Driver(), "filename.h5", comm, write=true) do ff
     ff["u", chunks=true] = u
     ff["uv"] = (u, v)  # this is a two-component PencilArrayCollection (assuming equal dimensions of `u` and `v`)
 end
@@ -184,11 +191,27 @@ function Base.setindex!(
         d_create(g, name, h5_datatype(x), dataspace(dims_global), props...)
     inds = range_local(x, MemoryOrder())
     @timeit_debug to "write data" to_hdf5(dset, x, inds)
+    @timeit_debug to "write metadata" write_metadata(dset, x)
 
     end
 
     x
 end
+
+# Write metadata as HDF5 attributes attached to a dataset.
+# Note that this is a collective operation (all processes must call this).
+function write_metadata(dset::HDF5Dataset, x)
+    meta = metadata(x)
+    for (name, val) in pairs(meta)
+        dset[string(name)] = to_hdf5(val)
+    end
+    dset
+end
+
+to_hdf5(val) = val
+to_hdf5(val::Tuple{}) = false  # empty tuple
+to_hdf5(val::Tuple) = SVector(val)
+to_hdf5(::Nothing) = false
 
 """
     read!(g::Union{HDF5File,HDF5Group}, x::MaybePencilArrayCollection,
@@ -220,7 +243,7 @@ v = similar(u)
 comm = get_comm(u)
 info = MPI.Info()
 
-ph5open("filename.h5", "r", comm, info) do ff
+open(PHDF5Driver(), "filename.h5", comm, read=true) do ff
     read!(ff, u, "u")
     read!(ff, (u, v), "uv")
 end
@@ -232,13 +255,8 @@ function Base.read!(g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
 
     @timeit_debug to "Read HDF5" begin
 
-    if HDF5PROPERTIES_HAS_TOCLOSE
-        dapl = p_create(HDF5.H5P_DATASET_ACCESS, false, prop_pairs...)
-        dxpl = p_create(HDF5.H5P_DATASET_XFER, false, prop_pairs...)
-    else
-        dapl = p_create(HDF5.H5P_DATASET_ACCESS, prop_pairs...)
-        dxpl = p_create(HDF5.H5P_DATASET_XFER, prop_pairs...)
-    end
+    dapl = p_create(HDF5.H5P_DATASET_ACCESS, prop_pairs...)
+    dxpl = p_create(HDF5.H5P_DATASET_XFER, prop_pairs...)
 
     # Add extra property lists if required by keyword args.
     if collective && "dxpl_mpio" ∉ prop_pairs
@@ -266,12 +284,7 @@ function check_phdf5_file(g, x)
     check_hdf5_parallel()
 
     plist_id = HDF5.h5f_get_access_plist(file(g))
-
-    if HDF5PROPERTIES_HAS_TOCLOSE
-        plist = HDF5Properties(plist_id, true, HDF5.H5P_FILE_ACCESS)
-    else
-        plist = HDF5Properties(plist_id, HDF5.H5P_FILE_ACCESS)
-    end
+    plist = HDF5Properties(plist_id, HDF5.H5P_FILE_ACCESS)
 
     # Get HDF5 ids of MPIO driver and of the actual driver being used.
     driver_mpio = ccall((:H5FD_mpio_init, HDF5.libhdf5), HDF5.Hid, ())

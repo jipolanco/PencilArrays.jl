@@ -41,7 +41,7 @@ provides efficient and highly scalable distributed FFTs.
 - zero-cost, arbitrary dimension permutations à la
   [`PermutedDimsArray`](https://docs.julialang.org/en/latest/base/arrays/#Base.PermutedDimsArrays.PermutedDimsArray);
 
-- convenient parallel I/O using the [Parallel
+- convenient parallel I/O using either MPI-IO or the [Parallel
   HDF5](https://portal.hdfgroup.org/display/HDF5/Parallel+HDF5) libraries;
 
 - distributed FFTs and related transforms via the

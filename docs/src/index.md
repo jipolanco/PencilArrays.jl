@@ -39,14 +39,14 @@ provides efficient and highly scalable distributed FFTs.
 
 - decomposition of arrays along an arbitrary subset of dimensions;
 
-- transpositions between different decomposition configurations, using
-  point-to-point and collective MPI communications;
+- [transpositions](@ref Global-MPI-operations) between different decomposition
+  configurations, using point-to-point and collective MPI communications;
 
 - zero-cost, arbitrary dimension permutations à la
   [`PermutedDimsArray`](https://docs.julialang.org/en/latest/base/arrays/#Base.PermutedDimsArrays.PermutedDimsArray);
 
-- convenient parallel I/O using the [Parallel
-  HDF5](https://portal.hdfgroup.org/display/HDF5/Parallel+HDF5) libraries;
+- convenient [parallel I/O](@ref PencilIO_module) using either MPI-IO or the
+  [Parallel HDF5](https://portal.hdfgroup.org/display/HDF5/Parallel+HDF5) libraries;
 
 - distributed FFTs and related transforms via the
   [PencilFFTs](https://github.com/jipolanco/PencilFFTs.jl) package.
