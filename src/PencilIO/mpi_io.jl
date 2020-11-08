@@ -131,8 +131,8 @@ Base.open(D::MPIIODriver, filename::AbstractString, comm::MPI.Comm; keywords...)
     )
 
 """
-    setindex!(file::MPIFile, x::PencilArray, name::AbstractString;
-              chunks = false, collective = true, infokws...)
+    setindex!(file::MPIFile, x::MaybePencilArrayCollection,
+              name::AbstractString; chunks = false, collective = true, infokws...)
 
 Write [`PencilArray`](@ref) to binary file using MPI-IO.
 

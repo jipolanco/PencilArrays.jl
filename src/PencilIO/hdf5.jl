@@ -98,13 +98,12 @@ function Base.open(D::PHDF5Driver, filename::AbstractString, comm::MPI.Comm; kw.
     mode_args, other_kws = keywords_to_h5open(; kw...)
     info = MPI.Info(other_kws...)
     D.fapl["fapl_mpio"] = mpi_to_h5_handle.((comm, info))
-    h5open(filename, mode_args..., D.fcpl, D.fapl)
+    h5open(string(filename), mode_args..., D.fcpl, D.fapl)
 end
 
 """
     setindex!(g::Union{HDF5File,HDF5Group}, x::MaybePencilArrayCollection,
-              name::String, prop_lists...;
-              chunks = false, collective = true)
+              name::AbstractString, prop_lists...; chunks = false, collective = true)
 
 Write [`PencilArray`](@ref) or [`PencilArrayCollection`](@ref) to parallel HDF5
 file.
@@ -118,11 +117,11 @@ as a single component of a higher-dimension dataset.
 
 # Optional arguments
 
-- if `chunks=true`, data is written in chunks, with roughly one chunk
+- if `chunks = true`, data is written in chunks, with roughly one chunk
   per MPI process. This may (or may not) improve performance in parallel
   filesystems.
 
-- if `collective=true`, the dataset is written collectivelly. This is
+- if `collective = true`, the dataset is written collectivelly. This is
   usually recommended for performance.
 
 - additional property lists may be specified by name-value pairs in
@@ -165,7 +164,7 @@ end
 """
 function Base.setindex!(
         g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
-        name::String, prop_pairs...;
+        name::AbstractString, prop_pairs...;
         chunks=false, collective=true,
     )
     to = get_timer(pencil(x))
@@ -188,7 +187,7 @@ function Base.setindex!(
 
     dims_global = h5_dataspace_dims(x)
     @timeit_debug to "create dataset" dset =
-        d_create(g, name, h5_datatype(x), dataspace(dims_global), props...)
+        d_create(g, string(name), h5_datatype(x), dataspace(dims_global), props...)
     inds = range_local(x, MemoryOrder())
     @timeit_debug to "write data" to_hdf5(dset, x, inds)
     @timeit_debug to "write metadata" write_metadata(dset, x)
@@ -215,7 +214,7 @@ to_hdf5(::Nothing) = false
 
 """
     read!(g::Union{HDF5File,HDF5Group}, x::MaybePencilArrayCollection,
-          name::String, prop_lists...; collective=true)
+          name::AbstractString, prop_lists...; collective=true)
 
 Read [`PencilArray`](@ref) or [`PencilArrayCollection`](@ref) from parallel HDF5
 file.
@@ -264,7 +263,7 @@ function Base.read!(g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
     end
 
     dims_global = h5_dataspace_dims(x)
-    @timeit_debug to "open dataset" dset = d_open(g, name, dapl, dxpl)
+    @timeit_debug to "open dataset" dset = d_open(g, string(name), dapl, dxpl)
     check_phdf5_file(parent(dset), x)
 
     if dims_global != size(dset)
