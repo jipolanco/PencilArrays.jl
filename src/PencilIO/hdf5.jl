@@ -82,6 +82,18 @@ function keywords_to_h5open(; kws...)
     ), other_kws
 end
 
+"""
+    open([f::Function], driver::PHDF5Driver, filename, comm::MPI.Comm; keywords...)
+
+Open parallel file using the Parallel HDF5 driver.
+
+See [`open(::ParallelIODriver)`](@ref) for common options for all drivers.
+
+Driver-specific options may be passed via the `driver` argument. See
+[`PHDF5Driver`](@ref) for details.
+"""
+function Base.open(::PHDF5Driver) end
+
 function Base.open(D::PHDF5Driver, filename::AbstractString, comm::MPI.Comm; kw...)
     mode_args, other_kws = keywords_to_h5open(; kw...)
     info = MPI.Info(other_kws...)

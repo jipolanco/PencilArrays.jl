@@ -26,7 +26,7 @@ Supported keyword arguments include:
 
 - open mode arguments: `read`, `write`, `create`, `append` and `truncate`.
   These have the same behaviour and defaults as `Base.open`.
-  Some of them may not be supported by the chosen driver (see below).
+  Some of them may be ignored by the chosen driver (see driver-specific docs).
 
 - as in [`MPI.File.open`](https://juliaparallel.github.io/MPI.jl/latest/io/#MPI.File.open),
   other arguments are passed via an `MPI.Info` object.
@@ -34,14 +34,14 @@ Supported keyword arguments include:
 Note that driver-specific options (such as HDF5 property lists) must be passed
 to each driver's constructor.
 
-## Parallel I/O drivers
+## See also
 
-The following drivers are supported:
+- [`open(::MPIIODriver)`](@ref) for MPI-IO specific options
+- [`open(::PHDF5Driver)`](@ref) for HDF5 specific options
 
-- [`PHDF5Driver`](@ref)
-
-- [`MPIIODriver`](@ref): the `truncate` keyword is ignored
 """
+function Base.open(::ParallelIODriver) end
+
 function Base.open(f::Function, driver::ParallelIODriver, args...; kw...)
     fid = open(driver, args...; kw...)
     try

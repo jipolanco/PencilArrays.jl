@@ -13,6 +13,10 @@ MPI-IO driver using the MPI.jl package.
 
 Keyword arguments are passed to
 [`MPI.File.open`](https://juliaparallel.github.io/MPI.jl/latest/io/#MPI.File.open).
+
+This driver writes binary data along with a JSON file containing metadata.
+When reading data, this JSON file is expected to be present along with the raw
+data file.
 """
 Base.@kwdef struct MPIIODriver <: ParallelIODriver
     sequential    :: Bool = false
@@ -102,6 +106,22 @@ Base.parent(ff::MPIFile) = ff.file
 Base.position(ff::MPIFile) = ff.position
 Base.skip(ff::MPIFile, offset) = ff.position += offset
 Base.seek(ff::MPIFile, pos) = ff.position = pos
+
+"""
+    open([f::Function], driver::MPIIODriver, filename, comm::MPI.Comm; keywords...)
+
+Open parallel file using the MPI-IO driver.
+
+See [`open(::ParallelIODriver)`](@ref) for common options for all drivers.
+
+Driver-specific options may be passed via the `driver` argument. See
+[`MPIIODriver`](@ref) for details.
+
+## Driver notes
+
+- the `truncate` keyword is ignored.
+"""
+function Base.open(::MPIIODriver) end
 
 Base.open(D::MPIIODriver, filename::AbstractString, comm::MPI.Comm; keywords...) =
     MPIFile(
