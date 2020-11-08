@@ -193,7 +193,6 @@ function main()
         filename = MPI.bcast(tempname(), 0, comm)
 
         @testset "MPI-IO" begin
-            filename = "tmp.bin"
             test_write_mpiio(filename, u)
         end
 
