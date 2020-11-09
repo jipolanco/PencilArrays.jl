@@ -28,7 +28,8 @@ end
 
 function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     u = PencilArray{T}(undef, p)
-    perm = permutation(p)
+    perm = permutation(u)
+    @test perm === permutation(typeof(u))
     let topo = topology(p)
         @test topo === topology(u)
         I = coords_local(topo)
