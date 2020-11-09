@@ -9,6 +9,10 @@ using LinearAlgebra: transpose!
 using Random
 using Test
 
+import ArrayInterface:
+    ArrayInterface,
+    Contiguous, contiguous_axis, contiguous_axis_indicator
+
 include("include/MPITools.jl")
 using .MPITools
 
@@ -51,6 +55,29 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
 
     randn!(u)
     @test check_iteration_order(u)
+
+    @testset "ArrayInterface" begin
+        @test ArrayInterface.parent_type(u) === typeof(parent(u))
+        @test ArrayInterface.known_length(u) === nothing
+        @test !ArrayInterface.can_change_size(u)
+        @test ArrayInterface.ismutable(u)
+        @test ArrayInterface.can_setindex(u)
+        @test ArrayInterface.aos_to_soa(u) === u
+        @test ArrayInterface.fast_scalar_indexing(u)
+        @test !ArrayInterface.isstructured(u)
+
+        @inferred contiguous_axis(u)
+        @assert contiguous_axis(parent(u)) === Contiguous(1)  # parent is a regular Array
+        # Verify that CartesianIndices iterates along the contiguous dimension
+        # first. This was actually checked in `check_iteration_order`, so it's
+        # mostly to check that contiguous_axis returns the good result.
+        let I = CartesianIndices(u)[2]
+            inds = contiguous_axis_indicator(u)  # tuple of Val{true} and Val{false}
+            J = CartesianIndex(
+                ntuple(d -> inds[d] === Val(true) ? 2 : 1, Val(ndims(u))))
+            @test I === J
+        end
+    end
 
     @inferred global_view(u)
     ug = global_view(u)
