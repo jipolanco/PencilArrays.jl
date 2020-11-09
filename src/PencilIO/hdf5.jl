@@ -162,9 +162,16 @@ end
 ```
 
 """
+function Base.setindex!(g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
+                        name::AbstractString, args...; kws...)
+    setindex!(g, x, string(name), args; kws...)
+end
+
+# This definition is needed to avoid method ambiguity error.
+# This is because HDF5.jl defines setindex! for String, not AbstractString.
 function Base.setindex!(
         g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
-        name::AbstractString, prop_pairs...;
+        name::String, prop_pairs...;
         chunks=false, collective=true,
     )
     to = get_timer(pencil(x))
@@ -187,7 +194,7 @@ function Base.setindex!(
 
     dims_global = h5_dataspace_dims(x)
     @timeit_debug to "create dataset" dset =
-        d_create(g, string(name), h5_datatype(x), dataspace(dims_global), props...)
+        d_create(g, name, h5_datatype(x), dataspace(dims_global), props...)
     inds = range_local(x, MemoryOrder())
     @timeit_debug to "write data" to_hdf5(dset, x, inds)
     @timeit_debug to "write metadata" write_metadata(dset, x)
