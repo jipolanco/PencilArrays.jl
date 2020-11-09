@@ -37,6 +37,8 @@ include("cartesian_indices.jl")  # PermutedLinearIndices, PermutedCartesianIndic
 
 include("broadcast.jl")
 
+include("gather.jl")
+
 include("Transpositions/Transpositions.jl")
 export Transpositions
 
