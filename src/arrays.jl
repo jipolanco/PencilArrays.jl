@@ -248,6 +248,12 @@ Base.parent(x::PencilArray) = x.data
 # This enables aliasing detection (e.g. using Base.mightalias) on PencilArrays.
 Base.dataids(x::PencilArray) = Base.dataids(parent(x))
 
+# This is based on strides(::PermutedDimsArray)
+function Base.strides(x::PencilArray)
+    s = strides(parent(x))
+    permute_indices(s, get_permutation(x))
+end
+
 """
     pointer(x::PencilArray)
 

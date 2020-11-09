@@ -46,6 +46,16 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
         @test sizeof_global(umat) == 6 * sizeof_global(u)
     end
 
+    let
+        local p = if perm === NoPermutation()
+            Permutations.identity_permutation(Val(ndims(u)))
+        else
+            perm
+        end
+        A = PermutedDimsArray(parent(u), Tuple(p))
+        @test strides(A) === strides(u)
+    end
+
     randn!(u)
     @test check_iteration_order(u)
 
