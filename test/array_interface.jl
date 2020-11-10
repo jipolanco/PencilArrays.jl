@@ -21,6 +21,7 @@ end
 
 Base.size(x::DummyArray) = x.dims
 Base.getindex(::DummyArray{T}, ind...) where {T} = zero(T)
+Base.strides(x::DummyArray) = Base.size_to_strides(1, size(x)...)
 
 function non_dense_array(::Type{T}, dims) where {T}
     # Only the first dimension is dense: DenseDims((true, false, false, ...)).
@@ -55,7 +56,12 @@ function test_array_interface(p::Pencil)
         iperm = inverse_permutation(get_permutation(u))
         vp = iperm === NoPermutation() ?  up : PermutedDimsArray(up, Tuple(iperm))
 
-        for f in (contiguous_axis, contiguous_batch_size, stride_rank, dense_dims)
+        functions = (
+            contiguous_axis, contiguous_batch_size, stride_rank, dense_dims,
+            ArrayInterface.size, ArrayInterface.strides, ArrayInterface.offsets,
+        )
+
+        for f in functions
             @inferred f(u)
             @test f(u) === f(vp)
         end

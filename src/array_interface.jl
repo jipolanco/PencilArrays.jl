@@ -1,4 +1,5 @@
 import ArrayInterface:
+    ArrayInterface,
     parent_type,
     Contiguous,
     contiguous_axis,
@@ -43,3 +44,9 @@ dense_dims(::Type{A}) where {A <: PencilArray} =
 _dense_dims(x::Nothing, perm) = x
 _dense_dims(x::DenseDims, ::NoPermutation) = x
 @inline _dense_dims(x::DenseDims, perm::Permutation) = x[Val(Tuple(perm))]
+
+ArrayInterface.size(A::PencilArray) =
+    permute_indices(ArrayInterface.size(parent(A)), get_permutation(A))
+
+ArrayInterface.strides(A::PencilArray) =
+    permute_indices(ArrayInterface.strides(parent(A)), get_permutation(A))
