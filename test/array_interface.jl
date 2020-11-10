@@ -32,13 +32,32 @@ function non_dense_array(::Type{T}, dims) where {T}
     up
 end
 
+function non_contiguous_array(::Type{T}, dims) where {T}
+    N = length(dims)
+    dims_parent = ntuple(d -> (1 + (d == 1)) * dims[d], Val(N))
+    up = view(
+        Array{T}(undef, dims_parent),
+        2:2:dims_parent[1],
+        ntuple(d -> Colon(), Val(N - 1))...,
+    )
+    @assert contiguous_axis(up) === nothing
+    @assert size(up) == dims
+    up
+end
+
 function test_array_interface(p::Pencil)
     # Test different kinds of parent arrays
     dims_mem = size_local(p, MemoryOrder())
     up_regular = Array{Float64}(undef, dims_mem)
+    up_noncontig = non_contiguous_array(Float64, dims_mem)
     up_nondense = non_dense_array(Float64, dims_mem)
     up_dummy = DummyArray{Float64}(undef, dims_mem)
-    parents = (up_regular, up_nondense, up_dummy)
+    parents = (
+        up_regular,
+        up_noncontig,
+        up_nondense,
+        up_dummy,
+    )
 
     @testset "Parent $(typeof(up))" for up in parents
         u = PencilArray(p, up)
@@ -58,12 +77,22 @@ function test_array_interface(p::Pencil)
 
         functions = (
             contiguous_axis, contiguous_batch_size, stride_rank, dense_dims,
-            ArrayInterface.size, ArrayInterface.strides, ArrayInterface.offsets,
+            ArrayInterface.strides, ArrayInterface.offsets,
         )
 
         for f in functions
             @inferred f(u)
             @test f(u) === f(vp)
+        end
+
+        let f = ArrayInterface.size
+            if up === up_noncontig && get_permutation(u) !== NoPermutation()
+                # Fails due to https://github.com/SciML/ArrayInterface.jl/issues/85
+                @test_throws MethodError f(u)
+            else
+                @inferred f(u)
+                @test f(u) === f(vp)
+            end
         end
 
         let f = contiguous_axis_indicator
