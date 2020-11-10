@@ -15,11 +15,12 @@ contiguous_axis(::Type{A}) where {A <: PencilArray} =
         get_permutation(A),
     )
 
-_contiguous_axis(x::Nothing, perm) = x
-_contiguous_axis(x::Contiguous{-1}, perm) = x
+_contiguous_axis(x::Nothing, ::Any) = x
 _contiguous_axis(x::Contiguous, ::NoPermutation) = x
-@inline _contiguous_axis(::Contiguous{i}, p::Permutation) where {i} =
+@inline function _contiguous_axis(x::Contiguous{i}, p::Permutation) where {i}
+    i == -1 && return x
     Contiguous(Tuple(p)[i])
+end
 
 contiguous_batch_size(::Type{A}) where {A <: PencilArray} =
     contiguous_batch_size(parent_type(A))
