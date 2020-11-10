@@ -13,7 +13,7 @@ import ArrayInterface:
     ArrayInterface,
     Contiguous,
     contiguous_axis, contiguous_axis_indicator, contiguous_batch_size,
-    stride_rank, dense_dims
+    stride_rank, DenseDims, dense_dims
 
 include("include/MPITools.jl")
 using .MPITools
