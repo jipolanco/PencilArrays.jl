@@ -8,7 +8,9 @@ test_files = [
     "pencils.jl",
 ]
 
-Nproc = clamp(Sys.CPU_THREADS, 4, 8)
+Nproc = let N = get(ENV, "JULIA_MPI_NPROC", nothing)
+    N === nothing ? clamp(Sys.CPU_THREADS, 4, 8) : parse(Int, N)
+end
 
 for fname in test_files
     @info "Running $fname with $Nproc processes..."

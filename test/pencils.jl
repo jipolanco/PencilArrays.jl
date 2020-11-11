@@ -200,7 +200,7 @@ function compare_distributed_arrays(u_local::PencilArray, v_local::PencilArray)
         @assert myrank == root
         same[] = u == v
     end
-    MPI.Bcast!(same, length(same), root, comm)
+    MPI.Bcast!(same, root, comm)
 
     same[]
 end
