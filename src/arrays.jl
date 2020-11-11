@@ -159,6 +159,8 @@ end
     size(x::PencilArray)
 
 Return local dimensions of a `PencilArray` in logical order.
+
+Same as `size_local(x, LogicalOrder())` (see [`size_local`](@ref)).
 """
 Base.size(x::PencilArray) = (x.space_dims..., extra_dims(x)...)
 
