@@ -168,6 +168,15 @@ function check_iteration_order(u::Union{PencilArray,GlobalPencilArray})
     cart = CartesianIndices(u)
     lin = LinearIndices(u)
 
+    # Check that the behaviour of `cart` is consistent with that of
+    # CartesianIndices.
+    @assert size(CartesianIndices(p)) == size(p)
+    @test size(cart) == size(u)
+
+    # Same for `lin`.
+    @assert size(LinearIndices(p)) == size(p)
+    @test size(lin) == size(u)
+
     # Check that Cartesian indices iterate in memory order.
     for (n, I) in enumerate(cart)
         l = lin[I]

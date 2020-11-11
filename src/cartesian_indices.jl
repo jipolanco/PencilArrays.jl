@@ -12,7 +12,7 @@
 struct PermutedLinearIndices{
         N, L <: LinearIndices, Perm,
         Offsets <: Union{Nothing, Dims{N}},
-    } <: AbstractVector{Int}
+    } <: AbstractArray{Int,N}
     data :: L  # indices in permuted order
     perm :: Perm
     offsets :: Offsets
@@ -25,7 +25,8 @@ struct PermutedLinearIndices{
 end
 
 Base.length(L::PermutedLinearIndices) = length(L.data)
-Base.size(L::PermutedLinearIndices) = (length(L), )
+Base.size(L::PermutedLinearIndices) =
+    permute_indices(size(L.data), inverse_permutation(L.perm))
 Base.iterate(L::PermutedLinearIndices, args...) = iterate(L.data, args...)
 Base.lastindex(L::PermutedLinearIndices) = lastindex(L.data)
 
