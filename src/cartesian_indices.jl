@@ -73,6 +73,8 @@ struct PermutedCartesianIndices{
     end
 end
 
+Base.size(C::PermutedCartesianIndices) = permute_indices(size(C.data), C.iperm)
+
 @inline function Base.iterate(C::PermutedCartesianIndices, args...)
     next = iterate(C.data, args...)
     next === nothing && return nothing
