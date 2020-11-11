@@ -389,8 +389,9 @@ function transpose_send!(
         # length of the buffer is consistent with recv_counts.
         recv_buf_view = @view recv_buf[1:length_recv]
         @timeit_debug timer "MPI.Alltoallv!" MPI.Alltoallv!(
-            send_buf, recv_buf_view,
-            buf_info.send_counts, buf_info.recv_counts, comm,
+            MPI.VBuffer(send_buf, buf_info.send_counts),
+            MPI.VBuffer(recv_buf_view, buf_info.recv_counts),
+            comm,
         )
     end
 
