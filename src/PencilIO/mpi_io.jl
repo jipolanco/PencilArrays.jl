@@ -250,9 +250,9 @@ function write_discontiguous(ff::MPI.FileHandle, x::PencilArray;
         set_view!(ff, x, offset; infokws...)
         A = parent(x)
         if collective
-            MPI_File_write_all(ff, A)
+            MPI.File.write_all(ff, A)
         else
-            MPI_File_write(ff, A)
+            MPI.File.write(ff, A)
         end
     end
     nothing
@@ -265,59 +265,11 @@ function read_discontiguous!(ff::MPI.FileHandle, x::PencilArray;
         set_view!(ff, x, offset; infokws...)
         A = parent(x)
         if collective
-            MPI_File_read_all!(ff, A)
+            MPI.File.read_all!(ff, A)
         else
-            MPI_File_read!(ff, A)
+            MPI.File.read!(ff, A)
         end
     end
-end
-
-# TODO add these to MPI.jl
-function MPI_File_write(file::MPI.FileHandle, buf::MPI.Buffer)
-    stat_ref = Ref{MPI.Status}(MPI.STATUS_EMPTY)
-    # int MPI_File_write(MPI_File fh, const void *buf,
-    #                    int count, MPI_Datatype datatype, MPI_Status *status)
-    MPI.@mpichk ccall((:MPI_File_write, MPI.libmpi), Cint,
-                      (MPI.MPI_File, MPI.MPIPtr, Cint, MPI.MPI_Datatype, Ptr{MPI.Status}),
-                      file, buf.data, buf.count, buf.datatype, stat_ref)
-    return stat_ref[]
-end
-
-function MPI_File_write_all(file::MPI.FileHandle, buf::MPI.Buffer)
-    stat_ref = Ref{MPI.Status}(MPI.STATUS_EMPTY)
-    # int MPI_File_write_all(MPI_File fh, const void *buf,
-    #                        int count, MPI_Datatype datatype, MPI_Status *status)
-    MPI.@mpichk ccall((:MPI_File_write_all, MPI.libmpi), Cint,
-                      (MPI.MPI_File, MPI.MPIPtr, Cint, MPI.MPI_Datatype, Ptr{MPI.Status}),
-                      file, buf.data, buf.count, buf.datatype, stat_ref)
-    return stat_ref[]
-end
-
-function MPI_File_read!(file::MPI.FileHandle, buf::MPI.Buffer)
-    stat_ref = Ref{MPI.Status}(MPI.STATUS_EMPTY)
-    # int MPI_File_read(MPI_File fh, void *buf,
-    #                   int count, MPI_Datatype datatype, MPI_Status *status)
-    MPI.@mpichk ccall((:MPI_File_read, MPI.libmpi), Cint,
-                      (MPI.MPI_File, MPI.MPIPtr, Cint, MPI.MPI_Datatype, Ptr{MPI.Status}),
-                      file, buf.data, buf.count, buf.datatype, stat_ref)
-    return stat_ref[]
-end
-
-function MPI_File_read_all!(file::MPI.FileHandle, buf::MPI.Buffer)
-    stat_ref = Ref{MPI.Status}(MPI.STATUS_EMPTY)
-    # int MPI_File_read_all(MPI_File fh, void *buf,
-    #                       int count, MPI_Datatype datatype, MPI_Status *status)
-    MPI.@mpichk ccall((:MPI_File_read_all, MPI.libmpi), Cint,
-                      (MPI.MPI_File, MPI.MPIPtr, Cint, MPI.MPI_Datatype, Ptr{MPI.Status}),
-                      file, buf.data, buf.count, buf.datatype, stat_ref)
-    return stat_ref[]
-end
-
-for f in (:MPI_File_write, :MPI_File_write_all)
-    @eval $f(file::MPI.FileHandle, data) = $f(file, MPI.Buffer_send(data))
-end
-for f in (:MPI_File_read!, :MPI_File_read_all!)
-    @eval $f(file::MPI.FileHandle, data) = $f(file, MPI.Buffer(data))
 end
 
 function set_view!(ff, x::PencilArray, offset; infokws...)
