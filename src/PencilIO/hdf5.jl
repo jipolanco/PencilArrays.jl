@@ -15,8 +15,8 @@ Note that the MPIO file access property list does not need to be set, as this is
 done automatically by this driver when the file is opened.
 """
 struct PHDF5Driver <: ParallelIODriver
-    fcpl :: HDF5Properties
-    fapl :: HDF5Properties
+    fcpl :: HDF5.Properties
+    fapl :: HDF5.Properties
     function PHDF5Driver(;
             fcpl = HDF5.DEFAULT_PROPERTIES,
             fapl = HDF5.DEFAULT_PROPERTIES,
@@ -34,7 +34,7 @@ struct PHDF5Driver <: ParallelIODriver
     end
 end
 
-const HDF5FileOrGroup = Union{HDF5.HDF5File, HDF5.HDF5Group}
+const HDF5FileOrGroup = Union{HDF5.File, HDF5.Group}
 
 const H5MPIHandle = let csize = sizeof(MPI.MPI_Comm)
     @assert csize in (4, 8)
@@ -206,7 +206,7 @@ end
 
 # Write metadata as HDF5 attributes attached to a dataset.
 # Note that this is a collective operation (all processes must call this).
-function write_metadata(dset::HDF5Dataset, x)
+function write_metadata(dset::HDF5.Dataset, x)
     meta = metadata(x)
     for (name, val) in pairs(meta)
         dset[string(name)] = to_hdf5(val)
@@ -290,10 +290,10 @@ function check_phdf5_file(g, x)
     check_hdf5_parallel()
 
     plist_id = HDF5.h5f_get_access_plist(file(g))
-    plist = HDF5Properties(plist_id, HDF5.H5P_FILE_ACCESS)
+    plist = HDF5.Properties(plist_id, HDF5.H5P_FILE_ACCESS)
 
     # Get HDF5 ids of MPIO driver and of the actual driver being used.
-    driver_mpio = ccall((:H5FD_mpio_init, HDF5.libhdf5), HDF5.Hid, ())
+    driver_mpio = ccall((:H5FD_mpio_init, HDF5.libhdf5), HDF5.hid_t, ())
     driver = HDF5.h5p_get_driver(plist)
     if driver !== driver_mpio
         error("HDF5 file was not opened with the MPIO driver")
@@ -323,7 +323,7 @@ function from_hdf5!(dset, x::PencilArray, inds)
     end
 
     # The following is adapted from one of the _getindex() in HDF5.jl.
-    HDF5Scalar = HDF5.HDF5Scalar
+    HDF5Scalar = HDF5.ScalarType
     T = eltype(x)
     if !(T <: Union{HDF5Scalar, Complex{<:HDF5Scalar}})
         error("Dataset indexing (hyperslab) is available only for bits types")
