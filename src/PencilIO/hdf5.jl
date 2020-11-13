@@ -165,16 +165,9 @@ end
 ```
 
 """
-function Base.setindex!(g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
-                        name::AbstractString; kws...)
-    setindex!(g, x, string(name); kws...)
-end
-
-# This definition is needed to avoid method ambiguity error.
-# This is because HDF5.jl defines setindex! for String, not AbstractString.
 function Base.setindex!(
         g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
-        name::String; chunks=false, collective=true, prop_pairs...,
+        name::AbstractString; chunks=false, collective=true, prop_pairs...,
     )
     to = get_timer(pencil(x))
 
