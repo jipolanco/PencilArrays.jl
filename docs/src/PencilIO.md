@@ -101,6 +101,7 @@ Optional keyword arguments, such as `collective`, are also supported by
 
 If using the [Parallel HDF5 driver](@ref PHDF5Driver), the HDF5.jl package must
 be available and configured with MPI support.
+Note that HDF5.jl versions previous to [0.14](https://github.com/JuliaIO/HDF5.jl/releases/tag/v0.14.0) are not supported.
 
 Parallel HDF5 is not enabled in the default installation of HDF5.jl.
 For Parallel HDF5 to work, the HDF5 C libraries wrapped by HDF5.jl must be
@@ -143,8 +144,7 @@ the previous section.
 For the set-up to be persistent across HDF5.jl updates, consider setting
 `JULIA_HDF5_LIBRARY_PATH` in `~/.bashrc` or similar.
 
-See the [HDF5.jl
-README](https://github.com/JuliaIO/HDF5.jl#installation) for details.
+See the [HDF5.jl docs](https://juliaio.github.io/HDF5.jl/stable/#System-provided-HDF5-libraries) for details.
 
 ### 3. Loading PencilIO
 
