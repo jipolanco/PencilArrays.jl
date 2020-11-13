@@ -15,26 +15,26 @@ Note that the MPIO file access property list does not need to be set, as this is
 done automatically by this driver when the file is opened.
 """
 struct PHDF5Driver <: ParallelIODriver
-    fcpl :: HDF5Properties
-    fapl :: HDF5Properties
+    fcpl :: HDF5.Properties
+    fapl :: HDF5.Properties
     function PHDF5Driver(;
             fcpl = HDF5.DEFAULT_PROPERTIES,
             fapl = HDF5.DEFAULT_PROPERTIES,
         )
         check_hdf5_parallel()
         if fcpl == HDF5.DEFAULT_PROPERTIES
-            fcpl = HDF5.p_create(HDF5.H5P_FILE_CREATE)
+            fcpl = create_property(HDF5.H5P_FILE_CREATE)
         end
         if fapl == HDF5.DEFAULT_PROPERTIES
-            fapl = HDF5.p_create(HDF5.H5P_FILE_ACCESS)
+            fapl = create_property(HDF5.H5P_FILE_ACCESS)
             # This is the default in HDF5.jl -- makes sense due to GC
-            fapl["fclose_degree"] = HDF5.H5F_CLOSE_STRONG
+            fapl[:fclose_degree] = HDF5.H5F_CLOSE_STRONG
         end
         new(fcpl, fapl)
     end
 end
 
-const HDF5FileOrGroup = Union{HDF5.HDF5File, HDF5.HDF5Group}
+const HDF5FileOrGroup = Union{HDF5.File, HDF5.Group}
 
 const H5MPIHandle = let csize = sizeof(MPI.MPI_Comm)
     @assert csize in (4, 8)
@@ -97,13 +97,16 @@ function Base.open(::PHDF5Driver) end
 function Base.open(D::PHDF5Driver, filename::AbstractString, comm::MPI.Comm; kw...)
     mode_args, other_kws = keywords_to_h5open(; kw...)
     info = MPI.Info(other_kws...)
-    D.fapl["fapl_mpio"] = mpi_to_h5_handle.((comm, info))
-    h5open(string(filename), mode_args..., D.fcpl, D.fapl)
+    D.fapl[:fapl_mpio] = mpi_to_h5_handle.((comm, info))
+    # TODO avoid using unexported function
+    HDF5._h5open(string(filename), mode_args..., D.fcpl, D.fapl)
 end
 
 """
-    setindex!(g::Union{HDF5File,HDF5Group}, x::MaybePencilArrayCollection,
-              name::AbstractString, prop_lists...; chunks = false, collective = true)
+    setindex!(
+        g::Union{HDF5File,HDF5Group}, x::MaybePencilArrayCollection,
+        name::AbstractString; chunks = false, collective = true, prop_lists...,
+    )
 
 Write [`PencilArray`](@ref) or [`PencilArrayCollection`](@ref) to parallel HDF5
 file.
@@ -124,11 +127,11 @@ as a single component of a higher-dimension dataset.
 - if `collective = true`, the dataset is written collectivelly. This is
   usually recommended for performance.
 
-- additional property lists may be specified by name-value pairs in
+- additional property lists may be specified by key-value pairs in
   `prop_lists`, following the [HDF5.jl
   syntax](https://juliaio.github.io/HDF5.jl/stable/#Passing-parameters).
   These property lists take precedence over keyword arguments.
-  For instance, if the `"dxpl_mpio", HDF5.H5FD_MPIO_COLLECTIVE` pair is passed,
+  For instance, if the `dxpl_mpio = HDF5.H5FD_MPIO_COLLECTIVE` option is passed,
   then the value of the `collective` argument is ignored.
 
 # Property lists
@@ -163,16 +166,15 @@ end
 
 """
 function Base.setindex!(g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
-                        name::AbstractString, args...; kws...)
-    setindex!(g, x, string(name), args; kws...)
+                        name::AbstractString; kws...)
+    setindex!(g, x, string(name); kws...)
 end
 
 # This definition is needed to avoid method ambiguity error.
 # This is because HDF5.jl defines setindex! for String, not AbstractString.
 function Base.setindex!(
         g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
-        name::String, prop_pairs...;
-        chunks=false, collective=true,
+        name::String; chunks=false, collective=true, prop_pairs...,
     )
     to = get_timer(pencil(x))
 
@@ -181,20 +183,20 @@ function Base.setindex!(
     check_phdf5_file(g, x)
 
     # Add extra property lists if required by keyword args.
-    props = collect(Any, prop_pairs)
+    props = Dict{Symbol,Any}(pairs(prop_pairs))
 
-    if chunks && "chunk" ∉ prop_pairs
+    if chunks && !haskey(prop_pairs, :chunk)
         chunk = h5_chunk_size(x, MemoryOrder())
-        push!(props, "chunk", chunk)
+        props[:chunk] = chunk
     end
 
-    if collective && "dxpl_mpio" ∉ prop_pairs
-        push!(props, "dxpl_mpio", HDF5.H5FD_MPIO_COLLECTIVE)
+    if collective && !haskey(prop_pairs, :dxpl_mpio)
+        props[:dxpl_mpio] = HDF5.H5FD_MPIO_COLLECTIVE
     end
 
     dims_global = h5_dataspace_dims(x)
     @timeit_debug to "create dataset" dset =
-        d_create(g, name, h5_datatype(x), dataspace(dims_global), props...)
+        create_dataset(g, name, h5_datatype(x), dataspace(dims_global); props...)
     inds = range_local(x, MemoryOrder())
     @timeit_debug to "write data" to_hdf5(dset, x, inds)
     @timeit_debug to "write metadata" write_metadata(dset, x)
@@ -206,7 +208,7 @@ end
 
 # Write metadata as HDF5 attributes attached to a dataset.
 # Note that this is a collective operation (all processes must call this).
-function write_metadata(dset::HDF5Dataset, x)
+function write_metadata(dset::HDF5.Dataset, x)
     meta = metadata(x)
     for (name, val) in pairs(meta)
         dset[string(name)] = to_hdf5(val)
@@ -221,7 +223,7 @@ to_hdf5(::Nothing) = false
 
 """
     read!(g::Union{HDF5File,HDF5Group}, x::MaybePencilArrayCollection,
-          name::AbstractString, prop_lists...; collective=true)
+          name::AbstractString; collective=true, prop_lists...)
 
 Read [`PencilArray`](@ref) or [`PencilArrayCollection`](@ref) from parallel HDF5
 file.
@@ -256,21 +258,21 @@ end
 ```
 """
 function Base.read!(g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
-                    name::AbstractString, prop_pairs...; collective=true)
+                    name::AbstractString; collective=true, prop_pairs...)
     to = get_timer(pencil(x))
 
     @timeit_debug to "Read HDF5" begin
 
-    dapl = p_create(HDF5.H5P_DATASET_ACCESS, prop_pairs...)
-    dxpl = p_create(HDF5.H5P_DATASET_XFER, prop_pairs...)
+    dapl = create_property(HDF5.H5P_DATASET_ACCESS; prop_pairs...)
+    dxpl = create_property(HDF5.H5P_DATASET_XFER; prop_pairs...)
 
     # Add extra property lists if required by keyword args.
-    if collective && "dxpl_mpio" ∉ prop_pairs
+    if collective && !haskey(prop_pairs, :dxpl_mpio)
         HDF5.h5p_set_dxpl_mpio(dxpl.id, HDF5.H5FD_MPIO_COLLECTIVE)
     end
 
     dims_global = h5_dataspace_dims(x)
-    @timeit_debug to "open dataset" dset = d_open(g, string(name), dapl, dxpl)
+    @timeit_debug to "open dataset" dset = open_dataset(g, string(name), dapl, dxpl)
     check_phdf5_file(parent(dset), x)
 
     if dims_global != size(dset)
@@ -289,11 +291,11 @@ end
 function check_phdf5_file(g, x)
     check_hdf5_parallel()
 
-    plist_id = HDF5.h5f_get_access_plist(file(g))
-    plist = HDF5Properties(plist_id, HDF5.H5P_FILE_ACCESS)
+    plist_id = HDF5.h5f_get_access_plist(HDF5.file(g))
+    plist = HDF5.Properties(plist_id, HDF5.H5P_FILE_ACCESS)
 
     # Get HDF5 ids of MPIO driver and of the actual driver being used.
-    driver_mpio = ccall((:H5FD_mpio_init, HDF5.libhdf5), HDF5.Hid, ())
+    driver_mpio = ccall((:H5FD_mpio_init, HDF5.libhdf5), HDF5.hid_t, ())
     driver = HDF5.h5p_get_driver(plist)
     if driver !== driver_mpio
         error("HDF5 file was not opened with the MPIO driver")
@@ -323,7 +325,7 @@ function from_hdf5!(dset, x::PencilArray, inds)
     end
 
     # The following is adapted from one of the _getindex() in HDF5.jl.
-    HDF5Scalar = HDF5.HDF5Scalar
+    HDF5Scalar = HDF5.ScalarType
     T = eltype(x)
     if !(T <: Union{HDF5Scalar, Complex{<:HDF5Scalar}})
         error("Dataset indexing (hyperslab) is available only for bits types")

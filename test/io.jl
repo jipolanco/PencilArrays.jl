@@ -148,7 +148,7 @@ function test_write_hdf5(filename, u::PencilArray)
         @test vr == ur
 
         let perm = Tuple(get_permutation(ur))
-            @test exists(attrs(ff["scalar"]), "permutation")
+            @test haskey(attributes(ff["scalar"]), "permutation")
             expected = perm === nothing ? false : collect(perm)
             @test read(ff["scalar"]["permutation"]) == expected
         end
