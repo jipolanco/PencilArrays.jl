@@ -59,9 +59,9 @@ version = "0.8.3"
 
 [[HDF5]]
 deps = ["Blosc", "Compat", "HDF5_jll", "Libdl", "Mmap", "Random", "Requires"]
-git-tree-sha1 = "4e7d448a953ffca94f2e8d5eb3470813a305c405"
+git-tree-sha1 = "96d77533eb46e208e801b939db8a27626c166565"
 uuid = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
-version = "0.14.0"
+version = "0.14.1"
 
 [[HDF5_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
