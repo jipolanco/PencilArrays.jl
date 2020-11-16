@@ -16,7 +16,7 @@ include("Pencils/Pencils.jl")
 
 import .Pencils:
     get_comm,
-    get_permutation,
+    permutation,
     range_local,
     range_remote,
     size_local,

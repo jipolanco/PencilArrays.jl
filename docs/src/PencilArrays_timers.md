@@ -28,7 +28,7 @@ pencil = Pencil(#= args... =#)
 # [do stuff with `pencil`...]
 
 # Retrieve and print timing data associated to `plan`
-to = get_timer(pencil)
+to = timer(pencil)
 print_timer(to)
 ```
 

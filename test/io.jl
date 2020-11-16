@@ -51,7 +51,7 @@ function test_write_mpiio(filename, u::PencilArray)
     # First, gather data from all processes.
     # Note that we may need to permute indices of data, since data on disk is
     # written in memory (not logical) order.
-    perm = Tuple(get_permutation(u))
+    perm = Tuple(permutation(u))
     Xg = map(X) do x
         xg = gather(x, root)  # note: data is in logical order
         xg === nothing && return xg
@@ -147,7 +147,7 @@ function test_write_hdf5(filename, u::PencilArray)
         read!(ff, vr, "scalar_again")
         @test vr == ur
 
-        let perm = Tuple(get_permutation(ur))
+        let perm = Tuple(permutation(ur))
             @test haskey(attributes(ff["scalar"]), "permutation")
             expected = perm === nothing ? false : collect(perm)
             @test read(ff["scalar"]["permutation"]) == expected

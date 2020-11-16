@@ -143,7 +143,7 @@ function transpose!(
 end
 
 function transpose!(t::Transposition; waitall=true)
-    timer = get_timer(t.Pi)
+    timer = Pencils.timer(t.Pi)
     @timeit_debug timer "transpose!" begin
         transpose_impl!(t.dim, t)
         if waitall
@@ -193,7 +193,7 @@ function transpose_impl!(::Nothing, t::Transposition)
     Po = t.Po
     in = t.Ai
     out = t.Ao
-    timer = get_timer(Pi)
+    timer = Pencils.timer(Pi)
 
     # Both pencil configurations are identical, so we just copy the data,
     # permuting dimensions if needed.
@@ -201,7 +201,7 @@ function transpose_impl!(::Nothing, t::Transposition)
     ui = parent(in)
     uo = parent(out)
 
-    if get_permutation(Pi) == get_permutation(Po)
+    if permutation(Pi) == permutation(Po)
         @timeit_debug timer "copy!" copy!(uo, ui)
     else
         @timeit_debug timer "permute_local!" permute_local!(out, in)
@@ -259,7 +259,7 @@ function transpose_impl!(R::Int, t::Transposition{T}) where {T}
     Ai = t.Ai
     Ao = t.Ao
     method = t.method
-    timer = get_timer(Pi)
+    timer = Pencils.timer(Pi)
 
     @assert Pi.topology === Po.topology
     @assert extra_dims(Ai) === extra_dims(Ao)
