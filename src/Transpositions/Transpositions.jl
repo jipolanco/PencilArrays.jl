@@ -217,7 +217,7 @@ function permute_local!(Ao::PencilArray{T,N},
     Po = pencil(Ao)
 
     perm = let perm_base = relative_permutation(Pi, Po)
-        p = append_to_permutation(perm_base, Val(length(Ai.extra_dims)))
+        p = append_to_permutation(perm_base, Val(ndims_extra(Ai)))
         Tuple(p)
     end
 

@@ -21,7 +21,7 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
     rank = MPI.Comm_rank(comm)
     mpi_tag = 42
     pen = pencil(x)
-    extra_dims = x.extra_dims
+    extra_dims = PencilArrays.extra_dims(x)
 
     # Each process sends its data to the root process.
     # If the local indices are permuted, the permutation is reverted before
