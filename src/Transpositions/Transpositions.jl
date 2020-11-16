@@ -497,7 +497,7 @@ function transpose_recv!(
 
         # Copy data to `Ao`, permuting dimensions if required.
         @timeit_debug timer "copy_permuted!" copy_permuted!(
-            Ao, o_range_iperm, recv_buf, off, perm, exdims, timer)
+            Ao, o_range_iperm, recv_buf, off, perm, exdims)
     end
 
     Ao
@@ -537,8 +537,7 @@ end
 
 function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
                         src::Vector{T}, src_offset::Int,
-                        perm::Permutation, extra_dims::Dims{E},
-                        timer) where {T,N,P,E}
+                        perm::Permutation, extra_dims::Dims{E}) where {T,N,P,E}
     @assert P + E == N
 
     src_view = let src_dims = (length.(o_range_iperm)..., extra_dims...)
