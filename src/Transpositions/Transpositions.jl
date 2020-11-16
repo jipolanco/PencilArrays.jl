@@ -165,7 +165,7 @@ function assert_compatible(p::Pencil, q::Pencil)
     # Check that decomp_dims differ on at most one value.
     # Both are expected to be sorted.
     dp, dq = map(decomposition, (p, q))
-    @assert all(issorted.((dp, dq)))
+    @assert all(map(issorted, (dp, dq)))
     if sum(dp .!= dq) > 1
         throw(ArgumentError(
             "pencil decompositions must differ in at most one dimension. " *
@@ -274,8 +274,9 @@ function transpose_impl!(R::Int, t::Transposition{T}) where {T}
     remote_inds = get_remote_indices(R, topology.coords_local, Nproc)
 
     # Length of data that I will "send" to myself.
-    length_self = let range_intersect = intersect.(Pi.axes_local, Po.axes_local)
-        prod(length.(range_intersect)) * prod(extra_dims(Ai))
+    length_self = let
+        range_intersect = map(intersect, Pi.axes_local, Po.axes_local)
+        prod(map(length, range_intersect)) * prod(extra_dims(Ai))
     end
 
     # Total data to be sent / received.
@@ -351,13 +352,13 @@ function transpose_send!(
 
     for (n, ind) in enumerate(remote_inds)
         # Global data range that I need to send to process n.
-        srange = intersect.(idims_local, odims[ind])
-        length_send_n = prod(length.(srange)) * prod_extra_dims
+        srange = map(intersect, idims_local, odims[ind])
+        length_send_n = prod(map(length, srange)) * prod_extra_dims
         local_send_range = to_local(Pi, srange, MemoryOrder())
 
         # Determine amount of data to be received.
-        rrange = intersect.(odims_local, idims[ind])
-        length_recv_n = prod(length.(rrange)) * prod_extra_dims
+        rrange = map(intersect, odims_local, idims[ind])
+        length_recv_n = prod(map(length, rrange)) * prod_extra_dims
         recv_offsets[n] = irecv
 
         rank = subcomm_ranks[n]  # actual rank of the other process
@@ -486,9 +487,9 @@ function transpose_recv!(
 
         # Non-permuted global indices of received data.
         ind = remote_inds[n]
-        g_range = intersect.(odims_local, idims[ind])
+        g_range = map(intersect, odims_local, idims[ind])
 
-        length_recv_n = prod(length.(g_range)) * prod_extra_dims
+        length_recv_n = prod(map(length, g_range)) * prod_extra_dims
         off = recv_offsets[n]
 
         # Local output data range in the **input** permutation.
@@ -540,7 +541,7 @@ function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
                         perm::Permutation, extra_dims::Dims{E}) where {T,N,P,E}
     @assert P + E == N
 
-    src_view = let src_dims = (length.(o_range_iperm)..., extra_dims...)
+    src_view = let src_dims = (map(length, o_range_iperm)..., extra_dims...)
         Ndata = prod(src_dims)
         n = src_offset
         v = view(src, (n + 1):(n + Ndata))
@@ -549,7 +550,7 @@ function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
 
     dest_view = let dest_p = parent(dest)  # array with non-permuted indices
         indices = permute_indices(o_range_iperm, perm)
-        v = view(dest_p, indices..., Base.OneTo.(extra_dims)...)
+        v = view(dest_p, indices..., map(Base.OneTo, extra_dims)...)
         if perm isa NoPermutation
             v
         else
