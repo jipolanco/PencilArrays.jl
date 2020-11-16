@@ -104,7 +104,7 @@ end
 
 """
     setindex!(
-        g::Union{HDF5File,HDF5Group}, x::MaybePencilArrayCollection,
+        g::Union{HDF5.File,HDF5.Group}, x::MaybePencilArrayCollection,
         name::AbstractString; chunks = false, collective = true, prop_lists...,
     )
 

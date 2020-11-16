@@ -99,9 +99,9 @@ Optional keyword arguments, such as `collective`, are also supported by
 
 ## [Setting-up Parallel HDF5](@id setting_up_parallel_hdf5)
 
-If using the [Parallel HDF5 driver](@ref PHDF5Driver), the HDF5.jl package must
+If using the [Parallel HDF5 driver](#PencilArrays.PencilIO.PHDF5Driver), the HDF5.jl package must
 be available and configured with MPI support.
-Note that HDF5.jl versions previous to [0.14](https://github.com/JuliaIO/HDF5.jl/releases/tag/v0.14.0) are not supported.
+Note that HDF5.jl versions previous to [v0.14](https://github.com/JuliaIO/HDF5.jl/releases/tag/v0.14.0) are not supported.
 
 Parallel HDF5 is not enabled in the default installation of HDF5.jl.
 For Parallel HDF5 to work, the HDF5 C libraries wrapped by HDF5.jl must be
