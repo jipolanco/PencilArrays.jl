@@ -7,7 +7,7 @@ import MPI
 
 using ..PencilArrays
 using ..Pencils: ArrayRegion
-using ..Permutations
+using StaticPermutations
 
 # Declare transposition approaches.
 abstract type AbstractTransposeMethod end
@@ -214,8 +214,9 @@ function permute_local!(Ao::PencilArray{T,N},
     Pi = pencil(Ai)
     Po = pencil(Ao)
 
-    perm = let perm_base = relative_permutation(Pi, Po)
-        p = append_to_permutation(perm_base, Val(ndims_extra(Ai)))
+    perm = let
+        perm_base = permutation(Po) / permutation(Pi)  # relative permutation
+        p = append(perm_base, Val(ndims_extra(Ai)))
         Tuple(p)
     end
 

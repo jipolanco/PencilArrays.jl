@@ -59,15 +59,14 @@ which corresponds to the permutation `(2, 3, 1)`.
 Permutations are passed to the `Pencil` constructor via the `permute` keyword
 argument.
 For performance reasons, dimension permutations are compile-time constants, and
-they should be specified using the [`Permutation`](@ref) type defined in
-`PencilArrays`.
+they should be specified using a [`Permutation`](@ref) object.
 For instance,
 ```julia
 permutation = Permutation(2, 3, 1)
 pencil = Pencil(#= ... =#, permute=permutation)
 ```
-One can also pass [`NoPermutation`](@ref) as a permutation, which disables
-permutations (this is the default).
+One can also pass a [`NoPermutation`](@ref) to disable permutations (this is
+the default).
 
 ## Types
 

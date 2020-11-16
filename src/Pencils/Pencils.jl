@@ -1,6 +1,6 @@
 module Pencils
 
-using ..Permutations
+using StaticPermutations
 
 using MPI
 using Reexport
@@ -8,7 +8,7 @@ using StaticArrays: SVector
 using TimerOutputs
 
 export Pencil, MPITopology
-export Permutation, NoPermutation
+export Permutation, NoPermutation  # from StaticPermutations
 export MemoryOrder, LogicalOrder
 export decomposition, permutation
 export get_comm, timer
@@ -315,9 +315,7 @@ function to_local(p::Pencil{N}, global_inds::ArrayRegion{N},
     order === MemoryOrder() ? permute_indices(ind, permutation(p)) : ind
 end
 
-Permutations.permute_indices(t::Tuple, p::Pencil) = permute_indices(t, permutation(p))
-
-Permutations.relative_permutation(p::Pencil, q::Pencil) =
-    relative_permutation(permutation(p), permutation(q))
+permute_indices(t::Tuple, p::Pencil) = permutation(p) * t
+relative_permutation(p::Pencil, q::Pencil) = permutation(q) / permutation(p)
 
 end
