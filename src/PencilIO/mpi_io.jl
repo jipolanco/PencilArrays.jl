@@ -245,7 +245,7 @@ end
 
 function write_discontiguous(ff::MPI.FileHandle, x::PencilArray;
                              offset, collective, infokws...)
-    to = get_timer(pencil(x))
+    to = timer(pencil(x))
     @timeit_debug to "Write MPI-IO discontiguous" begin
         set_view!(ff, x, offset; infokws...)
         A = parent(x)
@@ -260,7 +260,7 @@ end
 
 function read_discontiguous!(ff::MPI.FileHandle, x::PencilArray;
                              offset, collective, infokws...)
-    to = get_timer(pencil(x))
+    to = timer(pencil(x))
     @timeit_debug to "Read MPI-IO discontiguous" begin
         set_view!(ff, x, offset; infokws...)
         A = parent(x)
@@ -291,7 +291,7 @@ end
 
 function write_contiguous(ff::MPI.FileHandle, x::PencilArray;
                           offset, collective, infokws...)
-    to = get_timer(pencil(x))
+    to = timer(pencil(x))
     @timeit_debug to "Write MPI-IO contiguous" begin
         offset += mpi_io_offset(x)
         A = parent(x)
@@ -306,7 +306,7 @@ end
 
 function read_contiguous!(ff::MPI.FileHandle, x::PencilArray;
                           offset, collective, infokws...)
-    to = get_timer(pencil(x))
+    to = timer(pencil(x))
     @timeit_debug to "Read MPI-IO contiguous" begin
         offset += mpi_io_offset(x)
         A = parent(x)

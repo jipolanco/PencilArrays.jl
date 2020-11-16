@@ -15,8 +15,6 @@ abstract type AbstractTransposeMethod end
 struct PointToPoint <: AbstractTransposeMethod end
 struct Alltoallv <: AbstractTransposeMethod end
 
-Base.@deprecate_binding IsendIrecv PointToPoint
-
 function Base.show(io::IO, ::T) where {T<:AbstractTransposeMethod}
     print(io, nameof(T))
 end
@@ -94,7 +92,7 @@ struct Transposition{T, N,
         # The `decomp_dims` tuples of both pencils must differ by at most one
         # value (as just checked by `assert_compatible`). The transposition
         # is performed along the dimension R where that difference happens.
-        dim = findfirst(Pi.decomp_dims .!= Po.decomp_dims)
+        dim = findfirst(decomposition(Pi) .!= decomposition(Po))
 
         reqs = MPI.Request[]
 
@@ -143,7 +141,7 @@ function transpose!(
 end
 
 function transpose!(t::Transposition; waitall=true)
-    timer = get_timer(t.Pi)
+    timer = Pencils.timer(t.Pi)
     @timeit_debug timer "transpose!" begin
         transpose_impl!(t.dim, t)
         if waitall
@@ -164,11 +162,12 @@ function assert_compatible(p::Pencil, q::Pencil)
     end
     # Check that decomp_dims differ on at most one value.
     # Both are expected to be sorted.
-    @assert all(issorted.((p.decomp_dims, q.decomp_dims)))
-    if sum(p.decomp_dims .!= q.decomp_dims) > 1
+    dp, dq = map(decomposition, (p, q))
+    @assert all(map(issorted, (dp, dq)))
+    if sum(dp .!= dq) > 1
         throw(ArgumentError(
             "pencil decompositions must differ in at most one dimension. " *
-            "Got decomposed dimensions $(p.decomp_dims) and $(q.decomp_dims)."))
+            "Got decomposed dimensions $dp and $dq."))
     end
     nothing
 end
@@ -191,43 +190,43 @@ end
 function transpose_impl!(::Nothing, t::Transposition)
     Pi = t.Pi
     Po = t.Po
-    in = t.Ai
-    out = t.Ao
-    timer = get_timer(Pi)
+    Ai = t.Ai
+    Ao = t.Ao
+    timer = Pencils.timer(Pi)
 
     # Both pencil configurations are identical, so we just copy the data,
     # permuting dimensions if needed.
-    @assert size(in) === size(out)
-    ui = parent(in)
-    uo = parent(out)
+    @assert size(Ai) === size(Ao)
+    ui = parent(Ai)
+    uo = parent(Ao)
 
-    if get_permutation(Pi) == get_permutation(Po)
+    if permutation(Pi) == permutation(Po)
         @timeit_debug timer "copy!" copy!(uo, ui)
     else
-        @timeit_debug timer "permute_local!" permute_local!(out, in)
+        @timeit_debug timer "permute_local!" permute_local!(Ao, Ai)
     end
 
     t
 end
 
-function permute_local!(out::PencilArray{T,N},
-                        in::PencilArray{T,N}) where {T, N}
-    Pi = pencil(in)
-    Po = pencil(out)
+function permute_local!(Ao::PencilArray{T,N},
+                        Ai::PencilArray{T,N}) where {T, N}
+    Pi = pencil(Ai)
+    Po = pencil(Ao)
 
     perm = let perm_base = relative_permutation(Pi, Po)
-        p = append_to_permutation(perm_base, Val(length(in.extra_dims)))
+        p = append_to_permutation(perm_base, Val(ndims_extra(Ai)))
         Tuple(p)
     end
 
-    ui = parent(in)
-    uo = parent(out)
+    ui = parent(Ai)
+    uo = parent(Ao)
 
     inplace = Base.mightalias(ui, uo)
 
     if inplace
         # TODO optimise in-place version?
-        # For now we permute into a temporary buffer, and then we copy to `out`.
+        # For now we permute into a temporary buffer, and then we copy to `Ao`.
         # We reuse `recv_buf` used for MPI transposes.
         buf = let x = Pi.recv_buf
             n = length(uo)
@@ -243,7 +242,7 @@ function permute_local!(out::PencilArray{T,N},
         permutedims!(uo, ui, perm)
     end
 
-    out
+    Ao
 end
 
 mpi_buffer(p::Ptr{T}, count) where {T} =
@@ -259,7 +258,7 @@ function transpose_impl!(R::Int, t::Transposition{T}) where {T}
     Ai = t.Ai
     Ao = t.Ao
     method = t.method
-    timer = get_timer(Pi)
+    timer = Pencils.timer(Pi)
 
     @assert Pi.topology === Po.topology
     @assert extra_dims(Ai) === extra_dims(Ao)
@@ -273,8 +272,9 @@ function transpose_impl!(R::Int, t::Transposition{T}) where {T}
     remote_inds = get_remote_indices(R, topology.coords_local, Nproc)
 
     # Length of data that I will "send" to myself.
-    length_self = let range_intersect = intersect.(Pi.axes_local, Po.axes_local)
-        prod(length.(range_intersect)) * prod(extra_dims(Ai))
+    length_self = let
+        range_intersect = map(intersect, Pi.axes_local, Po.axes_local)
+        prod(map(length, range_intersect)) * prod(extra_dims(Ai))
     end
 
     # Total data to be sent / received.
@@ -350,13 +350,13 @@ function transpose_send!(
 
     for (n, ind) in enumerate(remote_inds)
         # Global data range that I need to send to process n.
-        srange = intersect.(idims_local, odims[ind])
-        length_send_n = prod(length.(srange)) * prod_extra_dims
+        srange = map(intersect, idims_local, odims[ind])
+        length_send_n = prod(map(length, srange)) * prod_extra_dims
         local_send_range = to_local(Pi, srange, MemoryOrder())
 
         # Determine amount of data to be received.
-        rrange = intersect.(odims_local, idims[ind])
-        length_recv_n = prod(length.(rrange)) * prod_extra_dims
+        rrange = map(intersect, odims_local, idims[ind])
+        length_recv_n = prod(map(length, rrange)) * prod_extra_dims
         recv_offsets[n] = irecv
 
         rank = subcomm_ranks[n]  # actual rank of the other process
@@ -485,9 +485,9 @@ function transpose_recv!(
 
         # Non-permuted global indices of received data.
         ind = remote_inds[n]
-        g_range = intersect.(odims_local, idims[ind])
+        g_range = map(intersect, odims_local, idims[ind])
 
-        length_recv_n = prod(length.(g_range)) * prod_extra_dims
+        length_recv_n = prod(map(length, g_range)) * prod_extra_dims
         off = recv_offsets[n]
 
         # Local output data range in the **input** permutation.
@@ -496,7 +496,7 @@ function transpose_recv!(
 
         # Copy data to `Ao`, permuting dimensions if required.
         @timeit_debug timer "copy_permuted!" copy_permuted!(
-            Ao, o_range_iperm, recv_buf, off, perm, exdims, timer)
+            Ao, o_range_iperm, recv_buf, off, perm, exdims)
     end
 
     Ao
@@ -536,11 +536,10 @@ end
 
 function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
                         src::Vector{T}, src_offset::Int,
-                        perm::Permutation, extra_dims::Dims{E},
-                        timer) where {T,N,P,E}
+                        perm::Permutation, extra_dims::Dims{E}) where {T,N,P,E}
     @assert P + E == N
 
-    src_view = let src_dims = (length.(o_range_iperm)..., extra_dims...)
+    src_view = let src_dims = (map(length, o_range_iperm)..., extra_dims...)
         Ndata = prod(src_dims)
         n = src_offset
         v = view(src, (n + 1):(n + Ndata))
@@ -549,7 +548,7 @@ function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
 
     dest_view = let dest_p = parent(dest)  # array with non-permuted indices
         indices = permute_indices(o_range_iperm, perm)
-        v = view(dest_p, indices..., Base.OneTo.(extra_dims)...)
+        v = view(dest_p, indices..., map(Base.OneTo, extra_dims)...)
         if perm isa NoPermutation
             v
         else

@@ -87,7 +87,7 @@ ManyPencilArray
 ```@docs
 extra_dims(::PencilArray)
 get_comm(::MaybePencilArrayCollection)
-get_permutation(::MaybePencilArrayCollection)
+permutation(::MaybePencilArrayCollection)
 global_view(::PencilArray)
 ndims_extra(::MaybePencilArrayCollection)
 ndims_space(::PencilArray)

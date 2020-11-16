@@ -169,7 +169,7 @@ function Base.setindex!(
         g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
         name::AbstractString; chunks=false, collective=true, prop_pairs...,
     )
-    to = get_timer(pencil(x))
+    to = timer(pencil(x))
 
     @timeit_debug to "Write HDF5" begin
 
@@ -252,7 +252,7 @@ end
 """
 function Base.read!(g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
                     name::AbstractString; collective=true, prop_pairs...)
-    to = get_timer(pencil(x))
+    to = timer(pencil(x))
 
     @timeit_debug to "Read HDF5" begin
 

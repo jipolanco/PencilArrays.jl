@@ -85,9 +85,9 @@ LogicalOrder
 ```@docs
 topology(::Pencil)
 get_comm(::Pencil)
-get_decomposition(::Pencil)
-get_permutation(::Pencil)
-get_timer(::Pencil)
+decomposition(::Pencil)
+permutation(::Pencil)
+timer(::Pencil)
 length(::Pencil)
 ndims(::Pencil)
 range_remote(::Pencil, ::Integer, ::LogicalOrder)

@@ -19,7 +19,7 @@ function test_pencil(pen)
     A = PencilArray{Float64}(undef, pen)
     G = global_view(A)
     randn!(A)
-    perm = Tuple(get_permutation(A))
+    perm = Tuple(permutation(A))
 
     @testset "Broadcast $(nameof(typeof(x)))" for x in (A, G)
         test_broadcast(x)

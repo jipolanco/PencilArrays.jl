@@ -86,9 +86,9 @@ version = "0.21.1"
 
 [[JSON3]]
 deps = ["Dates", "Mmap", "Parsers", "StructTypes", "UUIDs"]
-git-tree-sha1 = "f17f647d78ade849298039b75bbd48c05da77900"
+git-tree-sha1 = "9414acd0788bf246c2b948c169bf0ab53ebdeab9"
 uuid = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
-version = "1.4.0"
+version = "1.5.0"
 
 [[LibGit2]]
 deps = ["Printf"]

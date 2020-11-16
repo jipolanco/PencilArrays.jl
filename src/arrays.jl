@@ -95,7 +95,7 @@ struct PencilArray{
                 "Local dimensions of pencil: $(dims_local)."))
         end
 
-        iperm = inverse_permutation(get_permutation(pencil))
+        iperm = inverse_permutation(permutation(pencil))
         space_dims = permute_indices(geom_dims, iperm)
 
         new{T, N, A, Np, E, P}(pencil, data, space_dims, extra_dims)
@@ -106,11 +106,6 @@ function PencilArray{T}(init, pencil::Pencil, extra_dims::Vararg{Integer}) where
     dims = (size_local(pencil, MemoryOrder())..., extra_dims...)
     PencilArray(pencil, Array{T}(init, dims))
 end
-
-@deprecate(
-    PencilArray{T}(init, pencil::Pencil, extra_dims::NTuple) where {T},
-    PencilArray{T}(init, pencil, extra_dims...),
-)
 
 """
     PencilArrayCollection
@@ -179,12 +174,12 @@ size_local(x::MaybePencilArrayCollection, args...; kwargs...) =
 
 # TODO this won't work with extra_dims...
 function Base.axes(x::PencilArray)
-    iperm = inverse_permutation(get_permutation(x))
+    iperm = inverse_permutation(permutation(x))
     permute_indices(axes(parent(x)), iperm)
 end
 
 function Base.similar(x::PencilArray, ::Type{S}, dims::Dims) where {S}
-    perm = get_permutation(x)
+    perm = permutation(x)
     dims_perm = permute_indices(dims, perm)
     PencilArray(x.pencil, similar(x.data, S, dims_perm))
 end
@@ -197,7 +192,7 @@ Base.IndexStyle(::Type{<:PencilArray{T,N,A}} where {T,N}) where {A} =
 # TODO this won't work with extra_dims...
 @inline function Base._sub2ind(x::PencilArray, I...)
     # _sub2ind(axes(x), I...)  <- default implementation for AbstractArray
-    J = permute_indices(I, get_permutation(x))
+    J = permute_indices(I, permutation(x))
     Base._sub2ind(parent(x), J...)
 end
 
@@ -225,7 +220,7 @@ end
     @assert M + E === N
     J = ntuple(n -> I[n], Val(M))
     K = ntuple(n -> I[M + n], Val(E))
-    perm = get_permutation(x)
+    perm = permutation(x)
     (permute_indices(J, perm)..., K...)
 end
 
@@ -253,7 +248,7 @@ Base.dataids(x::PencilArray) = Base.dataids(parent(x))
 # This is based on strides(::PermutedDimsArray)
 function Base.strides(x::PencilArray)
     s = strides(parent(x))
-    permute_indices(s, get_permutation(x))
+    permute_indices(s, permutation(x))
 end
 
 """
@@ -367,15 +362,15 @@ Get MPI communicator associated to a pencil-distributed array.
 get_comm(x::MaybePencilArrayCollection) = get_comm(pencil(x))
 
 """
-    get_permutation(x::PencilArray)
-    get_permutation(x::PencilArrayCollection)
+    permutation(x::PencilArray)
+    permutation(x::PencilArrayCollection)
 
 Get index permutation associated to the given `PencilArray`.
 
 Returns `NoPermutation()` if there is no associated permutation.
 """
-function get_permutation(x::MaybePencilArrayCollection)
-    perm = get_permutation(pencil(x))
+function permutation(x::MaybePencilArrayCollection)
+    perm = permutation(pencil(x))
 
     # Account for extra dimensions.
     E = ndims_extra(x)

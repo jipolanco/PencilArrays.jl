@@ -58,9 +58,9 @@ function metadata(x::MaybePencilArrayCollection)
     topo = topology(x)
     edims = extra_dims(x)  # this may be an empty tuple, with no type information
     (
-        permutation = Tuple(get_permutation(x)),
+        permutation = Tuple(permutation(x)),
         extra_dims = SVector{length(edims),Int}(edims),
-        decomposed_dims = get_decomposition(pen),
+        decomposed_dims = decomposition(pen),
         process_dims = size(topo),
     )
 end

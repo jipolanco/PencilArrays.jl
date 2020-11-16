@@ -48,12 +48,12 @@ end
 end
 
 Base.LinearIndices(A::PencilArray) =
-    PermutedLinearIndices(LinearIndices(parent(A)), get_permutation(A))
+    PermutedLinearIndices(LinearIndices(parent(A)), permutation(A))
 
 function Base.LinearIndices(g::GlobalPencilArray)
     A = parent(g)
     off = g.offsets
-    PermutedLinearIndices(LinearIndices(parent(A)), get_permutation(A), off)
+    PermutedLinearIndices(LinearIndices(parent(A)), permutation(A), off)
 end
 
 # We make CartesianIndices(::PencilArray) return a PermutedCartesianIndices,
@@ -97,11 +97,10 @@ end
 end
 
 Base.CartesianIndices(A::PencilArray) =
-    PermutedCartesianIndices(CartesianIndices(parent(A)), get_permutation(A))
+    PermutedCartesianIndices(CartesianIndices(parent(A)), permutation(A))
 
 function Base.CartesianIndices(g::GlobalPencilArray)
     A = parent(g)
     off = g.offsets .* -1  # negative offsets
-    PermutedCartesianIndices(CartesianIndices(parent(A)), get_permutation(A),
-                             off)
+    PermutedCartesianIndices(CartesianIndices(parent(A)), permutation(A), off)
 end

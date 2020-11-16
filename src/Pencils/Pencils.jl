@@ -10,13 +10,18 @@ using TimerOutputs
 export Pencil, MPITopology
 export Permutation, NoPermutation
 export MemoryOrder, LogicalOrder
-export get_decomposition, get_permutation
-export get_comm, get_timer
+export decomposition, permutation
+export get_comm, timer
 export topology
 export range_local, range_remote, size_local, size_global, to_local
 
 # Describes the portion of an array held by a given MPI process.
 const ArrayRegion{N} = NTuple{N,UnitRange{Int}} where N
+
+# Deprecated in v0.4
+@deprecate get_permutation permutation
+@deprecate get_decomposition decomposition
+@deprecate get_timer timer
 
 include("MPITopologies.jl")
 @reexport using .MPITopologies
@@ -71,10 +76,10 @@ each MPI process.
 
     Pencil(
         p::Pencil{N,M};
-        decomp_dims::Dims{M} = get_decomposition(p),
+        decomp_dims::Dims{M} = decomposition(p),
         size_global::Dims{N} = size_global(p),
-        permute::P = get_permutation(p),
-        timer::TimerOutput = get_timer(p),
+        permute::P = permutation(p),
+        timer::TimerOutput = timer(p),
     )
 
 Create new pencil configuration from an existent one.
@@ -136,11 +141,11 @@ struct Pencil{
     end
 
     function Pencil(p::Pencil{N,M};
-                    decomp_dims::Dims{M}=get_decomposition(p),
-                    size_global::Dims{N}=size_global(p),
-                    permute=get_permutation(p),
-                    timer::TimerOutput=get_timer(p),
-                    etc...
+                    decomp_dims::Dims{M} = decomposition(p),
+                    size_global::Dims{N} = size_global(p),
+                    permute = permutation(p),
+                    timer::TimerOutput = timer(p),
+                    etc...,
                    ) where {N, M}
         Pencil(p.topology, size_global, decomp_dims;
                permute=permute, timer=timer,
@@ -169,23 +174,23 @@ end
 _sort_dimensions(dims::Dims{N}) where {N} = Tuple(sort(SVector(dims)))
 
 function Base.show(io::IO, p::Pencil)
-    perm = get_permutation(p)
+    perm = permutation(p)
     print(io,
           """
           Decomposition of $(ndims(p))D data
               Data dimensions: $(size_global(p))
-              Decomposed dimensions: $(get_decomposition(p))
+              Decomposed dimensions: $(decomposition(p))
               Data permutation: $(perm)""")
 end
 
 """
-    get_timer(p::Pencil)
+    timer(p::Pencil)
 
 Get `TimerOutput` attached to a `Pencil`.
 
 See [Measuring performance](@ref PencilArrays.measuring_performance) for details.
 """
-get_timer(p::Pencil) = p.timer
+timer(p::Pencil) = p.timer
 
 """
     ndims(p::Pencil)
@@ -205,20 +210,20 @@ Get MPI communicator associated to an MPI decomposition scheme.
 get_comm(p::Pencil) = get_comm(p.topology)
 
 """
-    get_permutation(p::Pencil)
+    permutation(p::Pencil)
 
 Get index permutation associated to the given pencil configuration.
 
 Returns `NoPermutation()` if there is no associated permutation.
 """
-get_permutation(p::Pencil) = p.perm
+permutation(p::Pencil) = p.perm
 
 """
-    get_decomposition(p::Pencil)
+    decomposition(p::Pencil)
 
 Get tuple with decomposed dimensions of the given pencil configuration.
 """
-get_decomposition(p::Pencil) = p.decomp_dims
+decomposition(p::Pencil) = p.decomp_dims
 
 """
     topology(p::Pencil)
@@ -244,10 +249,7 @@ of dimensions.
 """
 range_local(p::Pencil, ::LogicalOrder) = p.axes_local
 range_local(p::Pencil, ::MemoryOrder) = p.axes_local_perm
-
-# TODO in the future, the deprecated function should be replaced by this
-# range_local(p) = range_local(p, DefaultOrder())
-range_local(p; permute=nothing) = range_local(p, _index_order_deprecated(permute))
+range_local(p) = range_local(p, DefaultOrder())
 
 """
     range_remote(p::Pencil, coords, [order = LogicalOrder()])
@@ -270,14 +272,7 @@ range_remote(p::Pencil{N,M}, I::Dims{M}, ::LogicalOrder) where {N,M} =
 range_remote(p, I) = range_remote(p, I, LogicalOrder())
 
 range_remote(p, I, ::MemoryOrder) =
-    permute_indices(range_remote(p, I, LogicalOrder()), p.perm)
-
-# Deprecations
-_index_order_deprecated(::Nothing) = DefaultOrder()
-function _index_order_deprecated(permute::Bool)
-    Base.depwarn("`permute` argument is deprecated; use LogicalOrder() or MemoryOrder() instead", :pencil_permute)
-    permute ? MemoryOrder() : LogicalOrder()
-end
+    permute_indices(range_remote(p, I, LogicalOrder()), permutation(p))
 
 """
     size_local(p::Pencil, [order = LogicalOrder()])
@@ -288,7 +283,6 @@ By default the dimensions are not permuted, i.e. they follow the logical order
 of dimensions.
 """
 size_local(p::Pencil, etc...) = map(length, range_local(p, etc...))
-size_local(p; permute=nothing) = size_local(p, _index_order_deprecated(permute))
 
 """
     size_global(p::Pencil, [order = LogicalOrder()])
@@ -300,9 +294,8 @@ Like [`size_local`](@ref), by default the returned dimensions are in logical
 order.
 """
 size_global(p::Pencil, ::LogicalOrder) = p.size_global
-size_global(p::Pencil, ::MemoryOrder) = permute_indices(p.size_global, p.perm)
-# size_global(p) = size_global(p, DefaultOrder())
-size_global(p; permute=nothing) = size_global(p, _index_order_deprecated(permute))
+size_global(p::Pencil, ::MemoryOrder) = permute_indices(p.size_global, permutation(p))
+size_global(p) = size_global(p, DefaultOrder())
 
 """
     to_local(p::Pencil, global_inds, [order = LogicalOrder()])
@@ -319,14 +312,12 @@ function to_local(p::Pencil{N}, global_inds::ArrayRegion{N},
         δ = 1 - first(rl)
         (first(rg) + δ):(last(rg) + δ)
     end :: ArrayRegion{N}
-    order === MemoryOrder() ? permute_indices(ind, p.perm) : ind
+    order === MemoryOrder() ? permute_indices(ind, permutation(p)) : ind
 end
 
-to_local(p, inds; permute) = to_local(p, inds, _index_order_deprecated(permute))
-
-Permutations.permute_indices(t::Tuple, p::Pencil) = permute_indices(t, p.perm)
+Permutations.permute_indices(t::Tuple, p::Pencil) = permute_indices(t, permutation(p))
 
 Permutations.relative_permutation(p::Pencil, q::Pencil) =
-    relative_permutation(p.perm, q.perm)
+    relative_permutation(permutation(p), permutation(q))
 
 end

@@ -31,7 +31,7 @@ end
 
 function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     u = PencilArray{T}(undef, p)
-    perm = get_permutation(p)
+    perm = permutation(p)
     let topo = topology(p)
         @test topo === topology(u)
         I = coords_local(topo)
@@ -66,7 +66,7 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     if BENCHMARK_ARRAYS
         for S in (IndexLinear, IndexCartesian)
             @info("Filling arrays using $S (Array, PencilArray, GlobalPencilArray)",
-                  get_permutation(p))
+                  permutation(p))
             for v in (parent(u), u, ug)
                 val = 3 * oneunit(eltype(v))
                 @btime benchmark_fill!($S, $v, $val)
@@ -265,7 +265,7 @@ function main()
 
     # Note: the permutation of pen2 was chosen such that the inverse permutation
     # is different.
-    @assert pen2.perm !== PA.inverse_permutation(pen2.perm)
+    @assert permutation(pen2) !== PA.inverse_permutation(permutation(pen2))
 
     @testset "Pencil constructor checks" begin
         # Too many decomposed directions
@@ -295,8 +295,8 @@ function main()
     end
 
     @testset "permutations" begin
-        @test get_permutation(pen1) === NoPermutation()
-        @test get_permutation(pen2) === Permutation(2, 3, 1)
+        @test permutation(pen1) === NoPermutation()
+        @test permutation(pen2) === Permutation(2, 3, 1)
 
         @test PA.is_identity_permutation(NoPermutation())
         @test PA.is_identity_permutation(Permutation(1, 2, 3, 4))
