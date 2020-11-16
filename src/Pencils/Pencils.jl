@@ -275,7 +275,7 @@ range_remote(p::Pencil{N,M}, I::Dims{M}, ::LogicalOrder) where {N,M} =
 range_remote(p, I) = range_remote(p, I, LogicalOrder())
 
 range_remote(p, I, ::MemoryOrder) =
-    permute_indices(range_remote(p, I, LogicalOrder()), p.perm)
+    permute_indices(range_remote(p, I, LogicalOrder()), permutation(p))
 
 # Deprecations
 _index_order_deprecated(::Nothing) = DefaultOrder()
@@ -305,7 +305,7 @@ Like [`size_local`](@ref), by default the returned dimensions are in logical
 order.
 """
 size_global(p::Pencil, ::LogicalOrder) = p.size_global
-size_global(p::Pencil, ::MemoryOrder) = permute_indices(p.size_global, p.perm)
+size_global(p::Pencil, ::MemoryOrder) = permute_indices(p.size_global, permutation(p))
 # size_global(p) = size_global(p, DefaultOrder())
 size_global(p; permute=nothing) = size_global(p, _index_order_deprecated(permute))
 
@@ -324,14 +324,14 @@ function to_local(p::Pencil{N}, global_inds::ArrayRegion{N},
         δ = 1 - first(rl)
         (first(rg) + δ):(last(rg) + δ)
     end :: ArrayRegion{N}
-    order === MemoryOrder() ? permute_indices(ind, p.perm) : ind
+    order === MemoryOrder() ? permute_indices(ind, permutation(p)) : ind
 end
 
 to_local(p, inds; permute) = to_local(p, inds, _index_order_deprecated(permute))
 
-Permutations.permute_indices(t::Tuple, p::Pencil) = permute_indices(t, p.perm)
+Permutations.permute_indices(t::Tuple, p::Pencil) = permute_indices(t, permutation(p))
 
 Permutations.relative_permutation(p::Pencil, q::Pencil) =
-    relative_permutation(p.perm, q.perm)
+    relative_permutation(permutation(p), permutation(q))
 
 end

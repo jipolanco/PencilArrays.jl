@@ -26,7 +26,7 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
     # Each process sends its data to the root process.
     # If the local indices are permuted, the permutation is reverted before
     # sending the data.
-    data = let perm = pen.perm
+    data = let perm = permutation(pen)
         if is_identity_permutation(perm)
             x.data
         else

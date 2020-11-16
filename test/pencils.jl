@@ -265,7 +265,7 @@ function main()
 
     # Note: the permutation of pen2 was chosen such that the inverse permutation
     # is different.
-    @assert pen2.perm !== PA.inverse_permutation(pen2.perm)
+    @assert permutation(pen2) !== PA.inverse_permutation(permutation(pen2))
 
     @testset "Pencil constructor checks" begin
         # Too many decomposed directions
