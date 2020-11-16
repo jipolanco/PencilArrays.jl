@@ -107,11 +107,6 @@ function PencilArray{T}(init, pencil::Pencil, extra_dims::Vararg{Integer}) where
     PencilArray(pencil, Array{T}(init, dims))
 end
 
-@deprecate(
-    PencilArray{T}(init, pencil::Pencil, extra_dims::NTuple) where {T},
-    PencilArray{T}(init, pencil, extra_dims...),
-)
-
 """
     PencilArrayCollection
 

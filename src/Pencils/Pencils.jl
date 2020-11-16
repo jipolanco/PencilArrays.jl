@@ -249,10 +249,7 @@ of dimensions.
 """
 range_local(p::Pencil, ::LogicalOrder) = p.axes_local
 range_local(p::Pencil, ::MemoryOrder) = p.axes_local_perm
-
-# TODO in the future, the deprecated function should be replaced by this
-# range_local(p) = range_local(p, DefaultOrder())
-range_local(p; permute=nothing) = range_local(p, _index_order_deprecated(permute))
+range_local(p) = range_local(p, DefaultOrder())
 
 """
     range_remote(p::Pencil, coords, [order = LogicalOrder()])
@@ -277,13 +274,6 @@ range_remote(p, I) = range_remote(p, I, LogicalOrder())
 range_remote(p, I, ::MemoryOrder) =
     permute_indices(range_remote(p, I, LogicalOrder()), permutation(p))
 
-# Deprecations
-_index_order_deprecated(::Nothing) = DefaultOrder()
-function _index_order_deprecated(permute::Bool)
-    Base.depwarn("`permute` argument is deprecated; use LogicalOrder() or MemoryOrder() instead", :pencil_permute)
-    permute ? MemoryOrder() : LogicalOrder()
-end
-
 """
     size_local(p::Pencil, [order = LogicalOrder()])
 
@@ -293,7 +283,6 @@ By default the dimensions are not permuted, i.e. they follow the logical order
 of dimensions.
 """
 size_local(p::Pencil, etc...) = map(length, range_local(p, etc...))
-size_local(p; permute=nothing) = size_local(p, _index_order_deprecated(permute))
 
 """
     size_global(p::Pencil, [order = LogicalOrder()])
@@ -306,8 +295,7 @@ order.
 """
 size_global(p::Pencil, ::LogicalOrder) = p.size_global
 size_global(p::Pencil, ::MemoryOrder) = permute_indices(p.size_global, permutation(p))
-# size_global(p) = size_global(p, DefaultOrder())
-size_global(p; permute=nothing) = size_global(p, _index_order_deprecated(permute))
+size_global(p) = size_global(p, DefaultOrder())
 
 """
     to_local(p::Pencil, global_inds, [order = LogicalOrder()])
@@ -326,8 +314,6 @@ function to_local(p::Pencil{N}, global_inds::ArrayRegion{N},
     end :: ArrayRegion{N}
     order === MemoryOrder() ? permute_indices(ind, permutation(p)) : ind
 end
-
-to_local(p, inds; permute) = to_local(p, inds, _index_order_deprecated(permute))
 
 Permutations.permute_indices(t::Tuple, p::Pencil) = permute_indices(t, permutation(p))
 

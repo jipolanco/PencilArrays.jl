@@ -15,8 +15,6 @@ abstract type AbstractTransposeMethod end
 struct PointToPoint <: AbstractTransposeMethod end
 struct Alltoallv <: AbstractTransposeMethod end
 
-Base.@deprecate_binding IsendIrecv PointToPoint
-
 function Base.show(io::IO, ::T) where {T<:AbstractTransposeMethod}
     print(io, nameof(T))
 end
