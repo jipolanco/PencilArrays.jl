@@ -94,7 +94,7 @@ struct Transposition{T, N,
         # The `decomp_dims` tuples of both pencils must differ by at most one
         # value (as just checked by `assert_compatible`). The transposition
         # is performed along the dimension R where that difference happens.
-        dim = findfirst(Pi.decomp_dims .!= Po.decomp_dims)
+        dim = findfirst(decomposition(Pi) .!= decomposition(Po))
 
         reqs = MPI.Request[]
 
@@ -164,11 +164,12 @@ function assert_compatible(p::Pencil, q::Pencil)
     end
     # Check that decomp_dims differ on at most one value.
     # Both are expected to be sorted.
-    @assert all(issorted.((p.decomp_dims, q.decomp_dims)))
-    if sum(p.decomp_dims .!= q.decomp_dims) > 1
+    dp, dq = map(decomposition, (p, q))
+    @assert all(issorted.((dp, dq)))
+    if sum(dp .!= dq) > 1
         throw(ArgumentError(
             "pencil decompositions must differ in at most one dimension. " *
-            "Got decomposed dimensions $(p.decomp_dims) and $(q.decomp_dims)."))
+            "Got decomposed dimensions $dp and $dq."))
     end
     nothing
 end
