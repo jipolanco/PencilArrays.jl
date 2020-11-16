@@ -1,6 +1,7 @@
 module Pencils
 
 using StaticPermutations
+import StaticPermutations: AbstractPermutation
 
 using MPI
 using Reexport
@@ -40,7 +41,7 @@ along `M` directions (with `M < N`).
 
     Pencil(
         topology::MPITopology{M}, size_global::Dims{N}, decomp_dims::Dims{M};
-        permute::Permutation = NoPermutation(),
+        permute::AbstractPermutation = NoPermutation(),
         timer = TimerOutput(),
     )
 
@@ -125,7 +126,7 @@ struct Pencil{
 
     function Pencil(
             topology::MPITopology{M}, size_global::Dims{N}, decomp_dims::Dims{M};
-            permute::Permutation = NoPermutation(),
+            permute::AbstractPermutation = NoPermutation(),
             send_buf = UInt8[], recv_buf = UInt8[],
             timer = TimerOutput(),
         ) where {N, M}
@@ -152,6 +153,11 @@ struct Pencil{
                send_buf=p.send_buf, recv_buf=p.recv_buf,
                etc...)
     end
+end
+
+function check_permutation(perm)
+    isperm(perm) && return
+    throw(ArgumentError("invalid permutation of dimensions: $perm"))
 end
 
 # Verify that `dims` is a subselection of dimensions in 1:N.
@@ -210,7 +216,7 @@ Get MPI communicator associated to an MPI decomposition scheme.
 get_comm(p::Pencil) = get_comm(p.topology)
 
 """
-    permutation(p::Pencil)
+    permutation(p::Pencil) -> AbstractPermutation
 
 Get index permutation associated to the given pencil configuration.
 
@@ -315,6 +321,7 @@ function to_local(p::Pencil{N}, global_inds::ArrayRegion{N},
     order === MemoryOrder() ? permute_indices(ind, permutation(p)) : ind
 end
 
+# TODO remove both
 permute_indices(t::Tuple, p::Pencil) = permutation(p) * t
 relative_permutation(p::Pencil, q::Pencil) = permutation(q) / permutation(p)
 
