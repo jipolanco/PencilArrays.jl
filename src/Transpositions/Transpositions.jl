@@ -192,43 +192,43 @@ end
 function transpose_impl!(::Nothing, t::Transposition)
     Pi = t.Pi
     Po = t.Po
-    in = t.Ai
-    out = t.Ao
+    Ai = t.Ai
+    Ao = t.Ao
     timer = Pencils.timer(Pi)
 
     # Both pencil configurations are identical, so we just copy the data,
     # permuting dimensions if needed.
-    @assert size(in) === size(out)
-    ui = parent(in)
-    uo = parent(out)
+    @assert size(Ai) === size(Ao)
+    ui = parent(Ai)
+    uo = parent(Ao)
 
     if permutation(Pi) == permutation(Po)
         @timeit_debug timer "copy!" copy!(uo, ui)
     else
-        @timeit_debug timer "permute_local!" permute_local!(out, in)
+        @timeit_debug timer "permute_local!" permute_local!(Ao, Ai)
     end
 
     t
 end
 
-function permute_local!(out::PencilArray{T,N},
-                        in::PencilArray{T,N}) where {T, N}
-    Pi = pencil(in)
-    Po = pencil(out)
+function permute_local!(Ao::PencilArray{T,N},
+                        Ai::PencilArray{T,N}) where {T, N}
+    Pi = pencil(Ai)
+    Po = pencil(Ao)
 
     perm = let perm_base = relative_permutation(Pi, Po)
-        p = append_to_permutation(perm_base, Val(length(in.extra_dims)))
+        p = append_to_permutation(perm_base, Val(length(Ai.extra_dims)))
         Tuple(p)
     end
 
-    ui = parent(in)
-    uo = parent(out)
+    ui = parent(Ai)
+    uo = parent(Ao)
 
     inplace = Base.mightalias(ui, uo)
 
     if inplace
         # TODO optimise in-place version?
-        # For now we permute into a temporary buffer, and then we copy to `out`.
+        # For now we permute into a temporary buffer, and then we copy to `Ao`.
         # We reuse `recv_buf` used for MPI transposes.
         buf = let x = Pi.recv_buf
             n = length(uo)
@@ -244,7 +244,7 @@ function permute_local!(out::PencilArray{T,N},
         permutedims!(uo, ui, perm)
     end
 
-    out
+    Ao
 end
 
 mpi_buffer(p::Ptr{T}, count) where {T} =
