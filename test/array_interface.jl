@@ -5,9 +5,6 @@ using PencilArrays
 using Random
 using Test
 
-import PencilArrays:
-    inverse_permutation
-
 import ArrayInterface:
     ArrayInterface,
     Contiguous,
@@ -70,8 +67,8 @@ function test_array_interface(p::Pencil)
         @test !ArrayInterface.isstructured(u)
 
         # Compare outputs with equivalent PermutedDimsArray
-        iperm = inverse_permutation(get_permutation(u))
-        vp = iperm === NoPermutation() ?  up : PermutedDimsArray(up, Tuple(iperm))
+        iperm = inv(permutation(u))
+        vp = PermutedDimsArray(up, iperm)
 
         functions = (
             contiguous_axis, contiguous_axis_indicator,
@@ -112,6 +109,6 @@ pen2 = Pencil(pen1, decomp_dims=(1, 3), permute=Permutation(2, 1, 3))
 pen3 = Pencil(pen2, decomp_dims=(1, 2), permute=Permutation(3, 2, 1))
 pens = (pen1, pen2, pen3)
 
-@testset "ArrayInterface -- Pencil$(get_decomposition(p))" for p in pens
+@testset "ArrayInterface -- Pencil$(decomposition(p))" for p in pens
     test_array_interface(p)
 end

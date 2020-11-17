@@ -223,7 +223,10 @@ Get index permutation associated to the given pencil configuration.
 Returns `NoPermutation()` if there is no associated permutation.
 """
 permutation(p::Pencil) = permutation(typeof(p))
-permutation(::Type{<:Pencil{N,M,P}}) where {N,M,P} = P()
+permutation(::Type{<:Pencil{N,M,P}}) where {N,M,P} = _instanceof(P)
+
+@inline _instanceof(::Type{T}) where {T <: AbstractPermutation} = T()
+@inline _instanceof(::Type{<:Permutation{p}}) where {p} = Permutation(p)
 
 """
     decomposition(p::Pencil)
