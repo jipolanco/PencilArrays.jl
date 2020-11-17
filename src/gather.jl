@@ -27,12 +27,11 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
     # If the local indices are permuted, the permutation is reverted before
     # sending the data.
     data = let perm = permutation(pen)
-        if is_identity_permutation(perm)
+        if isidentity(perm)
             x.data
         else
             # Apply inverse permutation.
-            invperm = inverse_permutation(perm)
-            p = append_to_permutation(invperm, Val(length(extra_dims)))
+            p = append(inv(perm), Val(length(extra_dims)))
             permutedims(x.data, Tuple(p))  # creates copy!
         end
     end

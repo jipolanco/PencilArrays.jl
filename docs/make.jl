@@ -2,9 +2,6 @@ using HDF5  # to load HDF5 code via Requires
 using PencilArrays
 using Documenter
 
-DocMeta.setdocmeta!(PencilArrays.Permutations, :DocTestSetup,
-                    :(using PencilArrays.Permutations); recursive=true)
-
 function main()
     makedocs(;
         modules = [PencilArrays],
@@ -28,7 +25,6 @@ function main()
                 "Transpositions.md",
                 "PencilIO.md",
                 "PencilArrays_timers.md",
-                "Internals" => ["PermutationUtils.md"]
             ],
         ],
         linkcheck = false,

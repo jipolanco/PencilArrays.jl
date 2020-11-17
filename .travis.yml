@@ -65,9 +65,6 @@ jobs:
           Pkg.instantiate()
           using Documenter: DocMeta, doctest
           using PencilArrays
-          DocMeta.setdocmeta!(
-              PencilArrays.Permutations, :DocTestSetup,
-              :(using PencilArrays.Permutations); recursive=true)
           doctest(PencilArrays)
           include("docs/make.jl")'
       after_success: skip

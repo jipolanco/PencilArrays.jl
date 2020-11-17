@@ -1,9 +1,6 @@
 #!/usr/bin/env julia
 
 using PencilArrays
-using PencilArrays.Permutations
-
-const PA = PencilArrays
 
 using MPI
 
@@ -47,12 +44,7 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     end
 
     let
-        local p = if perm === NoPermutation()
-            Permutations.identity_permutation(Val(ndims(u)))
-        else
-            perm
-        end
-        A = PermutedDimsArray(parent(u), Tuple(p))
+        A = PermutedDimsArray(parent(u), perm)
         @test strides(A) === strides(u)
     end
 
@@ -85,7 +77,7 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
         vp = parent(v)
         randn!(vp)
         I = size(v) .>> 1  # non-permuted indices
-        J = PA.permute_indices(I, perm)
+        J = perm * I
         @test v[I...] == vp[J...]  # the parent takes permuted indices
     end
 
@@ -265,7 +257,7 @@ function main()
 
     # Note: the permutation of pen2 was chosen such that the inverse permutation
     # is different.
-    @assert permutation(pen2) !== PA.inverse_permutation(permutation(pen2))
+    @assert permutation(pen2) != inv(permutation(pen2))
 
     @testset "Pencil constructor checks" begin
         # Too many decomposed directions
@@ -292,53 +284,6 @@ function main()
     @testset "PencilArray" begin
         test_array_wrappers(pen1)
         test_array_wrappers(pen3)
-    end
-
-    @testset "permutations" begin
-        @test permutation(pen1) === NoPermutation()
-        @test permutation(pen2) === Permutation(2, 3, 1)
-
-        @test PA.is_identity_permutation(NoPermutation())
-        @test PA.is_identity_permutation(Permutation(1, 2, 3, 4))
-        @test !PA.is_identity_permutation(Permutation(2, 1, 3, 4))
-
-        @test Permutation(2, 3, 1) == Permutation(2, 3, 1)
-        @test Permutation(2, 3, 1) != Permutation(2, 3, 1, 4)
-        @test Permutation(2, 3, 1) != Permutation(2, 1, 3)
-        @test NoPermutation() == NoPermutation()
-        @test NoPermutation() == Permutation(1, 2, 3)
-        @test NoPermutation() != Permutation(3, 2, 1)
-        @test Permutation(1, 2, 3) == NoPermutation()
-        @test Permutation(1, 3, 2) != NoPermutation()
-
-        @test PA.relative_permutation(pen2, pen3) === Permutation(2, 1, 3)
-        @test PA.relative_permutation(NoPermutation(),
-                                      NoPermutation()) === NoPermutation()
-
-        let a = Permutation((2, 1, 3)), b = Permutation((3, 2, 1))
-            @test Tuple(a) === (2, 1, 3)
-            @test Tuple(NoPermutation()) === nothing
-
-            @test PA.permute_indices((:a, :b, :c), Permutation((2, 3, 1))) ===
-                (:b, :c, :a)
-            a2b = PA.relative_permutation(a, b)
-            @test PA.permute_indices(a, a2b) === b
-
-            @test PA.relative_permutation(NoPermutation(), a) === a
-            @test PA.relative_permutation(a, NoPermutation()) ===
-                PA.inverse_permutation(a)
-
-            if BENCHMARK_ARRAYS
-                let x = (12, 42, 2)
-                    print("@btime permute_indices...")
-                    @btime PA.permute_indices($x, $a)
-                end
-            end
-
-            x = Permutation((3, 1, 2))
-            x2nothing = PA.relative_permutation(x, NoPermutation())
-            @test PA.permute_indices(x, x2nothing) === Permutation((1, 2, 3))
-        end
     end
 
     transpose_methods = (Transpositions.PointToPoint(),
@@ -459,11 +404,6 @@ function main()
         T = Int
         @inferred PencilArray{T}(undef, pen2)
         @inferred PencilArray{T}(undef, pen2, 3, 4)
-
-        @inferred PA.permute_indices(Nxyz, Permutation(2, 3, 1))
-        @inferred PA.relative_permutation(Permutation(1, 2, 3),
-                                          Permutation(2, 3, 1))
-        @inferred PA.relative_permutation(Permutation(1, 2, 3), NoPermutation())
 
         u1 = PencilArray{T}(undef, pen1)
         u2 = PencilArray{T}(undef, pen2)

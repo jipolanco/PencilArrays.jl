@@ -25,8 +25,7 @@ struct PermutedLinearIndices{
 end
 
 Base.length(L::PermutedLinearIndices) = length(L.data)
-Base.size(L::PermutedLinearIndices) =
-    permute_indices(size(L.data), inverse_permutation(L.perm))
+Base.size(L::PermutedLinearIndices) = L.perm \ size(L.data)
 Base.iterate(L::PermutedLinearIndices, args...) = iterate(L.data, args...)
 Base.lastindex(L::PermutedLinearIndices) = lastindex(L.data)
 
@@ -42,7 +41,7 @@ end
 @inline function Base.getindex(
         L::PermutedLinearIndices{N}, I::CartesianIndex{N}) where {N}
     Ioff = _apply_offset(I, L.offsets)
-    J = permute_indices(Ioff, L.perm)
+    J = L.perm * Ioff
     @boundscheck checkbounds(L.data, J)
     @inbounds L.data[J]
 end
@@ -66,7 +65,7 @@ struct PermutedCartesianIndices{
     offsets :: Offsets
     function PermutedCartesianIndices(ind::CartesianIndices{N},
                                       perm::Perm, offsets=nothing) where {N, Perm}
-        iperm = inverse_permutation(perm)
+        iperm = inv(perm)
         C = typeof(ind)
         Iperm = typeof(iperm)
         Off = typeof(offsets)
@@ -74,13 +73,13 @@ struct PermutedCartesianIndices{
     end
 end
 
-Base.size(C::PermutedCartesianIndices) = permute_indices(size(C.data), C.iperm)
+Base.size(C::PermutedCartesianIndices) = C.iperm * size(C.data)
 
 @inline function Base.iterate(C::PermutedCartesianIndices, args...)
     next = iterate(C.data, args...)
     next === nothing && return nothing
-    I, state = next                  # `I` has permuted indices
-    J = permute_indices(I, C.iperm)  # unpermute indices
+    I, state = next  # `I` has permuted indices
+    J = C.iperm * I  # unpermute indices
     Joff = _apply_offset(J, C.offsets)
     Joff, state
 end
@@ -91,7 +90,7 @@ end
         C::PermutedCartesianIndices, i::Integer)
     @boundscheck checkbounds(C.data, i)
     @inbounds I = C.data[i]  # convert linear to Cartesian index (relatively slow...)
-    J = permute_indices(I, C.iperm)  # unpermute indices
+    J = C.iperm * I          # unpermute indices
     Joff = _apply_offset(J, C.offsets)
     Joff
 end

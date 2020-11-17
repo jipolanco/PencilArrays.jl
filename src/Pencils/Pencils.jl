@@ -1,6 +1,6 @@
 module Pencils
 
-using ..Permutations
+using StaticPermutations
 
 using MPI
 using Reexport
@@ -8,7 +8,7 @@ using StaticArrays: SVector
 using TimerOutputs
 
 export Pencil, MPITopology
-export Permutation, NoPermutation
+export Permutation, NoPermutation  # from StaticPermutations
 export MemoryOrder, LogicalOrder
 export decomposition, permutation
 export get_comm, timer
@@ -40,7 +40,7 @@ along `M` directions (with `M < N`).
 
     Pencil(
         topology::MPITopology{M}, size_global::Dims{N}, decomp_dims::Dims{M};
-        permute::Permutation = NoPermutation(),
+        permute::AbstractPermutation = NoPermutation(),
         timer = TimerOutput(),
     )
 
@@ -125,7 +125,7 @@ struct Pencil{
 
     function Pencil(
             topology::MPITopology{M}, size_global::Dims{N}, decomp_dims::Dims{M};
-            permute::Permutation = NoPermutation(),
+            permute::AbstractPermutation = NoPermutation(),
             send_buf = UInt8[], recv_buf = UInt8[],
             timer = TimerOutput(),
         ) where {N, M}
@@ -134,7 +134,7 @@ struct Pencil{
         decomp_dims = _sort_dimensions(decomp_dims)
         axes_all = get_axes_matrix(decomp_dims, topology.dims, size_global)
         axes_local = axes_all[coords_local(topology)...]
-        axes_local_perm = permute_indices(axes_local, permute)
+        axes_local_perm = permute * axes_local
         P = typeof(permute)
         new{N,M,P}(topology, size_global, decomp_dims, axes_all, axes_local,
                    axes_local_perm, permute, send_buf, recv_buf, timer)
@@ -152,6 +152,11 @@ struct Pencil{
                send_buf=p.send_buf, recv_buf=p.recv_buf,
                etc...)
     end
+end
+
+function check_permutation(perm)
+    isperm(perm) && return
+    throw(ArgumentError("invalid permutation of dimensions: $perm"))
 end
 
 # Verify that `dims` is a subselection of dimensions in 1:N.
@@ -210,7 +215,7 @@ Get MPI communicator associated to an MPI decomposition scheme.
 get_comm(p::Pencil) = get_comm(p.topology)
 
 """
-    permutation(p::Pencil)
+    permutation(p::Pencil) -> AbstractPermutation
 
 Get index permutation associated to the given pencil configuration.
 
@@ -270,9 +275,8 @@ range_remote(p::Pencil{N,M}, I::CartesianIndex{M}, ::LogicalOrder) where {N,M} =
 range_remote(p::Pencil{N,M}, I::Dims{M}, ::LogicalOrder) where {N,M} =
     range_remote(p, CartesianIndex(I), LogicalOrder())
 range_remote(p, I) = range_remote(p, I, LogicalOrder())
-
 range_remote(p, I, ::MemoryOrder) =
-    permute_indices(range_remote(p, I, LogicalOrder()), permutation(p))
+    permutation(p) * range_remote(p, I, LogicalOrder())
 
 """
     size_local(p::Pencil, [order = LogicalOrder()])
@@ -294,7 +298,7 @@ Like [`size_local`](@ref), by default the returned dimensions are in logical
 order.
 """
 size_global(p::Pencil, ::LogicalOrder) = p.size_global
-size_global(p::Pencil, ::MemoryOrder) = permute_indices(p.size_global, permutation(p))
+size_global(p::Pencil, ::MemoryOrder) = permutation(p) * p.size_global
 size_global(p) = size_global(p, DefaultOrder())
 
 """
@@ -312,12 +316,7 @@ function to_local(p::Pencil{N}, global_inds::ArrayRegion{N},
         δ = 1 - first(rl)
         (first(rg) + δ):(last(rg) + δ)
     end :: ArrayRegion{N}
-    order === MemoryOrder() ? permute_indices(ind, permutation(p)) : ind
+    order === MemoryOrder() ? (permutation(p) * ind) : ind
 end
-
-Permutations.permute_indices(t::Tuple, p::Pencil) = permute_indices(t, permutation(p))
-
-Permutations.relative_permutation(p::Pencil, q::Pencil) =
-    relative_permutation(permutation(p), permutation(q))
 
 end

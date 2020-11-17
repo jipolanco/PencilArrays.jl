@@ -95,8 +95,7 @@ struct PencilArray{
                 "Local dimensions of pencil: $(dims_local)."))
         end
 
-        iperm = inverse_permutation(permutation(pencil))
-        space_dims = permute_indices(geom_dims, iperm)
+        space_dims = permutation(pencil) \ geom_dims  # undo permutation
 
         new{T, N, A, Np, E, P}(pencil, data, space_dims, extra_dims)
     end
@@ -172,15 +171,10 @@ See also [`size_local(::Pencil)`](@ref).
 size_local(x::MaybePencilArrayCollection, args...; kwargs...) =
     (size_local(pencil(x), args...; kwargs...)..., extra_dims(x)...)
 
-# TODO this won't work with extra_dims...
-function Base.axes(x::PencilArray)
-    iperm = inverse_permutation(permutation(x))
-    permute_indices(axes(parent(x)), iperm)
-end
+Base.axes(x::PencilArray) = permutation(x) \ axes(parent(x))
 
 function Base.similar(x::PencilArray, ::Type{S}, dims::Dims) where {S}
-    perm = permutation(x)
-    dims_perm = permute_indices(dims, perm)
+    dims_perm = permutation(x) * dims
     PencilArray(x.pencil, similar(x.data, S, dims_perm))
 end
 
@@ -189,10 +183,9 @@ Base.IndexStyle(::Type{<:PencilArray{T,N,A}} where {T,N}) where {A} =
     IndexStyle(A)
 
 # Overload Base._sub2ind for converting from Cartesian to linear index.
-# TODO this won't work with extra_dims...
 @inline function Base._sub2ind(x::PencilArray, I...)
     # _sub2ind(axes(x), I...)  <- default implementation for AbstractArray
-    J = permute_indices(I, permutation(x))
+    J = permutation(x) * I
     Base._sub2ind(parent(x), J...)
 end
 
@@ -221,7 +214,7 @@ end
     J = ntuple(n -> I[n], Val(M))
     K = ntuple(n -> I[M + n], Val(E))
     perm = permutation(x)
-    (permute_indices(J, perm)..., K...)
+    ((perm * J)..., K...)
 end
 
 @inline _genperm(x::PencilArray, I::CartesianIndex) =
@@ -248,7 +241,7 @@ Base.dataids(x::PencilArray) = Base.dataids(parent(x))
 # This is based on strides(::PermutedDimsArray)
 function Base.strides(x::PencilArray)
     s = strides(parent(x))
-    permute_indices(s, permutation(x))
+    permutation(x) * s
 end
 
 """
@@ -325,7 +318,7 @@ size_global(x::MaybePencilArrayCollection, args...; kw...) =
 Global size of array in bytes.
 """
 sizeof_global(x::PencilArray) = prod(size_global(x)) * sizeof(eltype(x))
-sizeof_global(x::PencilArrayCollection) = sum(sizeof_global.(x))
+sizeof_global(x::PencilArrayCollection) = sum(sizeof_global, x)
 
 """
     range_local(x::PencilArray, [order = LogicalOrder()])
@@ -336,7 +329,7 @@ Local data range held by the `PencilArray`.
 By default the dimensions are returned in logical order.
 """
 range_local(x::MaybePencilArrayCollection, args...; kw...) =
-    (range_local(pencil(x), args...; kw...)..., Base.OneTo.(extra_dims(x))...)
+    (range_local(pencil(x), args...; kw...)..., map(Base.OneTo, extra_dims(x))...)
 
 """
     range_remote(x::PencilArray, coords, [order = LogicalOrder()])
@@ -351,7 +344,7 @@ See [`range_remote(::Pencil, ...)`](@ref range_remote(::Pencil, ::Integer,
 ::LogicalOrder)) variant for details.
 """
 range_remote(x::MaybePencilArrayCollection, args...) =
-    (range_remote(pencil(x), args...)..., Base.OneTo.(extra_dims(x))...)
+    (range_remote(pencil(x), args...)..., map(Base.OneTo, extra_dims(x))...)
 
 """
     get_comm(x::PencilArray)
@@ -371,10 +364,8 @@ Returns `NoPermutation()` if there is no associated permutation.
 """
 function permutation(x::MaybePencilArrayCollection)
     perm = permutation(pencil(x))
-
-    # Account for extra dimensions.
     E = ndims_extra(x)
-    append_to_permutation(perm, Val(E))
+    append(perm, Val(E))
 end
 
 """

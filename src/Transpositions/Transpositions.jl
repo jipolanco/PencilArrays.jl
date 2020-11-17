@@ -7,7 +7,7 @@ import MPI
 
 using ..PencilArrays
 using ..Pencils: ArrayRegion
-using ..Permutations
+using StaticPermutations
 
 # Declare transposition approaches.
 abstract type AbstractTransposeMethod end
@@ -214,8 +214,9 @@ function permute_local!(Ao::PencilArray{T,N},
     Pi = pencil(Ai)
     Po = pencil(Ao)
 
-    perm = let perm_base = relative_permutation(Pi, Po)
-        p = append_to_permutation(perm_base, Val(ndims_extra(Ai)))
+    perm = let
+        perm_base = permutation(Po) / permutation(Pi)  # relative permutation
+        p = append(perm_base, Val(ndims_extra(Ai)))
         Tuple(p)
     end
 
@@ -469,7 +470,7 @@ function transpose_recv!(
     prod_extra_dims = prod(exdims)
 
     # Relative index permutation to go from Pi ordering to Po ordering.
-    perm = relative_permutation(Pi, Po)
+    perm = permutation(Po) / permutation(Pi)
 
     Nproc = length(remote_inds)
 
@@ -491,8 +492,7 @@ function transpose_recv!(
         off = recv_offsets[n]
 
         # Local output data range in the **input** permutation.
-        o_range_iperm =
-            permute_indices(to_local(Po, g_range, LogicalOrder()), Pi)
+        o_range_iperm = permutation(Pi) * to_local(Po, g_range, LogicalOrder())
 
         # Copy data to `Ao`, permuting dimensions if required.
         @timeit_debug timer "copy_permuted!" copy_permuted!(
@@ -536,7 +536,7 @@ end
 
 function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
                         src::Vector{T}, src_offset::Int,
-                        perm::Permutation, extra_dims::Dims{E}) where {T,N,P,E}
+                        perm::AbstractPermutation, extra_dims::Dims{E}) where {T,N,P,E}
     @assert P + E == N
 
     src_view = let src_dims = (map(length, o_range_iperm)..., extra_dims...)
@@ -547,15 +547,14 @@ function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
     end
 
     dest_view = let dest_p = parent(dest)  # array with non-permuted indices
-        indices = permute_indices(o_range_iperm, perm)
+        indices = perm * o_range_iperm
         v = view(dest_p, indices..., map(Base.OneTo, extra_dims)...)
-        if perm isa NoPermutation
+        if isidentity(perm)
             v
         else
-            p = append_to_permutation(perm, Val(E))
-            pperm = Tuple(p)
-            iperm = Tuple(inverse_permutation(p))
-            PermutedDimsArray{T, N, iperm, pperm, typeof(v)}(v)
+            pperm = append(perm, Val(E))
+            # Use fully inferred constructor defined in StaticPermutations
+            PermutedDimsArray(v, inv(pperm))
         end
     end
 

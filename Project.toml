@@ -1,7 +1,7 @@
 name = "PencilArrays"
 uuid = "0e08944d-e94e-41b1-9406-dcf66b6a9d2e"
 authors = ["Juan Ignacio Polanco <jipolanc@gmail.com> and contributors"]
-version = "0.3.2"
+version = "0.4.0"
 
 [deps]
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
@@ -12,6 +12,7 @@ OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+StaticPermutations = "15972242-4b8f-49a0-b8a1-9ac0e7a1a45d"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
@@ -21,5 +22,6 @@ OffsetArrays = "0.11, 1"
 Reexport = "0.2"
 Requires = "1"
 StaticArrays = "0.12"
+StaticPermutations = "0.2.1"
 TimerOutputs = "0.5"
 julia = "1.3"

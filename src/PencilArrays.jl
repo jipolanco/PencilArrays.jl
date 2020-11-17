@@ -3,13 +3,11 @@ module PencilArrays
 using MPI
 using OffsetArrays
 using Reexport
+using StaticPermutations
 using TimerOutputs
 
 import Base: @propagate_inbounds
 import LinearAlgebra
-
-include("Permutations/Permutations.jl")
-using .Permutations
 
 include("Pencils/Pencils.jl")
 @reexport using .Pencils
