@@ -470,7 +470,7 @@ function transpose_recv!(
     prod_extra_dims = prod(exdims)
 
     # Relative index permutation to go from Pi ordering to Po ordering.
-    perm = relative_permutation(Pi, Po)
+    perm = permutation(Po) / permutation(Pi)
 
     Nproc = length(remote_inds)
 
@@ -492,8 +492,7 @@ function transpose_recv!(
         off = recv_offsets[n]
 
         # Local output data range in the **input** permutation.
-        o_range_iperm =
-            permute_indices(to_local(Po, g_range, LogicalOrder()), Pi)
+        o_range_iperm = permutation(Pi) * to_local(Po, g_range, LogicalOrder())
 
         # Copy data to `Ao`, permuting dimensions if required.
         @timeit_debug timer "copy_permuted!" copy_permuted!(
@@ -548,7 +547,7 @@ function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
     end
 
     dest_view = let dest_p = parent(dest)  # array with non-permuted indices
-        indices = permute_indices(o_range_iperm, perm)
+        indices = perm * o_range_iperm
         v = view(dest_p, indices..., map(Base.OneTo, extra_dims)...)
         if isidentity(perm)
             v

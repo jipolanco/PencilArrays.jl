@@ -214,7 +214,7 @@ end
     J = ntuple(n -> I[n], Val(M))
     K = ntuple(n -> I[M + n], Val(E))
     perm = permutation(x)
-    (permute_indices(J, perm)..., K...)
+    ((perm * J)..., K...)
 end
 
 @inline _genperm(x::PencilArray, I::CartesianIndex) =
@@ -241,7 +241,7 @@ Base.dataids(x::PencilArray) = Base.dataids(parent(x))
 # This is based on strides(::PermutedDimsArray)
 function Base.strides(x::PencilArray)
     s = strides(parent(x))
-    permute_indices(s, permutation(x))
+    permutation(x) * s
 end
 
 """

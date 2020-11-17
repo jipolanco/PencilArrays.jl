@@ -27,7 +27,7 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
     # If the local indices are permuted, the permutation is reverted before
     # sending the data.
     data = let perm = permutation(pen)
-        if is_identity_permutation(perm)
+        if isidentity(perm)
             x.data
         else
             # Apply inverse permutation.

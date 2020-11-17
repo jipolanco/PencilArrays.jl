@@ -319,8 +319,4 @@ function to_local(p::Pencil{N}, global_inds::ArrayRegion{N},
     order === MemoryOrder() ? (permutation(p) * ind) : ind
 end
 
-# TODO remove both
-StaticPermutations.permute_indices(t::Tuple, p::Pencil) = permutation(p) * t
-StaticPermutations.relative_permutation(p::Pencil, q::Pencil) = permutation(q) / permutation(p)
-
 end

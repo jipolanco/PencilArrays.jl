@@ -73,13 +73,13 @@ struct PermutedCartesianIndices{
     end
 end
 
-Base.size(C::PermutedCartesianIndices) = permute_indices(size(C.data), C.iperm)
+Base.size(C::PermutedCartesianIndices) = C.iperm * size(C.data)
 
 @inline function Base.iterate(C::PermutedCartesianIndices, args...)
     next = iterate(C.data, args...)
     next === nothing && return nothing
-    I, state = next                  # `I` has permuted indices
-    J = permute_indices(I, C.iperm)  # unpermute indices
+    I, state = next  # `I` has permuted indices
+    J = C.iperm * I  # unpermute indices
     Joff = _apply_offset(J, C.offsets)
     Joff, state
 end
@@ -90,7 +90,7 @@ end
         C::PermutedCartesianIndices, i::Integer)
     @boundscheck checkbounds(C.data, i)
     @inbounds I = C.data[i]  # convert linear to Cartesian index (relatively slow...)
-    J = permute_indices(I, C.iperm)  # unpermute indices
+    J = C.iperm * I          # unpermute indices
     Joff = _apply_offset(J, C.offsets)
     Joff
 end
