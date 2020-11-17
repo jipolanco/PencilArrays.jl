@@ -2,8 +2,6 @@
 
 using PencilArrays
 
-const PA = PencilArrays
-
 using MPI
 
 using BenchmarkTools
@@ -79,7 +77,7 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
         vp = parent(v)
         randn!(vp)
         I = size(v) .>> 1  # non-permuted indices
-        J = PA.permute_indices(I, perm)
+        J = perm * I
         @test v[I...] == vp[J...]  # the parent takes permuted indices
     end
 

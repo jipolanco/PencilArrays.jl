@@ -550,13 +550,12 @@ function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
     dest_view = let dest_p = parent(dest)  # array with non-permuted indices
         indices = permute_indices(o_range_iperm, perm)
         v = view(dest_p, indices..., map(Base.OneTo, extra_dims)...)
-        if perm isa NoPermutation
+        if isidentity(perm)
             v
         else
-            p = append_to_permutation(perm, Val(E))
-            pperm = Tuple(p)
-            iperm = Tuple(inverse_permutation(p))
-            PermutedDimsArray{T, N, iperm, pperm, typeof(v)}(v)
+            pperm = append(perm, Val(E))
+            # Use fully inferred constructor defined in StaticPermutations
+            PermutedDimsArray(v, inv(pperm))
         end
     end
 

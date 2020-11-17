@@ -25,8 +25,7 @@ struct PermutedLinearIndices{
 end
 
 Base.length(L::PermutedLinearIndices) = length(L.data)
-Base.size(L::PermutedLinearIndices) =
-    permute_indices(size(L.data), inverse_permutation(L.perm))
+Base.size(L::PermutedLinearIndices) = L.perm \ size(L.data)
 Base.iterate(L::PermutedLinearIndices, args...) = iterate(L.data, args...)
 Base.lastindex(L::PermutedLinearIndices) = lastindex(L.data)
 
@@ -42,7 +41,7 @@ end
 @inline function Base.getindex(
         L::PermutedLinearIndices{N}, I::CartesianIndex{N}) where {N}
     Ioff = _apply_offset(I, L.offsets)
-    J = permute_indices(Ioff, L.perm)
+    J = L.perm * Ioff
     @boundscheck checkbounds(L.data, J)
     @inbounds L.data[J]
 end
@@ -66,7 +65,7 @@ struct PermutedCartesianIndices{
     offsets :: Offsets
     function PermutedCartesianIndices(ind::CartesianIndices{N},
                                       perm::Perm, offsets=nothing) where {N, Perm}
-        iperm = inverse_permutation(perm)
+        iperm = inv(perm)
         C = typeof(ind)
         Iperm = typeof(iperm)
         Off = typeof(offsets)

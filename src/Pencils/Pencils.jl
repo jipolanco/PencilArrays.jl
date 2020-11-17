@@ -134,7 +134,7 @@ struct Pencil{
         decomp_dims = _sort_dimensions(decomp_dims)
         axes_all = get_axes_matrix(decomp_dims, topology.dims, size_global)
         axes_local = axes_all[coords_local(topology)...]
-        axes_local_perm = permute_indices(axes_local, permute)
+        axes_local_perm = permute * axes_local
         P = typeof(permute)
         new{N,M,P}(topology, size_global, decomp_dims, axes_all, axes_local,
                    axes_local_perm, permute, send_buf, recv_buf, timer)
@@ -275,9 +275,8 @@ range_remote(p::Pencil{N,M}, I::CartesianIndex{M}, ::LogicalOrder) where {N,M} =
 range_remote(p::Pencil{N,M}, I::Dims{M}, ::LogicalOrder) where {N,M} =
     range_remote(p, CartesianIndex(I), LogicalOrder())
 range_remote(p, I) = range_remote(p, I, LogicalOrder())
-
 range_remote(p, I, ::MemoryOrder) =
-    permute_indices(range_remote(p, I, LogicalOrder()), permutation(p))
+    permutation(p) * range_remote(p, I, LogicalOrder())
 
 """
     size_local(p::Pencil, [order = LogicalOrder()])
@@ -299,7 +298,7 @@ Like [`size_local`](@ref), by default the returned dimensions are in logical
 order.
 """
 size_global(p::Pencil, ::LogicalOrder) = p.size_global
-size_global(p::Pencil, ::MemoryOrder) = permute_indices(p.size_global, permutation(p))
+size_global(p::Pencil, ::MemoryOrder) = permutation(p) * p.size_global
 size_global(p) = size_global(p, DefaultOrder())
 
 """
@@ -317,11 +316,11 @@ function to_local(p::Pencil{N}, global_inds::ArrayRegion{N},
         δ = 1 - first(rl)
         (first(rg) + δ):(last(rg) + δ)
     end :: ArrayRegion{N}
-    order === MemoryOrder() ? permute_indices(ind, permutation(p)) : ind
+    order === MemoryOrder() ? (permutation(p) * ind) : ind
 end
 
 # TODO remove both
-permute_indices(t::Tuple, p::Pencil) = permutation(p) * t
-relative_permutation(p::Pencil, q::Pencil) = permutation(q) / permutation(p)
+StaticPermutations.permute_indices(t::Tuple, p::Pencil) = permutation(p) * t
+StaticPermutations.relative_permutation(p::Pencil, q::Pencil) = permutation(q) / permutation(p)
 
 end

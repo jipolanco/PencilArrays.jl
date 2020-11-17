@@ -31,8 +31,7 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
             x.data
         else
             # Apply inverse permutation.
-            invperm = inverse_permutation(perm)
-            p = append_to_permutation(invperm, Val(length(extra_dims)))
+            p = append(inv(perm), Val(length(extra_dims)))
             permutedims(x.data, Tuple(p))  # creates copy!
         end
     end
