@@ -537,7 +537,7 @@ end
 
 function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
                         src::Vector{T}, src_offset::Int,
-                        perm::Permutation, extra_dims::Dims{E}) where {T,N,P,E}
+                        perm::AbstractPermutation, extra_dims::Dims{E}) where {T,N,P,E}
     @assert P + E == N
 
     src_view = let src_dims = (map(length, o_range_iperm)..., extra_dims...)

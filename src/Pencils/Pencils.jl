@@ -1,7 +1,6 @@
 module Pencils
 
 using StaticPermutations
-import StaticPermutations: AbstractPermutation
 
 using MPI
 using Reexport

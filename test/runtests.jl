@@ -3,9 +3,9 @@
 using MPI: mpiexec
 
 test_files = [
+    "pencils.jl",
     "broadcast.jl",
     "io.jl",
-    "pencils.jl",
 ]
 
 Nproc = let N = get(ENV, "JULIA_MPI_NPROC", nothing)
