@@ -49,8 +49,11 @@ As mentioned above, a `Pencil` may optionally be given information on dimension
 permutations.
 In this case, the layout of the data arrays in memory is different from the
 logical order of dimensions.
+For performance reasons, permutations are compile-time objects defined in the
+[StaticPermutations](https://github.com/jipolanco/StaticPermutations.jl)
+package.
 
-To make this clearer, consider the example above where the global data
+To make permutations clearer, consider the example above where the global data
 dimensions are $N_x × N_y × N_z = 16 × 32 × 64$.
 In this case, the logical order is $(x, y, z)$.
 Now let's say that we want the memory order of the data to be $(y, z, x)$,[^1]
@@ -58,22 +61,22 @@ which corresponds to the permutation `(2, 3, 1)`.
 
 Permutations are passed to the `Pencil` constructor via the `permute` keyword
 argument.
-For performance reasons, dimension permutations are compile-time constants, and
-they should be specified using a [`Permutation`](@ref) object.
+Dimension permutations should be specified using a
+[`Permutation`](https://jipolanco.github.io/StaticPermutations.jl/stable/#StaticPermutations.Permutation)
+object.
 For instance,
 ```julia
 permutation = Permutation(2, 3, 1)
 pencil = Pencil(#= ... =#, permute=permutation)
 ```
-One can also pass a [`NoPermutation`](@ref) to disable permutations (this is
-the default).
+One can also pass a
+[`NoPermutation`](https://jipolanco.github.io/StaticPermutations.jl/stable/#StaticPermutations.NoPermutation)
+to disable permutations (this is the default).
 
 ## Types
 
 ```@docs
 Pencil
-Permutation
-NoPermutation
 Pencils.AbstractIndexOrder
 MemoryOrder
 LogicalOrder
@@ -104,6 +107,6 @@ Pages = ["Pencils.md"]
 
 [^1]:
     Why would we want this?
-    Perhaps because we want to efficiently perform FFTs along $y$, which, under
+    One application is to efficiently perform FFTs along $y$, which, under
     this permutation, would be the fastest dimension.
     This is used by the [PencilFFTs](https://github.com/jipolanco/PencilFFTs.jl) package.
