@@ -3,7 +3,7 @@
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://jipolanco.github.io/PencilArrays.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://jipolanco.github.io/PencilArrays.jl/dev)
 
-[![Build Status](https://travis-ci.com/jipolanco/PencilArrays.jl.svg?branch=master)](https://travis-ci.com/jipolanco/PencilArrays.jl)
+[![Build Status](https://github.com/jipolanco/PencilArrays.jl/workflows/CI/badge.svg)](https://github.com/jipolanco/PencilArrays.jl/actions)
 [![Coverage](https://codecov.io/gh/jipolanco/PencilArrays.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jipolanco/PencilArrays.jl)
 
 Distributed Julia arrays using the MPI protocol.
