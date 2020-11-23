@@ -89,12 +89,6 @@ jobs:
             using Pkg
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
-      - name: Doctests
-        run: |
-          julia --project=docs -e '
-            using Documenter: doctest
-            using PencilArrays
-            doctest(PencilArrays)'
       - name: Build and deploy
         run: julia --project=docs docs/make.jl
         env:
