@@ -106,6 +106,8 @@ function PencilArray{T}(init, pencil::Pencil, extra_dims::Vararg{Integer}) where
     PencilArray(pencil, Array{T}(init, dims))
 end
 
+pencil_type(::Type{PencilArray{T,N,A,M,E,P}}) where {T,N,A,M,E,P} = P
+
 """
     PencilArrayCollection
 
@@ -256,6 +258,7 @@ contiguous or strided (e.g. if the `PencilArray` is wrapping a non-strided
 Base.pointer(x::PencilArray) = pointer(parent(x))
 
 """
+    ndims_extra(::Type{<:PencilArray})
     ndims_extra(x::PencilArray)
     ndims_extra(x::PencilArrayCollection)
 
@@ -272,6 +275,7 @@ The total number of dimensions of a `PencilArray` is given by:
 
 """
 ndims_extra(x::MaybePencilArrayCollection) = length(extra_dims(x))
+ndims_extra(::Type{<:PencilArray{T,N,A,M,E}}) where {T,N,A,M,E} = E
 
 """
     ndims_space(x::PencilArray)
@@ -355,6 +359,7 @@ Get MPI communicator associated to a pencil-distributed array.
 get_comm(x::MaybePencilArrayCollection) = get_comm(pencil(x))
 
 """
+    permutation(::Type{<:PencilArray})
     permutation(x::PencilArray)
     permutation(x::PencilArrayCollection)
 
@@ -362,11 +367,15 @@ Get index permutation associated to the given `PencilArray`.
 
 Returns `NoPermutation()` if there is no associated permutation.
 """
-function permutation(x::MaybePencilArrayCollection)
-    perm = permutation(pencil(x))
-    E = ndims_extra(x)
+function permutation(::Type{A}) where {A <: PencilArray}
+    P = pencil_type(A)
+    perm = permutation(P)
+    E = ndims_extra(A)
     append(perm, Val(E))
 end
+
+permutation(x::PencilArray) = permutation(typeof(x))
+permutation(x::PencilArrayCollection) = _apply(permutation, x)
 
 """
     topology(x::PencilArray)

@@ -215,13 +215,18 @@ Get MPI communicator associated to an MPI decomposition scheme.
 get_comm(p::Pencil) = get_comm(p.topology)
 
 """
-    permutation(p::Pencil) -> AbstractPermutation
+    permutation(::Type{<:Pencil}) -> AbstractPermutation
+    permutation(p::Pencil)        -> AbstractPermutation
 
 Get index permutation associated to the given pencil configuration.
 
 Returns `NoPermutation()` if there is no associated permutation.
 """
-permutation(p::Pencil) = p.perm
+permutation(p::Pencil) = permutation(typeof(p))
+permutation(::Type{<:Pencil{N,M,P}}) where {N,M,P} = _instanceof(P)
+
+@inline _instanceof(::Type{T}) where {T <: AbstractPermutation} = T()
+@inline _instanceof(::Type{<:Permutation{p}}) where {p} = Permutation(p)
 
 """
     decomposition(p::Pencil)

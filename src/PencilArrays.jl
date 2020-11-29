@@ -33,8 +33,8 @@ include("multiarrays.jl")  # ManyPencilArray
 include("global_view.jl")  # GlobalPencilArray
 include("cartesian_indices.jl")  # PermutedLinearIndices, PermutedCartesianIndices
 
+include("array_interface.jl")
 include("broadcast.jl")
-
 include("gather.jl")
 
 include("Transpositions/Transpositions.jl")

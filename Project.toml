@@ -4,6 +4,7 @@ authors = ["Juan Ignacio Polanco <jipolanc@gmail.com> and contributors"]
 version = "0.4.1"
 
 [deps]
+ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -16,6 +17,7 @@ StaticPermutations = "15972242-4b8f-49a0-b8a1-9ac0e7a1a45d"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
+ArrayInterface = "2"
 JSON3 = "1.4"
 MPI = "0.16"
 OffsetArrays = "0.11, 1"
