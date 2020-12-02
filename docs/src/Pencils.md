@@ -16,20 +16,30 @@ A pencil configuration includes:
 
 ## Construction
 
-The creation of a new [`Pencil`](@ref) requires a [`MPITopology`](@ref), as
-well as the global data dimensions and a list of decomposed dimensions.
-Optionally, one can also specify a permutation of dimensions.
+The creation of a new [`Pencil`](@ref) requires a [`MPITopology`](@ref) and
+the global data dimensions.
+One may also specify the list of decomposed dimensions, as well as an optional
+permutation of dimensions.
 
-For instance, to decompose along the first and third dimensions of a complex
-3D dataset,
+For instance, to decompose along 2 dimensions of a 3D dataset,
+
 ```julia
 topology = MPITopology(comm, (8, 4))  # assuming 8×4 = 32 processes
 dims_global = (16, 32, 64)
+pencil = Pencil(topology, dims_global)
+```
+
+By default, the decomposed dimensions are the rightmost ones (in this case,
+dimensions `2` and `3`). A different set of dimensions may be selected via the
+optional positional argument. For instance, to decompose along dimensions `1`
+and `3` instead,
+
+```julia
 decomp_dims = (1, 3)
 pencil = Pencil(topology, dims_global, decomp_dims)
 ```
 
-One may also want to create multiple pencil configurations that differ, for
+One may also want to work with multiple pencil configurations that differ, for
 instance, on the selection of decomposed dimensions.
 For this case, a second constructor is available that takes an already existing
 `Pencil` instance.
@@ -39,7 +49,7 @@ Global-MPI-operations)) and thus reducing memory usage.
 The following creates a `Pencil` equivalent to the one above, but with
 different decomposed dimensions:
 ```julia
-pencil_x = Pencil(pencil, decomp_dims=(2, 3))
+pencil_x = Pencil(pencil; decomp_dims=(1, 2))
 ```
 See the [`Pencil`](@ref) documentation for more details.
 

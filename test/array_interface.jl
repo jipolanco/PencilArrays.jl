@@ -101,12 +101,7 @@ end
 
 rng = MersenneTwister(42 + myrank)
 
-proc_dims = let pdims = zeros(Int, 2)
-    MPI.Dims_create!(Nproc, pdims)
-    pdims[1], pdims[2]
-end
-
-topo = MPITopology(comm, proc_dims)
+topo = MPITopology(comm, Val(2))
 
 pen1 = Pencil(topo, Nxyz, (2, 3))
 pen2 = Pencil(pen1, decomp_dims=(1, 3), permute=Permutation(2, 1, 3))

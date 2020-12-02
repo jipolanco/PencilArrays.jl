@@ -367,6 +367,8 @@ Get index permutation associated to the given `PencilArray`.
 
 Returns `NoPermutation()` if there is no associated permutation.
 """
+function permutation end
+
 function permutation(::Type{A}) where {A <: PencilArray}
     P = pencil_type(A)
     perm = permutation(P)

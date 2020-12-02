@@ -1,6 +1,7 @@
 #!/usr/bin/env julia
 
 using PencilArrays
+using PencilArrays.MPITopologies
 
 using MPI
 
@@ -218,10 +219,10 @@ function main()
     rng = MersenneTwister(42 + myrank)
 
     # Let MPI_Dims_create choose the values of (P1, P2).
-    proc_dims = let pdims = zeros(Int, 2)
-        MPI.Dims_create!(Nproc, pdims)
-        pdims[1], pdims[2]
-    end
+    proc_dims = MPITopologies.dims_create(comm, Val(2))
+
+    # Note that using dims_create is the default in MPITopology
+    @test MPITopology(comm, proc_dims) == MPITopology(comm, Val(2))
 
     @test_throws ArgumentError MPITopology(comm, proc_dims .- 1)
     @test_throws ArgumentError MPITopology(comm, proc_dims .+ 1)
@@ -232,7 +233,10 @@ function main()
     ) !== nothing
     @test ndims(topo) == length(proc_dims) == 2
 
-    pen1 = Pencil(topo, Nxyz, (2, 3))
+    pen1 = Pencil(topo, Nxyz)
+    let p = Pencil(topo, Nxyz, (2, 3))  # this is the default decomposition
+        @test decomposition(p) === decomposition(pen1)
+    end
     pen2 = Pencil(pen1, decomp_dims=(1, 3), permute=Permutation(2, 3, 1))
     pen3 = Pencil(pen2, decomp_dims=(1, 2), permute=Permutation(3, 2, 1))
 
@@ -390,7 +394,6 @@ function main()
     end
 
     begin
-        MPITopologies = Pencils.MPITopologies
         periods = zeros(Int, length(proc_dims))
         comm_cart = MPI.Cart_create(comm, collect(proc_dims), periods, false)
         @inferred MPITopologies.create_subcomms(Val(2), comm_cart)
