@@ -12,6 +12,45 @@ Describes an N-dimensional Cartesian MPI decomposition topology.
 
 ---
 
+    MPITopology(comm::MPI.Comm, pdims::Dims{N})
+
+Create N-dimensional MPI topology information.
+
+The `pdims` tuple specifies the number of MPI processes to put in every
+dimension of the topology. The product of its values must be equal to the number
+of processes in communicator `comm`.
+
+# Example
+
+Divide 2D topology into 4×2 blocks:
+
+```julia
+comm = MPI.COMM_WORLD
+@assert MPI.Comm_size(comm) == 8
+topology = MPITopology(comm, (4, 2))
+```
+
+---
+
+    MPITopology(comm::MPI.Comm, Val(N))
+
+Convenient `MPITopology` constructor defining an `N`-dimensional decomposition
+of data among all MPI processes in communicator.
+
+The number of divisions along each of the `N` dimensions is automatically
+determined by a call to [`MPI.Dims_create!`](https://juliaparallel.github.io/MPI.jl/stable/topology/#MPI.Dims_create!).
+
+# Example
+
+Create 2D decomposition grid:
+
+```julia
+comm = MPI.COMM_WORLD
+topology = MPITopology(comm, Val(2))
+```
+
+---
+
     MPITopology{N}(comm_cart::MPI.Comm)
 
 Create topology information from MPI communicator with Cartesian topology
@@ -85,26 +124,6 @@ function Base.:(==)(A::MPITopology, B::MPITopology)
     MPI.Comm_compare(get_comm(A), get_comm(B)) ∈ (MPI.IDENT, MPI.CONGRUENT)
 end
 
-
-"""
-    MPITopology(comm::MPI.Comm, pdims::Dims{N})
-
-Create N-dimensional MPI topology information.
-
-The `pdims` tuple specifies the number of MPI processes to put in every
-dimension of the topology. The product of its values must be equal to the number
-of processes in communicator `comm`.
-
-# Example
-
-Divide 2D topology into 4×2 blocks:
-
-```julia
-comm = MPI.COMM_WORLD
-@assert MPI.Comm_size(comm) == 8
-topology = MPITopology(comm, (4, 2))
-```
-"""
 function MPITopology(comm::MPI.Comm, pdims::Dims{N}) where {N}
     check_topology(comm, pdims)
     # Create Cartesian communicator.
@@ -116,24 +135,6 @@ function MPITopology(comm::MPI.Comm, pdims::Dims{N}) where {N}
     MPITopology{N}(comm_cart)
 end
 
-"""
-    MPITopology(comm::MPI.Comm, Val(N))
-
-Convenient `MPITopology` constructor defining an `N`-dimensional decomposition
-of data among all MPI processes in communicator.
-
-The number of divisions along each of the `N` dimensions is automatically
-determined by a call to [`MPI.Dims_create!`](https://juliaparallel.github.io/MPI.jl/stable/topology/#MPI.Dims_create!).
-
-# Example
-
-Create 2D decomposition grid:
-
-```julia
-comm = MPI.COMM_WORLD
-topology = MPITopology(comm, Val(2))
-```
-"""
 function MPITopology(comm::MPI.Comm, ::Val{N}) where {N}
     pdims = dims_create(comm, Val(N))
     MPITopology(comm, pdims)
