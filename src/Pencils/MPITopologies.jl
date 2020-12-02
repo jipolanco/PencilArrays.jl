@@ -12,25 +12,6 @@ Describes an N-dimensional Cartesian MPI decomposition topology.
 
 ---
 
-    MPITopology(comm::MPI.Comm, pdims::Dims{N})
-
-Create N-dimensional MPI topology information.
-
-The `pdims` tuple specifies the number of MPI processes to put in every
-dimension of the topology. The product of its values must be equal to the number
-of processes in communicator `comm`.
-
-# Example
-
-```julia
-# Divide 2D topology into 4×2 blocks.
-comm = MPI.COMM_WORLD
-@assert MPI.Comm_size(comm) == 8
-topology = MPITopology(comm, (4, 2))
-```
-
----
-
     MPITopology{N}(comm_cart::MPI.Comm)
 
 Create topology information from MPI communicator with Cartesian topology
@@ -39,8 +20,9 @@ The topology must have dimension `N`.
 
 # Example
 
+Divide 2D topology into 4×2 blocks:
+
 ```julia
-# Divide 2D topology into 4×2 blocks.
 comm = MPI.COMM_WORLD
 @assert MPI.Comm_size(comm) == 8
 dims = [4, 2]
@@ -49,7 +31,6 @@ reorder = false
 comm_cart = MPI.Cart_create(comm, pdims, periods, reorder)
 topology = MPITopology{2}(comm_cart)
 ```
-
 """
 struct MPITopology{N}
     # MPI communicator with Cartesian topology.
@@ -72,18 +53,7 @@ struct MPITopology{N}
     # subcommunicators.
     subcomm_ranks :: NTuple{N,Vector{Int}}
 
-    function MPITopology(comm::MPI.Comm, pdims::Dims{N}) where N
-        check_topology(comm, pdims)
-        # Create Cartesian communicator.
-        comm_cart = let dims = collect(pdims) :: Vector{Int}
-            periods = zeros(Int, N)  # this is not very important...
-            reorder = false
-            MPI.Cart_create(comm, dims, periods, reorder)
-        end
-        MPITopology{N}(comm_cart)
-    end
-
-    function MPITopology{N}(comm_cart::MPI.Comm) where N
+    function MPITopology{N}(comm_cart::MPI.Comm) where {N}
         # Get dimensions of MPI topology.
         # This will fail if comm_cart doesn't have Cartesian topology!
         Ndims = MPI.Cartdim_get(comm_cart)
@@ -109,6 +79,72 @@ struct MPITopology{N}
 
         new{N}(comm_cart, subcomms, dims, coords_local, ranks, subcomm_ranks)
     end
+end
+
+function Base.:(==)(A::MPITopology, B::MPITopology)
+    MPI.Comm_compare(get_comm(A), get_comm(B)) ∈ (MPI.IDENT, MPI.CONGRUENT)
+end
+
+
+"""
+    MPITopology(comm::MPI.Comm, pdims::Dims{N})
+
+Create N-dimensional MPI topology information.
+
+The `pdims` tuple specifies the number of MPI processes to put in every
+dimension of the topology. The product of its values must be equal to the number
+of processes in communicator `comm`.
+
+# Example
+
+Divide 2D topology into 4×2 blocks:
+
+```julia
+comm = MPI.COMM_WORLD
+@assert MPI.Comm_size(comm) == 8
+topology = MPITopology(comm, (4, 2))
+```
+"""
+function MPITopology(comm::MPI.Comm, pdims::Dims{N}) where {N}
+    check_topology(comm, pdims)
+    # Create Cartesian communicator.
+    comm_cart = let dims = collect(pdims) :: Vector{Int}
+        periods = zeros(Int, N)  # this is not very important...
+        reorder = false
+        MPI.Cart_create(comm, dims, periods, reorder)
+    end
+    MPITopology{N}(comm_cart)
+end
+
+"""
+    MPITopology(comm::MPI.Comm, Val(N))
+
+Convenient `MPITopology` constructor defining an `N`-dimensional decomposition
+of data among all MPI processes in communicator.
+
+The number of divisions along each of the `N` dimensions is automatically
+determined by a call to [`MPI.Dims_create!`](https://juliaparallel.github.io/MPI.jl/stable/topology/#MPI.Dims_create!).
+
+# Example
+
+Create 2D decomposition grid:
+
+```julia
+comm = MPI.COMM_WORLD
+topology = MPITopology(comm, Val(2))
+```
+"""
+function MPITopology(comm::MPI.Comm, ::Val{N}) where {N}
+    pdims = dims_create(comm, Val(N))
+    MPITopology(comm, pdims)
+end
+
+dims_create(comm::MPI.Comm, n) = dims_create(MPI.Comm_size(comm), n)
+
+function dims_create(Nproc::Integer, ::Val{N}) where {N}
+    pdims = zeros(Cint, N)
+    MPI.Dims_create!(Nproc, N, pdims)  # call lower-level MPI wrapper
+    ntuple(d -> Int(pdims[d]), Val(N)) :: Dims{N}
 end
 
 # Check that `pdims` argument is compatible with the number of processes in

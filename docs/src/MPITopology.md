@@ -16,13 +16,22 @@ pdims = (3, 4)
 topology = MPITopology(comm, pdims)
 ```
 
+A convenience constructor is provided that automatically chooses a default
+`pdims` from the number of processes and from the dimension `N` of
+decomposition grid. For instance, for a two-dimensional decomposition:
+```julia
+topology = MPITopology(comm, Val(2))
+```
+Under the hood, this works by letting
+[`MPI_Dims_create`](https://www.open-mpi.org/doc/current/man3/MPI_Dims_create.3.php)
+choose the number of divisions along each dimension.
+
 At the lower level, [`MPITopology`](@ref) uses
-[`MPI_Cart_create`](https://www.mpich.org/static/docs/latest/www3/MPI_Cart_create.html)
+[`MPI_Cart_create`](https://www.open-mpi.org/doc/current/man3/MPI_Cart_create.3.php)
 to define a Cartesian MPI communicator.
 For more control, one can also create a Cartesian communicator using
 `MPI.Cart_create`, and pass that to `MPITopology`:
 ```julia
-comm = MPI.COMM_WORLD
 dims = [3, 4]  # note: array, not tuple!
 periods = zeros(Int, N)
 reorder = false
