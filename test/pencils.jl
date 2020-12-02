@@ -232,7 +232,10 @@ function main()
     ) !== nothing
     @test ndims(topo) == length(proc_dims) == 2
 
-    pen1 = Pencil(topo, Nxyz, (2, 3))
+    pen1 = Pencil(topo, Nxyz)
+    let p = Pencil(topo, Nxyz, (2, 3))  # this is the default decomposition
+        @test decomposition(p) === decomposition(pen1)
+    end
     pen2 = Pencil(pen1, decomp_dims=(1, 3), permute=Permutation(2, 3, 1))
     pen3 = Pencil(pen2, decomp_dims=(1, 2), permute=Permutation(3, 2, 1))
 

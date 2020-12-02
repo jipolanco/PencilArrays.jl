@@ -39,7 +39,8 @@ along `M` directions (with `M < N`).
 ---
 
     Pencil(
-        topology::MPITopology{M}, size_global::Dims{N}, decomp_dims::Dims{M};
+        topology::MPITopology{M}, size_global::Dims{N},
+        decomp_dims::Dims{M} = default_decomposition(N, Val(M));
         permute::AbstractPermutation = NoPermutation(),
         timer = TimerOutput(),
     )
@@ -51,7 +52,11 @@ The dimensions of the geometry are given by `size_global = (N1, N2, ...)`. The
 across a group of MPI processes.
 
 Data is distributed over the given `M`-dimensional MPI topology (with `M < N`).
-The decomposed dimensions are given by `decomp_dims`.
+
+The decomposed dimensions may optionally be provided via the `decomp_dims`
+argument. By default, the `M` rightmost dimensions are decomposed. For instance,
+for a 2D decomposition of 5D data (`M = 2` and `N = 5`), the dimensions `(4, 5)`
+are decomposed by default.
 
 The optional parameter `perm` should be a (compile-time) tuple defining a
 permutation of the data indices. Such permutation may be useful for performance
@@ -124,7 +129,8 @@ struct Pencil{
     timer :: TimerOutput
 
     function Pencil(
-            topology::MPITopology{M}, size_global::Dims{N}, decomp_dims::Dims{M};
+            topology::MPITopology{M}, size_global::Dims{N},
+            decomp_dims::Dims{M} = default_decomposition(N, Val(M));
             permute::AbstractPermutation = NoPermutation(),
             send_buf = UInt8[], recv_buf = UInt8[],
             timer = TimerOutput(),
@@ -157,6 +163,11 @@ end
 function check_permutation(perm)
     isperm(perm) && return
     throw(ArgumentError("invalid permutation of dimensions: $perm"))
+end
+
+function default_decomposition(N, ::Val{M}) where {M}
+    @assert 0 < M ≤ N
+    ntuple(d -> N - M + d, Val(M))
 end
 
 # Verify that `dims` is a subselection of dimensions in 1:N.
