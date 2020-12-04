@@ -174,6 +174,8 @@ function main()
 
     silence_stdout(comm)
 
+    @show HDF5.libhdf5
+
     # Let MPI_Dims_create choose the values of (P1, P2).
     proc_dims = let pdims = zeros(Int, 2)
         MPI.Dims_create!(Nproc, pdims)

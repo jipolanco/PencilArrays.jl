@@ -59,20 +59,6 @@ jobs:
             ${{ runner.os }}-test-
             ${{ runner.os }}-
 
-      - name: Add HDF5 + precompile
-        run: |
-          julia --project -e '
-            using Pkg
-            using InteractiveUtils
-            versioninfo()
-            pkg"add HDF5"
-            using HDF5
-            @show HDF5.libhdf5
-            pkg"instantiate"
-            pkg"precompile"
-            using MPI
-            println("\n", MPI.MPI_LIBRARY_VERSION_STRING)'
-
       - uses: julia-actions/julia-buildpkg@v1
 
       - uses: julia-actions/julia-runtest@v1
