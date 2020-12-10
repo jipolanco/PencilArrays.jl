@@ -6,9 +6,6 @@ git-tree-sha1 = "42c42f2221906892ceb765dbcb1a51deeffd86d7"
 uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 version = "2.3.0"
 
-[[ArgTools]]
-uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
-
 [[ArrayInterface]]
 deps = ["LinearAlgebra", "Requires", "SparseArrays"]
 git-tree-sha1 = "de4bb46df3f67769356e737f2c7ce1d67da3ae49"
@@ -16,7 +13,10 @@ uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 version = "2.14.4"
 
 [[Artifacts]]
+deps = ["Pkg"]
+git-tree-sha1 = "c30985d8821e0cd73870b17b0ed0ce6dc44cb744"
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
+version = "1.3.0"
 
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -40,8 +40,10 @@ uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
 version = "3.23.0"
 
 [[CompilerSupportLibraries_jll]]
-deps = ["Artifacts", "Libdl"]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "8e695f735fca77e9708e795eda62afdb869cbb70"
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
+version = "0.3.4+0"
 
 [[Dates]]
 deps = ["Printf"]
@@ -66,10 +68,6 @@ deps = ["Base64", "Dates", "DocStringExtensions", "IOCapture", "InteractiveUtils
 git-tree-sha1 = "c01a7e8bcf7a6693444a52a0c5ac8b4e9528600e"
 uuid = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 version = "0.26.0"
-
-[[Downloads]]
-deps = ["ArgTools", "LibCURL", "NetworkOptions"]
-uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[HDF5]]
 deps = ["Blosc", "Compat", "HDF5_jll", "Libdl", "Mmap", "Random", "Requires"]
@@ -110,21 +108,21 @@ git-tree-sha1 = "961ef1c3e5c8a595d5bec270a9007429ef12ed10"
 uuid = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 version = "1.5.1"
 
-[[LibCURL]]
-deps = ["LibCURL_jll", "MozillaCACerts_jll"]
-uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
-
 [[LibCURL_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
+deps = ["LibSSH2_jll", "Libdl", "MbedTLS_jll", "Pkg", "Zlib_jll", "nghttp2_jll"]
+git-tree-sha1 = "897d962c20031e6012bba7b3dcb7a667170dad17"
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
+version = "7.70.0+2"
 
 [[LibGit2]]
 deps = ["Base64", "NetworkOptions", "Printf", "SHA"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 
 [[LibSSH2_jll]]
-deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
+deps = ["Libdl", "MbedTLS_jll", "Pkg"]
+git-tree-sha1 = "717705533148132e5466f2924b9a3657b16158e8"
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
+version = "1.9.0+3"
 
 [[Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -159,8 +157,10 @@ deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
 [[MbedTLS_jll]]
-deps = ["Artifacts", "Libdl"]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "0eef589dd1c26a3ac9d753fe1a8bcad63f956fa6"
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
+version = "2.16.8+1"
 
 [[MicrosoftMPI_jll]]
 deps = ["Libdl", "Pkg"]
@@ -171,11 +171,10 @@ version = "10.1.2+3"
 [[Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
-[[MozillaCACerts_jll]]
-uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-
 [[NetworkOptions]]
+git-tree-sha1 = "ed3157f48a05543cce9b241e1f2815f7e843d96e"
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
+version = "1.2.0"
 
 [[OffsetArrays]]
 deps = ["Adapt"]
@@ -208,7 +207,7 @@ uuid = "0e08944d-e94e-41b1-9406-dcf66b6a9d2e"
 version = "0.6.0"
 
 [[Pkg]]
-deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs"]
+deps = ["Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [[Printf]]
@@ -273,14 +272,6 @@ git-tree-sha1 = "1ed04f622a39d2e5a6747c3a70be040c00333933"
 uuid = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
 version = "1.1.0"
 
-[[TOML]]
-deps = ["Dates"]
-uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
-
-[[Tar]]
-deps = ["ArgTools", "SHA"]
-uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
-
 [[Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -299,8 +290,10 @@ uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[Zlib_jll]]
-deps = ["Libdl"]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "320228915c8debb12cb434c59057290f0834dbf6"
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
+version = "1.2.11+18"
 
 [[Zstd_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -309,5 +302,7 @@ uuid = "3161d3a3-bdf6-5164-811a-617609db77b4"
 version = "1.4.5+2"
 
 [[nghttp2_jll]]
-deps = ["Artifacts", "Libdl"]
+deps = ["Libdl", "Pkg"]
+git-tree-sha1 = "8e2c44ab4d49ad9518f359ed8b62f83ba8beede4"
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
+version = "1.40.0+2"
