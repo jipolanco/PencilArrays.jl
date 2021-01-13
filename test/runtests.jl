@@ -4,10 +4,10 @@ using InteractiveUtils
 using MPI: MPI, mpiexec
 
 test_files = [
+    "io.jl",
     "pencils.jl",
     "array_interface.jl",
     "broadcast.jl",
-    "io.jl",
 ]
 
 Nproc = let N = get(ENV, "JULIA_MPI_NPROC", nothing)

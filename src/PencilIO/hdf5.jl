@@ -97,9 +97,37 @@ function Base.open(::PHDF5Driver) end
 function Base.open(D::PHDF5Driver, filename::AbstractString, comm::MPI.Comm; kw...)
     mode_args, other_kws = keywords_to_h5open(; kw...)
     info = MPI.Info(other_kws...)
-    D.fapl[:fapl_mpio] = mpi_to_h5_handle.((comm, info))
-    # TODO avoid using unexported function
-    HDF5._h5open(string(filename), mode_args..., D.fcpl, D.fapl)
+    fcpl = D.fcpl
+    fapl = D.fapl
+    fapl[:fapl_mpio] = mpi_to_h5_handle.((comm, info))
+    swmr = false
+
+    # The code below is adapted from h5open in HDF5.jl v0.15
+    # TODO propose alternative h5open for HDF5.jl, taking keyword arguments `read`, `write`, ...
+    # Then we wouldn't need to copy code from HDF5.jl...
+    rd, wr, cr, tr, ff = mode_args
+    if ff && !wr
+        error("HDF5 does not support appending without writing")
+    end
+
+    fid = if cr && (tr || !isfile(filename))
+        flag = swmr ? HDF5.H5F_ACC_TRUNC | HDF5.H5F_ACC_SWMR_WRITE : HDF5.H5F_ACC_TRUNC
+        HDF5.h5f_create(filename, flag, fcpl, fapl)
+    else
+        HDF5.ishdf5(filename) ||
+            error("unable to determine if $filename is accessible in the HDF5 format (file may not exist)")
+        if wr
+            flag = swmr ? HDF5.H5F_ACC_RDWR | HDF5.H5F_ACC_SWMR_WRITE : HDF5.H5F_ACC_RDWR
+        else
+            flag = swmr ? HDF5.H5F_ACC_RDONLY | HDF5.H5F_ACC_SWMR_READ : HDF5.H5F_ACC_RDONLY
+        end
+        HDF5.h5f_open(filename, flag, fapl)
+    end
+
+    close(fapl)
+    fcpl != HDF5.DEFAULT_PROPERTIES && close(fcpl)
+
+    HDF5.File(fid, filename)
 end
 
 """
