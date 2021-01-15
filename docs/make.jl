@@ -13,7 +13,7 @@ function main()
             canonical = "https://jipolanco.github.io/PencilArrays.jl",
             assets = [
                 "assets/custom.css",
-                "assets/matomo.js",
+                "assets/tomate.js",
             ],
         ),
         pages = [
