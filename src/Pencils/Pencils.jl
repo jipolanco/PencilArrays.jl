@@ -18,11 +18,6 @@ export range_local, range_remote, size_local, size_global, to_local
 # Describes the portion of an array held by a given MPI process.
 const ArrayRegion{N} = NTuple{N,UnitRange{Int}} where N
 
-# Deprecated in v0.4
-@deprecate get_permutation permutation
-@deprecate get_decomposition decomposition
-@deprecate get_timer timer
-
 include("MPITopologies.jl")
 @reexport using .MPITopologies
 import .MPITopologies: get_comm
