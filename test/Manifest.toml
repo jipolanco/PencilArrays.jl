@@ -1,10 +1,10 @@
 # This file is machine-generated - editing it directly is not advised
 
 [[ArrayInterface]]
-deps = ["LinearAlgebra", "Requires", "SparseArrays"]
-git-tree-sha1 = "a0c202d58f0f99156bd77972fe75ae8498fd9f4b"
+deps = ["IfElse", "LinearAlgebra", "Requires", "SparseArrays"]
+git-tree-sha1 = "ef91c543a3a8094eba9b1f7171258b9ecae87dfa"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "2.14.13"
+version = "3.0.0"
 
 [[Artifacts]]
 deps = ["Pkg"]
@@ -65,15 +65,20 @@ version = "0.8.3"
 
 [[HDF5]]
 deps = ["Blosc", "Compat", "HDF5_jll", "Libdl", "Mmap", "Random", "Requires"]
-git-tree-sha1 = "a7ba439762caed0b98d1c7f00621b8b058c62891"
+git-tree-sha1 = "947d696a6b6dbc14018a1668c4724fdc6236a3d3"
 uuid = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
-version = "0.15.0"
+version = "0.15.2"
 
 [[HDF5_jll]]
 deps = ["Artifacts", "JLLWrappers", "LibCURL_jll", "Libdl", "OpenSSL_jll", "Pkg", "Zlib_jll"]
 git-tree-sha1 = "fd83fa0bde42e01952757f01149dd968c06c4dba"
 uuid = "0234f1f7-429e-5d53-9886-15a909be8d59"
 version = "1.12.0+1"
+
+[[IfElse]]
+git-tree-sha1 = "28e837ff3e7a6c3cdb252ce49fb412c8eb3caeef"
+uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
+version = "0.1.0"
 
 [[InteractiveUtils]]
 deps = ["Markdown"]
@@ -103,7 +108,7 @@ uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
 version = "7.70.0+2"
 
 [[LibGit2]]
-deps = ["Printf"]
+deps = ["Base64", "NetworkOptions", "Printf", "SHA"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 
 [[LibSSH2_jll]]
@@ -151,13 +156,18 @@ uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.16.8+1"
 
 [[MicrosoftMPI_jll]]
-deps = ["Libdl", "Pkg"]
-git-tree-sha1 = "720de13004e416f2864c92593d3839e062703985"
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "eb8e7ff35b32ccb17947caaf05cea979aed5199e"
 uuid = "9237b28f-5490-5468-be7b-bb81f5f5e6cf"
-version = "10.1.2+3"
+version = "10.1.2+4"
 
 [[Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
+
+[[NetworkOptions]]
+git-tree-sha1 = "ed3157f48a05543cce9b241e1f2815f7e843d96e"
+uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
+version = "1.2.0"
 
 [[OpenMPI_jll]]
 deps = ["Libdl", "Pkg"]
@@ -186,7 +196,7 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[REPL]]
-deps = ["InteractiveUtils", "Markdown", "Sockets"]
+deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 
 [[Random]]
@@ -222,12 +232,12 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [[StructTypes]]
 deps = ["Dates", "UUIDs"]
-git-tree-sha1 = "d94235fcdc4a09649f263365c5f7e4ed4ba6ed34"
+git-tree-sha1 = "f66fdeb76151f8e6eb2d08e56e169b0915c8fff0"
 uuid = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
-version = "1.2.1"
+version = "1.2.2"
 
 [[Test]]
-deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
+deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[UUIDs]]
@@ -245,9 +255,9 @@ version = "1.2.11+18"
 
 [[Zstd_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "6f1abcb0c44f184690912aa4b0ba861dd64f11b9"
+git-tree-sha1 = "2c1332c54931e83f8f94d310fa447fd743e8d600"
 uuid = "3161d3a3-bdf6-5164-811a-617609db77b4"
-version = "1.4.5+2"
+version = "1.4.8+0"
 
 [[nghttp2_jll]]
 deps = ["Libdl", "Pkg"]

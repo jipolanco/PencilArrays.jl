@@ -3,6 +3,9 @@
 using InteractiveUtils
 using MPI: MPI, mpiexec
 
+# Load test packages to trigger precompilation
+using PencilArrays
+
 test_files = [
     "io.jl",
     "pencils.jl",
@@ -10,8 +13,8 @@ test_files = [
     "broadcast.jl",
 ]
 
-Nproc = let N = get(ENV, "JULIA_MPI_NPROC", nothing)
-    N === nothing ? clamp(Sys.CPU_THREADS, 4, 8) : parse(Int, N)
+Nproc = let N = get(ENV, "JULIA_MPI_TEST_NPROCS", nothing)
+    N === nothing ? clamp(Sys.CPU_THREADS, 4, 6) : parse(Int, N)
 end
 
 println()
@@ -21,9 +24,7 @@ println("\n", MPI.MPI_LIBRARY_VERSION_STRING, "\n")
 for fname in test_files
     @info "Running $fname with $Nproc processes..."
     mpiexec() do cmd
-        # Disable precompilation to prevent race conditions when loading
-        # packages.
-        run(`$cmd -n $Nproc $(Base.julia_cmd()) --compiled-modules=no $fname`)
+        run(`$cmd -n $Nproc $(Base.julia_cmd()) $fname`)
     end
     println()
 end
