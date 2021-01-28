@@ -7,9 +7,13 @@ using Test
 
 import ArrayInterface:
     ArrayInterface,
-    Contiguous,
-    contiguous_axis, contiguous_axis_indicator, contiguous_batch_size,
-    stride_rank, DenseDims, dense_dims
+    StaticInt,
+    StaticBool,
+    contiguous_axis,
+    contiguous_axis_indicator,
+    contiguous_batch_size,
+    dense_dims,
+    stride_rank
 
 struct DummyArray{T,N} <: AbstractArray{T,N}
     dims :: Dims{N}
@@ -25,11 +29,11 @@ ArrayInterface._strides(
     ::AbstractArray{T,N}, strides::NTuple{N}, ::Nothing) where {T,N} = strides
 
 function non_dense_array(::Type{T}, dims) where {T}
-    # Only the first dimension is dense: DenseDims((true, false, false, ...)).
+    # Only the first dimension is dense: (True, False, False, ...).
     N = length(dims)
     dims_parent = ntuple(d -> (d - 1) + dims[d], Val(N))
     up = view(Array{T}(undef, dims_parent), Base.OneTo.(dims)...)
-    @assert dense_dims(up) === DenseDims(ntuple(d -> d == 1, Val(ndims(up))))
+    @assert dense_dims(up) === ntuple(d -> StaticBool(d == 1), Val(ndims(up)))
     up
 end
 
@@ -37,7 +41,7 @@ function non_contiguous_array(::Type{T}, dims) where {T}
     N = length(dims)
     dims_parent = (2, dims...)  # we take the slice [1, :, :, ...]
     up = view(Array{T}(undef, dims_parent), 1, ntuple(d -> Colon(), Val(N))...)
-    @assert contiguous_axis(up) === Contiguous(-1)
+    @assert contiguous_axis(up) === StaticInt(-1)
     @assert size(up) == dims
     @assert ArrayInterface.size(up) == dims
     up
