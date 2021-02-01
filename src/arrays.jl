@@ -108,6 +108,14 @@ end
 
 pencil_type(::Type{PencilArray{T,N,A,M,E,P}}) where {T,N,A,M,E,P} = P
 
+# This is called by `summary`.
+function Base.showarg(io::IO, u::PencilArray, toplevel)
+    print(io, nameof(typeof(u)), '(')
+    Base.showarg(io, pencil(u), false)
+    print(io, ')')
+    nothing
+end
+
 """
     PencilArrayCollection
 

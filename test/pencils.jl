@@ -29,6 +29,9 @@ end
 
 function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     u = PencilArray{T}(undef, p)
+
+    @test match(r"PencilArray\(::Pencil{.*}\)", summary(u)) !== nothing
+
     perm = permutation(u)
     @test perm === permutation(typeof(u))
     let topo = topology(p)
@@ -239,6 +242,9 @@ function main()
     end
     pen2 = Pencil(pen1, decomp_dims=(1, 3), permute=Permutation(2, 3, 1))
     pen3 = Pencil(pen2, decomp_dims=(1, 2), permute=Permutation(3, 2, 1))
+
+    @test match(r"Pencil{3, 2, NoPermutation}", summary(pen1)) !== nothing
+    @test match(r"Pencil{3, 2, Permutation{.*}}", summary(pen2)) !== nothing
 
     println("Pencil 1: ", pen1, "\n")
     println("Pencil 2: ", pen2, "\n")
