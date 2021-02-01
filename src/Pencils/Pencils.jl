@@ -184,6 +184,8 @@ end
 # Use the `sort` method from StaticArrays and convert back to tuple.
 _sort_dimensions(dims::Dims{N}) where {N} = Tuple(sort(SVector(dims)))
 
+Base.summary(io::IO, p::Pencil) = Base.showarg(io, p, true)
+
 function Base.showarg(io::IO, p::Pencil{N,M,P}, toplevel) where {N,M,P}
     toplevel || print(io, "::")
     print(io, nameof(typeof(p)), "{$N, $M, $P}")
