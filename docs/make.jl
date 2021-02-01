@@ -2,6 +2,16 @@ using HDF5  # to load HDF5 code via Requires
 using PencilArrays
 using Documenter
 
+DocMeta.setdocmeta!(
+    PencilArrays, :DocTestSetup,
+    quote
+        using PencilArrays
+        using MPI
+        MPI.Initialized() || MPI.Init()
+    end;
+    recursive=true,
+)
+
 function main()
     makedocs(;
         modules = [PencilArrays],

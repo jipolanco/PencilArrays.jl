@@ -62,6 +62,23 @@ Suppose `pencil` has local dimensions `(20, 10, 30)`. Then:
 PencilArray{Float64}(undef, pencil)        # array dimensions are (20, 10, 30)
 PencilArray{Float64}(undef, pencil, 4, 3)  # array dimensions are (20, 10, 30, 4, 3)
 ```
+
+More examples:
+
+```jldoctest
+julia> topo = MPITopology(MPI.COMM_WORLD, Val(2));
+
+julia> pen = Pencil(topo, (20, 10, 12));
+
+julia> u = PencilArray{Float64}(undef, pen);
+
+julia> summary(u)
+"20×10×12 PencilArray(::Pencil{3, 2, NoPermutation})"
+
+julia> PencilArray{Float64}(undef, pen, 4, 3) |> summary
+"20×10×12×4×3 PencilArray(::Pencil{3, 2, NoPermutation})"
+
+```
 """
 struct PencilArray{
         T,
