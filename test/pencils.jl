@@ -19,6 +19,15 @@ BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1.0
 Indexation(::Type{IndexLinear}) = LinearIndices
 Indexation(::Type{IndexCartesian}) = CartesianIndices
 
+# For testing `similar` for PencilArray.
+struct DummyArray{T,N} <: AbstractArray{T,N}
+    dims :: Dims{N}
+    DummyArray{T}(::UndefInitializer, dims) where {T} = new{T,length(dims)}(dims)
+end
+Base.size(x::DummyArray) = x.dims
+Base.getindex(::DummyArray{T}, ind...) where {T} = zero(T)
+Base.similar(x::DummyArray, ::Type{S}, dims::Dims) where {S} = DummyArray{S}(undef, dims)
+
 function benchmark_fill!(::Type{T}, u, val) where {T <: IndexStyle}
     indices = Indexation(T)(u)
     @inbounds for I in indices
@@ -96,6 +105,23 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
             @test v isa Matrix
             @test size(v) == (3, 4)
             @test eltype(v) === Int
+        end
+
+        let A = DummyArray{Int}(undef, size_local(p, MemoryOrder()))
+            local u = @inferred PencilArray(p, A)
+            @test parent(u) === A
+
+            v = @inferred similar(u)
+            @test typeof(v) === typeof(u)
+            @test size(v) == size(u)
+
+            w = @inferred similar(u, (4, 2))
+            @test w isa DummyArray{Int,2}
+            @test size(w) == (4, 2)
+
+            z = @inferred similar(u, Float32, (3, 4, 2))
+            @test z isa DummyArray{Float32,3}
+            @test size(z) == (3, 4, 2)
         end
     end
 
