@@ -125,9 +125,13 @@ pencil_type(::Type{PencilArray{T,N,A,M,E,P}}) where {T,N,A,M,E,P} = P
 
 # This is called by `summary`.
 function Base.showarg(io::IO, u::PencilArray, toplevel)
-    print(io, nameof(typeof(u)), '{', eltype(u), ", ", ndims(u), '}', '(')
-    Base.showarg(io, pencil(u), false)
-    print(io, ')')
+    toplevel || print(io, "::")
+    print(io, nameof(typeof(u)), '{', eltype(u), ", ", ndims(u), '}')
+    if toplevel
+        print(io, '(')
+        Base.showarg(io, pencil(u), false)
+        print(io, ')')
+    end
     nothing
 end
 
