@@ -203,7 +203,7 @@ size_local(x::MaybePencilArrayCollection, args...; kwargs...) =
 Base.axes(x::PencilArray) = permutation(x) \ axes(parent(x))
 
 """
-    similar(x::PencilArray, [element_type=eltype(x)], [dims=size(x)])
+    similar(x::PencilArray, [element_type=eltype(x)], [dims])
 
 Returns an array similar to `x`.
 
@@ -212,7 +212,8 @@ The actual type of the returned array depends on whether `dims` is passed:
 - if `dims` is *not* passed, then a `PencilArray` of same dimensions of `x` is
   returned.
 
-- otherwise, a regular `Array` with the chosen dimensions is returned.
+- otherwise, an array similar to that wrapped by `x` (typically a regular
+  `Array`) is returned, with the chosen dimensions.
 
 # Examples
 
@@ -244,6 +245,9 @@ function Base.similar(x::PencilArray, ::Type{S}) where {S}
     dims_perm = permutation(x) * size(x)
     PencilArray(x.pencil, similar(x.data, S, dims_perm))
 end
+
+Base.similar(x::PencilArray, ::Type{S}, dims::Dims) where {S} =
+    similar(parent(x), S, dims)
 
 # Use same index style as the parent array.
 Base.IndexStyle(::Type{<:PencilArray{T,N,A}} where {T,N}) where {A} =
