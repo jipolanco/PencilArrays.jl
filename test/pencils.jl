@@ -236,12 +236,12 @@ function main()
     ) !== nothing
     @test ndims(topo) == length(proc_dims) == 2
 
-    pen1 = Pencil(topo, Nxyz)
-    let p = Pencil(topo, Nxyz, (2, 3))  # this is the default decomposition
+    pen1 = @inferred Pencil(topo, Nxyz)
+    let p = @inferred Pencil(topo, Nxyz, (2, 3))  # this is the default decomposition
         @test decomposition(p) === decomposition(pen1)
     end
-    pen2 = Pencil(pen1, decomp_dims=(1, 3), permute=Permutation(2, 3, 1))
-    pen3 = Pencil(pen2, decomp_dims=(1, 2), permute=Permutation(3, 2, 1))
+    pen2 = @inferred Pencil(pen1, decomp_dims=(1, 3), permute=Permutation(2, 3, 1))
+    pen3 = @inferred Pencil(pen2, decomp_dims=(1, 2), permute=Permutation(3, 2, 1))
 
     @test match(r"Pencil{3, 2, NoPermutation}", summary(pen1)) !== nothing
     @test match(r"Pencil{3, 2, Permutation{.*}}", summary(pen2)) !== nothing
@@ -249,6 +249,19 @@ function main()
     println("Pencil 1: ", pen1, "\n")
     println("Pencil 2: ", pen2, "\n")
     println("Pencil 3: ", pen3, "\n")
+
+    @testset "Pencil constructors" begin
+        p = @inferred Pencil((5, 4, 4, 3), MPI.COMM_WORLD)
+        @test decomposition(p) == (2, 3, 4)
+        @test ndims(topology(p)) == 3
+        @test permutation(p) == NoPermutation()
+
+        p = @inferred Pencil((5, 4, 4, 3), (2, 3), MPI.COMM_WORLD;
+                             permute = Permutation(2, 3, 4, 1))
+        @test decomposition(p) == (2, 3)
+        @test ndims(topology(p)) == 2
+        @test permutation(p) == Permutation(2, 3, 4, 1)
+    end
 
     @testset "ManyPencilArray" begin
         test_multiarrays(pen1, pen2, pen3)

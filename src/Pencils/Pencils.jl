@@ -64,13 +64,55 @@ It is also possible to pass a `TimerOutput` to the constructor. See
 # Examples
 
 Decompose a 3D geometry of global dimensions ``N_x × N_y × N_z = 4×8×12`` along
-the second (``y``) and third (``z``) dimensions.
-```julia
-Pencil(topology, (4, 8, 12), (2, 3))                                # data is in (x, y, z) order
-Pencil(topology, (4, 8, 12), (2, 3), permute=Permutation(3, 2, 1))  # data is in (z, y, x) order
+the second (``y``) and third (``z``) dimensions:
+
+```jldoctest
+julia> topo = MPITopology(MPI.COMM_WORLD, Val(2));
+
+julia> Pencil(topo, (4, 8, 12), (2, 3))
+Decomposition of 3D data
+    Data dimensions: (4, 8, 12)
+    Decomposed dimensions: (2, 3)
+    Data permutation: NoPermutation()
+
+julia> Pencil(topo, (4, 8, 12), (2, 3); permute = Permutation(3, 2, 1))
+Decomposition of 3D data
+    Data dimensions: (4, 8, 12)
+    Decomposed dimensions: (2, 3)
+    Data permutation: Permutation(3, 2, 1)
+
 ```
+
 In the second case, the actual data is stored in `(z, y, x)` order within
 each MPI process.
+
+---
+
+    Pencil(size_global::Dims{N}, [decomp_dims = (2, …, N)], comm::MPI.Comm; kws...)
+
+Convenience constructor that implicitly creates a [`MPITopology`](@ref).
+
+The number of decomposed dimensions specified by `decomp_dims` must be `M < N`.
+If `decomp_dims` is not passed, dimensions `2:N` are decomposed.
+
+Keyword arguments are passed to alternative constructor taking an `MPITopology`.
+That constructor should be used if more control is desired.
+
+# Examples
+
+```jldoctest
+julia> Pencil((4, 8, 12), MPI.COMM_WORLD)
+Decomposition of 3D data
+    Data dimensions: (4, 8, 12)
+    Decomposed dimensions: (2, 3)
+    Data permutation: NoPermutation()
+
+julia> Pencil((4, 8, 12), (1, ), MPI.COMM_WORLD)
+Decomposition of 3D data
+    Data dimensions: (4, 8, 12)
+    Decomposed dimensions: (1,)
+    Data permutation: NoPermutation()
+```
 
 ---
 
@@ -154,6 +196,14 @@ struct Pencil{
                etc...)
     end
 end
+
+function Pencil(dims::Dims, decomp::Dims{M}, comm::MPI.Comm; kws...) where {M}
+    topo = MPITopology(comm, Val(M))
+    Pencil(topo, dims, decomp; kws...)
+end
+
+Pencil(dims::Dims{N}, comm::MPI.Comm; kws...) where {N} =
+    Pencil(dims, default_decomposition(N, Val(N - 1)), comm)
 
 function check_permutation(perm)
     isperm(perm) && return
