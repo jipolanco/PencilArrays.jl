@@ -73,10 +73,10 @@ julia> pen = Pencil(topo, (20, 10, 12));
 julia> u = PencilArray{Float64}(undef, pen);
 
 julia> summary(u)
-"20×10×12 PencilArray(::Pencil{3, 2, NoPermutation})"
+"20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation})"
 
 julia> PencilArray{Float64}(undef, pen, 4, 3) |> summary
-"20×10×12×4×3 PencilArray(::Pencil{3, 2, NoPermutation})"
+"20×10×12×4×3 PencilArray{Float64, 4}(::Pencil{3, 2, NoPermutation})"
 
 ```
 """
@@ -127,7 +127,7 @@ pencil_type(::Type{PencilArray{T,N,A,M,E,P}}) where {T,N,A,M,E,P} = P
 
 # This is called by `summary`.
 function Base.showarg(io::IO, u::PencilArray, toplevel)
-    print(io, nameof(typeof(u)), '(')
+    print(io, nameof(typeof(u)), '{', eltype(u), ", ", ndims(u), '}', '(')
     Base.showarg(io, pencil(u), false)
     print(io, ')')
     nothing

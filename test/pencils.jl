@@ -30,7 +30,7 @@ end
 function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     u = PencilArray{T}(undef, p)
 
-    @test match(r"PencilArray\(::Pencil{.*}\)", summary(u)) !== nothing
+    @test match(r"PencilArray{.*}\(::Pencil{.*}\)", summary(u)) !== nothing
 
     perm = permutation(u)
     @test perm === permutation(typeof(u))
