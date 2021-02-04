@@ -66,9 +66,7 @@ PencilArray{Float64}(undef, pencil, 4, 3)  # array dimensions are (20, 10, 30, 4
 More examples:
 
 ```jldoctest
-julia> topo = MPITopology(MPI.COMM_WORLD, Val(2));
-
-julia> pen = Pencil(topo, (20, 10, 12));
+julia> pen = Pencil((20, 10, 12), MPI.COMM_WORLD);
 
 julia> u = PencilArray{Float64}(undef, pen);
 
@@ -76,7 +74,7 @@ julia> summary(u)
 "20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation})"
 
 julia> PencilArray{Float64}(undef, pen, 4, 3) |> summary
-"20×10×12×4×3 PencilArray{Float64, 4}(::Pencil{3, 2, NoPermutation})"
+"20×10×12×4×3 PencilArray{Float64, 5}(::Pencil{3, 2, NoPermutation})"
 
 ```
 """
