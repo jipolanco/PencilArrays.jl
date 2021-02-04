@@ -202,8 +202,46 @@ size_local(x::MaybePencilArrayCollection, args...; kwargs...) =
 
 Base.axes(x::PencilArray) = permutation(x) \ axes(parent(x))
 
-function Base.similar(x::PencilArray, ::Type{S}, dims::Dims) where {S}
-    dims_perm = permutation(x) * dims
+"""
+    similar(x::PencilArray, [element_type=eltype(x)], [dims=size(x)])
+
+Returns an array similar to `x`.
+
+The actual type of the returned array depends on whether `dims` is passed:
+
+- if `dims` is *not* passed, then a `PencilArray` of same dimensions of `x` is
+  returned.
+
+- otherwise, a regular `Array` with the chosen dimensions is returned.
+
+# Examples
+
+```jldoctest
+julia> pen = Pencil((20, 10, 12), MPI.COMM_WORLD);
+
+julia> u = PencilArray{Float64}(undef, pen);
+
+julia> similar(u) |> summary
+"20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation})"
+
+julia> similar(u, ComplexF32) |> summary
+"20×10×12 PencilArray{ComplexF32, 3}(::Pencil{3, 2, NoPermutation})"
+
+julia> similar(u, (4, 3, 8)) |> summary
+"4×3×8 Array{Float64, 3}"
+
+julia> similar(u, (4, 3)) |> summary
+"4×3 Matrix{Float64}"
+
+julia> similar(u, ComplexF32) |> summary
+"20×10×12 PencilArray{ComplexF32, 3}(::Pencil{3, 2, NoPermutation})"
+
+julia> similar(u, ComplexF32, (4, 3)) |> summary
+"4×3 Matrix{ComplexF32}"
+```
+"""
+function Base.similar(x::PencilArray, ::Type{S}) where {S}
+    dims_perm = permutation(x) * size(x)
     PencilArray(x.pencil, similar(x.data, S, dims_perm))
 end
 

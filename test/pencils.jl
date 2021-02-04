@@ -72,6 +72,33 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
         end
     end
 
+    @testset "similar" begin
+        let v = @inferred similar(u)
+            @test typeof(v) === typeof(u)
+            @test size(v) == size(u)
+            @test pencil(v) === pencil(u)
+        end
+
+        let v = @inferred similar(u, Int)
+            @test v isa PencilArray
+            @test size(v) == size(u)
+            @test eltype(v) === Int
+            @test pencil(v) === pencil(u)
+        end
+
+        let v = @inferred similar(u, (3, 4))
+            @test v isa Matrix
+            @test size(v) == (3, 4)
+            @test eltype(v) === eltype(u)
+        end
+
+        let v = @inferred similar(u, Int, (3, 4))
+            @test v isa Matrix
+            @test size(v) == (3, 4)
+            @test eltype(v) === Int
+        end
+    end
+
     let v = similar(u)
         @test typeof(v) === typeof(u)
 

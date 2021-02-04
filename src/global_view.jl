@@ -25,6 +25,9 @@ function global_view(x::PencilArray)
     xo :: GlobalPencilArray
 end
 
+Base.similar(x::GlobalPencilArray, ::Type{S}) where {S} =
+    global_view(similar(parent(x), S))
+
 # Account for index permutation in global views.
 @inline Base._sub2ind(x::GlobalPencilArray, I...) =
     Base._sub2ind(parent(x), (I .- x.offsets)...)

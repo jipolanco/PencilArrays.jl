@@ -7,10 +7,10 @@ using MPI: MPI, mpiexec
 using PencilArrays
 
 test_files = [
-    "io.jl",
     "pencils.jl",
     "array_interface.jl",
     "broadcast.jl",
+    "io.jl",
 ]
 
 Nproc = let N = get(ENV, "JULIA_MPI_TEST_NPROCS", nothing)

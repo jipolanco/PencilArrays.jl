@@ -6,7 +6,10 @@ for PA in (PencilArray, GlobalPencilArray)
 
         function Base.similar(bc::Broadcasted{ArrayStyle{$PA}}, ::Type{T}) where {T}
             A = find_pa(bc)
-            similar(A, T, axes(bc))
+            if axes(bc) != axes(A)
+                throw(DimensionMismatch("arrays cannot be broadcast; got axes $(axes(bc)) and $(axes(A))"))
+            end
+            similar(A, T)
         end
 
         find_pa(A::$PA, rest) = A
