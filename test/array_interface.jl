@@ -24,10 +24,6 @@ Base.size(x::DummyArray) = x.dims
 Base.getindex(::DummyArray{T}, ind...) where {T} = zero(T)
 Base.strides(x::DummyArray) = Base.size_to_strides(1, size(x)...)
 
-# Workaround issue introduced by https://github.com/SciML/ArrayInterface.jl/commit/bb8df8367b723d1beaaa85f189f475e7c764bc3f, when contiguous_axis(x) == nothing.
-ArrayInterface._strides(
-    ::AbstractArray{T,N}, strides::NTuple{N}, ::Nothing) where {T,N} = strides
-
 function non_dense_array(::Type{T}, dims) where {T}
     # Only the first dimension is dense: (True, False, False, ...).
     N = length(dims)
