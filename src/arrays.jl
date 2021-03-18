@@ -455,3 +455,5 @@ permutation(x::PencilArrayCollection) = _apply(permutation, x)
 Get [`MPITopology`](@ref) associated to a `PencilArray`.
 """
 topology(x::MaybePencilArrayCollection) = topology(pencil(x))
+
+Base.fill!(A::PencilArray, x) = fill!(parent(A), x)
