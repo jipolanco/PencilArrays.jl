@@ -41,6 +41,11 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
 
     @test match(r"PencilArray{.*}\(::Pencil{.*}\)", summary(u)) !== nothing
 
+    for x in (42, 10)
+        fill!(u, x)
+        @test all(==(x), u)
+    end
+
     perm = permutation(u)
     @test perm === permutation(typeof(u))
     let topo = topology(p)
