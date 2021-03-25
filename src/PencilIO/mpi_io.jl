@@ -91,7 +91,7 @@ end
 function write_metadata(ff, meta)
     MPI.Comm_rank(ff.comm) == 0 || return
     open(filename_meta(ff), "w") do io
-        JSON3.write(io, meta)
+        JSON3.pretty(io, JSON3.write(meta))
         write(io, '\n')
     end
     nothing
