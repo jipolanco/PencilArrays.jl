@@ -85,7 +85,7 @@ For instance:
 
 ```julia
 v = PencilArray(...)
-ff = open(MPIIODriver(), "filename.bin", MPI.COMM_WORLD; read=true)
+open(MPIIODriver(), "filename.bin", MPI.COMM_WORLD; read=true) do ff
     read!(ff, v, "velocity")
 end
 ```
