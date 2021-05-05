@@ -176,29 +176,22 @@ function main()
 
     @show HDF5.libhdf5
 
-    # Let MPI_Dims_create choose the values of (P1, P2).
-    proc_dims = let pdims = zeros(Int, 2)
-        MPI.Dims_create!(Nproc, pdims)
-        pdims[1], pdims[2]
-    end
-
     rng = MersenneTwister(42)
-    topo = MPITopology(comm, proc_dims)
     perms = (NoPermutation(), Permutation(2, 3, 1))
 
     @testset "$perm" for perm in perms
-        pen = Pencil(topo, Nxyz, (1, 3), permute=perm)
+        pen = Pencil(Nxyz, (1, 3), comm; permute = perm)
         u = PencilArray{Float64}(undef, pen)
         randn!(rng, u)
         u .+= 10 * myrank
 
-        filename = MPI.bcast(tempname(), 0, comm)
-
         @testset "MPI-IO" begin
+            filename = MPI.bcast(tempname(), 0, comm)
             test_write_mpiio(filename, u)
         end
 
         @testset "HDF5" begin
+            filename = MPI.bcast(tempname(), 0, comm)
             test_write_hdf5(filename, u)
         end
     end

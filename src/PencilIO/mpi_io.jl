@@ -4,7 +4,9 @@ import JSON3
 
 # Version of internal MPIIO format.
 # If the version is updated, it should match the upcoming PencilArrays version.
-const MPIIO_VERSION = 0.3
+const MPIIO_VERSION = v"0.9.4"
+
+const IS_LITTLE_ENDIAN = ENDIAN_BOM == 0x04030201
 
 """
     MPIIODriver(; sequential = false, uniqueopen = false, deleteonclose = false)
@@ -67,7 +69,7 @@ function MPIFile(comm::MPI.Comm, filename; kws...)
 end
 
 mpiio_init_metadata() = MetadataDict(
-    :driver => (type = "MPIIODriver", version = MPIIO_VERSION),
+    :driver => (type = "MPIIODriver", version = string(MPIIO_VERSION)),
     :datasets => DatasetDict(),
 )
 
@@ -106,6 +108,17 @@ Base.parent(ff::MPIFile) = ff.file
 Base.position(ff::MPIFile) = ff.position
 Base.skip(ff::MPIFile, offset) = ff.position += offset
 Base.seek(ff::MPIFile, pos) = ff.position = pos
+
+mpiio_version(ff::MPIFile) = mpiio_version(metadata(ff))
+
+function mpiio_version(meta::MetadataDict)
+    ver = meta[:driver][:version]
+    if ver isa Int  # this is for version ≤ 0.3
+        VersionNumber(string(ver))
+    else
+        VersionNumber(ver)
+    end
+end
 
 """
     open([f::Function], driver::MPIIODriver, filename, comm::MPI.Comm; keywords...)
@@ -183,6 +196,8 @@ function add_metadata(file::MPIFile, x, name, chunks::Bool)
     size_mem = size_global(x, MemoryOrder())
     meta[:datasets][DatasetKey(name)] = (
         metadata(x)...,
+        julia_endian_bom = repr(ENDIAN_BOM),  # write it as a string such as 0x04030201
+        little_endian = IS_LITTLE_ENDIAN,
         element_type = eltype_collection(x),
         dims_logical = (size_log..., size_col...),
         dims_memory = (size_mem..., size_col...),
@@ -205,10 +220,11 @@ function Base.read!(ff::MPIFile, x::MaybePencilArrayCollection, name::AbstractSt
                     collective=true, kw...)
     meta = get(metadata(ff)[:datasets], DatasetKey(name), nothing)
     meta === nothing && error("dataset '$name' not found")
+    version = mpiio_version(ff)
+    check_metadata(x, meta, version)
     file = parent(ff)
     offset = meta.offset_bytes :: Int
     chunks = meta.chunks :: Bool
-    check_metadata(x, meta.element_type, Tuple(meta.dims_memory), meta.size_bytes)
     chunks && check_read_chunks(x, meta.process_dims, name)
     for u in collection(x)
         if chunks
@@ -221,16 +237,36 @@ function Base.read!(ff::MPIFile, x::MaybePencilArrayCollection, name::AbstractSt
     x
 end
 
-function check_metadata(x, file_eltype, file_dims, file_sizeof)
+function check_metadata(x, meta, version)
     T = eltype_collection(x)
+    file_eltype = meta.element_type
     if string(T) != file_eltype
         error("incompatible type of file and array: $file_eltype ≠ $T")
     end
+
     sz = (size_global(x, MemoryOrder())..., collection_size(x)...)
+    file_dims = Tuple(meta.dims_memory) :: typeof(sz)
     if sz !== file_dims
         error("incompatible dimensions of dataset in file and array: $file_dims ≠ $sz")
     end
+
+    file_sizeof = meta.size_bytes
     @assert sizeof_global(x) == file_sizeof
+
+    file_bom = if version < v"0.9.4"
+        # julia_endian_bom key didn't exist; assume ENDIAN_BOM
+        ENDIAN_BOM
+    else
+        parse(typeof(ENDIAN_BOM), meta.julia_endian_bom)
+    end
+
+    if file_bom != ENDIAN_BOM
+        error(
+            "file was not written with the same native endianness of the current system." *
+            " Reading a non-native endianness is not yet supported."
+        )
+    end
+
     nothing
 end
 
@@ -275,7 +311,8 @@ end
 function set_view!(ff, x::PencilArray, offset; infokws...)
     etype = MPI.Datatype(eltype(x))
     filetype = create_discontiguous_datatype(x, MemoryOrder())  # TODO cache datatype?
-    MPI.File.set_view!(ff, offset, etype, filetype; infokws...)
+    datarep = "native"
+    MPI.File.set_view!(ff, offset, etype, filetype, datarep; infokws...)
     nothing
 end
 
