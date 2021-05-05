@@ -286,7 +286,8 @@ end
 function set_view!(ff, x::PencilArray, offset; infokws...)
     etype = MPI.Datatype(eltype(x))
     filetype = create_discontiguous_datatype(x, MemoryOrder())  # TODO cache datatype?
-    MPI.File.set_view!(ff, offset, etype, filetype; infokws...)
+    datarep = "native"
+    MPI.File.set_view!(ff, offset, etype, filetype, datarep; infokws...)
     nothing
 end
 
