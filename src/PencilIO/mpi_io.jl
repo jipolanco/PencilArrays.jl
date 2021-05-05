@@ -4,7 +4,7 @@ import JSON3
 
 # Version of internal MPIIO format.
 # If the version is updated, it should match the upcoming PencilArrays version.
-const MPIIO_VERSION = 0.3
+const MPIIO_VERSION = v"0.9.4"
 
 """
     MPIIODriver(; sequential = false, uniqueopen = false, deleteonclose = false)
@@ -67,7 +67,7 @@ function MPIFile(comm::MPI.Comm, filename; kws...)
 end
 
 mpiio_init_metadata() = MetadataDict(
-    :driver => (type = "MPIIODriver", version = MPIIO_VERSION),
+    :driver => (type = "MPIIODriver", version = string(MPIIO_VERSION)),
     :datasets => DatasetDict(),
 )
 
@@ -106,6 +106,17 @@ Base.parent(ff::MPIFile) = ff.file
 Base.position(ff::MPIFile) = ff.position
 Base.skip(ff::MPIFile, offset) = ff.position += offset
 Base.seek(ff::MPIFile, pos) = ff.position = pos
+
+mpiio_version(ff::MPIFile) = mpiio_version(metadata(ff))
+
+function mpiio_version(meta::MetadataDict)
+    ver = meta[:driver][:version]
+    if ver isa Int  # this is for version ≤ 0.3
+        VersionNumber(string(ver))
+    else
+        VersionNumber(ver)
+    end
+end
 
 """
     open([f::Function], driver::MPIIODriver, filename, comm::MPI.Comm; keywords...)
