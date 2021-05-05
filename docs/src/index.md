@@ -25,9 +25,9 @@ managed by a different MPI process.
 </div>
 ```
 
-More generally, PencilArrays can decompose arrays of arbitrary dimension $N$,
-along an arbitrary subset of $M$ dimensions.
-(In the example above, $N = 3$ and $M = 2$.)
+More generally, PencilArrays can decompose arrays of arbitrary dimension ``N``,
+along an arbitrary subset of ``M`` dimensions.
+(In the example above, ``N = 3`` and ``M = 2``.)
 
 PencilArrays is the basis for the
 [PencilFFTs](https://github.com/jipolanco/PencilFFTs.jl) package, which
@@ -35,7 +35,7 @@ provides efficient and highly scalable distributed FFTs.
 
 ## Features
 
-- distribution of $N$-dimensional arrays among MPI processes;
+- distribution of ``N``-dimensional arrays among MPI processes;
 
 - decomposition of arrays along an arbitrary subset of dimensions;
 
@@ -59,7 +59,7 @@ PencilArrays can be installed using the Julia package manager:
 ## Quick start
 
 The following example assumes that the code is executed on 12 MPI processes.
-The processes are distributed on a $3×4$ grid, as in the figure above.
+The processes are distributed on a ``3×4`` grid, as in the figure above.
 
 ```julia
 using MPI
