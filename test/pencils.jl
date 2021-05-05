@@ -309,12 +309,20 @@ function main()
     println("Pencil 3: ", pen3, "\n")
 
     @testset "Pencil constructors" begin
-        p = @inferred Pencil((5, 4, 4, 3), MPI.COMM_WORLD)
+        comm = MPI.COMM_WORLD
+
+        p = @inferred Pencil((5, 4, 4, 3), comm)
         @test decomposition(p) == (2, 3, 4)
         @test ndims(topology(p)) == 3
         @test permutation(p) == NoPermutation()
 
-        p = @inferred Pencil((5, 4, 4, 3), (2, 3), MPI.COMM_WORLD;
+        p = @inferred Pencil((5, 4, 4, 3), comm;
+                             permute = Permutation(2, 3, 4, 1))
+        @test decomposition(p) == (2, 3, 4)
+        @test ndims(topology(p)) == 3
+        @test permutation(p) == Permutation(2, 3, 4, 1)
+
+        p = @inferred Pencil((5, 4, 4, 3), (2, 3), comm;
                              permute = Permutation(2, 3, 4, 1))
         @test decomposition(p) == (2, 3)
         @test ndims(topology(p)) == 2

@@ -203,7 +203,7 @@ function Pencil(dims::Dims, decomp::Dims{M}, comm::MPI.Comm; kws...) where {M}
 end
 
 Pencil(dims::Dims{N}, comm::MPI.Comm; kws...) where {N} =
-    Pencil(dims, default_decomposition(N, Val(N - 1)), comm)
+    Pencil(dims, default_decomposition(N, Val(N - 1)), comm; kws...)
 
 function check_permutation(perm)
     isperm(perm) && return
