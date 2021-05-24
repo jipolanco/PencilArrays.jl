@@ -320,7 +320,7 @@ function create_discontiguous_datatype(x::PencilArray, order)
     sizes = size_global(x, order)
     subsizes = size_local(x, order)
     offsets = map(r -> first(r) - 1, range_local(x, order))
-    oldtype = MPI.Datatype(eltype(x), commit=false)
+    oldtype = MPI.Datatype(eltype(x))
     dtype = MPI.Types.create_subarray(sizes, subsizes, offsets, oldtype)
     MPI.Types.commit!(dtype)
     dtype
