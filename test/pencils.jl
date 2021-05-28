@@ -130,6 +130,15 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
         end
     end
 
+    @test fill!(u, 42) === u
+
+    let z = @inferred zero(u)
+        @test all(iszero, z)
+        @test typeof(z) === typeof(u)
+        @test pencil(z) === pencil(u)
+        @test size(z) === size(u)
+    end
+
     let v = similar(u)
         @test typeof(v) === typeof(u)
 
