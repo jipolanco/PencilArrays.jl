@@ -5,5 +5,5 @@ MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 PencilArrays = "0e08944d-e94e-41b1-9406-dcf66b6a9d2e"
 
 [compat]
-Documenter = "0.26"
+Documenter = "0.26, 0.27"
 HDF5 = "0.15"
