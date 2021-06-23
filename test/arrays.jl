@@ -9,7 +9,10 @@ dims = (8, 12, 9)
 comm = MPI.COMM_WORLD
 pen = Pencil(dims, comm; permute = Permutation(2, 3, 1))
 
-MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
+# This can be simplified to `redirect_stdout(devnull)` on Julia ≥ 1.6.
+let dev_null = @static Sys.iswindows() ? "nul" : "/dev/null"
+    MPI.Comm_rank(comm) == 0 || redirect_stdout(open(dev_null, "w"))
+end
 
 u = PencilArray{Float32}(undef, pen)
 randn!(u)
