@@ -25,6 +25,8 @@ function global_view(x::PencilArray)
     xo :: GlobalPencilArray
 end
 
+permutation(x::GlobalPencilArray) = permutation(parent(x))
+
 Base.similar(x::GlobalPencilArray, ::Type{S}) where {S} =
     global_view(similar(parent(x), S))
 

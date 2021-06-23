@@ -257,6 +257,9 @@ function check_iteration_order(u::Union{PencilArray,GlobalPencilArray})
         u[n] == p[n] == u[I] == u[l] || return false
     end
 
+    N = ndims(u)
+    @test ndims(lin) == ndims(cart) == N
+
     true
 end
 
