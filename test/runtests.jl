@@ -6,7 +6,11 @@ using MPI: MPI, mpiexec
 # Load test packages to trigger precompilation
 using PencilArrays
 
+# These tests can be run in serial mode
+include("permutations.jl")
+
 test_files = [
+    "arrays.jl",
     "pencils.jl",
     "array_interface.jl",
     "broadcast.jl",
