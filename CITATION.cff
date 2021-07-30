@@ -7,8 +7,8 @@ authors:
     orcid: https://orcid.org/0000-0001-7705-753X
     website: https://jipolanco.gitlab.io
 title: "PencilArrays.jl: Distributed Julia arrays using the MPI protocol"
-version: 0.9.8
+version: 0.9.9
 # doi: ?????
-date-released: 2021-06-23
+date-released: 2021-07-30
 repository-code: https://github.com/jipolanco/PencilArrays.jl
 license: MIT
