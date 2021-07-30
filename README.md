@@ -2,6 +2,9 @@
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://jipolanco.github.io/PencilArrays.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://jipolanco.github.io/PencilArrays.jl/dev)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5148035.svg)](https://doi.org/10.5281/zenodo.5148035)
+
+
 
 [![Build Status](https://github.com/jipolanco/PencilArrays.jl/workflows/CI/badge.svg)](https://github.com/jipolanco/PencilArrays.jl/actions)
 [![Coverage](https://codecov.io/gh/jipolanco/PencilArrays.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jipolanco/PencilArrays.jl)
