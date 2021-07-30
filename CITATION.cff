@@ -8,7 +8,7 @@ authors:
     website: https://jipolanco.gitlab.io
 title: "PencilArrays.jl: Distributed Julia arrays using the MPI protocol"
 version: 0.9.9
-# doi: ?????
+doi: 10.5281/zenodo.5148035
 date-released: 2021-07-30
 repository-code: https://github.com/jipolanco/PencilArrays.jl
 license: MIT
