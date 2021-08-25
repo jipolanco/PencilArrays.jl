@@ -8,6 +8,7 @@ import MPI
 using ..PencilArrays
 using ..Pencils: ArrayRegion
 using StaticPermutations
+using Strided: @strided, Strided, StridedView
 
 # Declare transposition approaches.
 abstract type AbstractTransposeMethod end
@@ -236,11 +237,11 @@ function permute_local!(Ao::PencilArray{T,N},
             vec = unsafe_as_array(T, x, n)
             reshape(vec, dims)
         end
-        permutedims!(buf, ui, perm)
+        @strided permutedims!(buf, ui, perm)
         copy!(uo, buf)
     else
         # Permute directly onto the output.
-        permutedims!(uo, ui, perm)
+        @strided permutedims!(uo, ui, perm)
     end
 
     Ao
@@ -542,19 +543,22 @@ function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
     src_view = let src_dims = (map(length, o_range_iperm)..., extra_dims...)
         Ndata = prod(src_dims)
         n = src_offset
-        v = view(src, (n + 1):(n + Ndata))
-        reshape(v, src_dims)
+        v = Strided.sview(src, (n + 1):(n + Ndata))
+        Strided.sreshape(v, src_dims)
     end
 
     dest_view = let dest_p = parent(dest)  # array with non-permuted indices
         indices = perm * o_range_iperm
-        v = view(dest_p, indices..., map(Base.OneTo, extra_dims)...)
+        v = StridedView(
+            view(dest_p, indices..., map(Base.OneTo, extra_dims)...)
+        )
         if isidentity(perm)
             v
         else
             pperm = append(perm, Val(E))
-            # Use fully inferred constructor defined in StaticPermutations
-            PermutedDimsArray(v, inv(pperm))
+            # This is the equivalent of a PermutedDimsArray in Strided.jl.
+            # Note that this is a lazy object (a StridedView)!
+            permutedims(v, Tuple(inv(pperm))) :: StridedView
         end
     end
 
