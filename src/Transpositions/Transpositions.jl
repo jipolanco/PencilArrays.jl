@@ -108,13 +108,16 @@ struct Transposition{T, N,
 end
 
 """
-    MPI.Waitall!(t::Transposition)
+    MPI.Waitall(t::Transposition)
 
 Wait for completion of all unfinished MPI communications related to the
 transposition.
 """
-MPI.Waitall!(t::Transposition) =
-    isempty(t.send_requests) || MPI.Waitall!(t.send_requests)
+function MPI.Waitall(t::Transposition)
+    # TODO reduce allocations in WaitAll -> use MPI.RequestSet?
+    isempty(t.send_requests) || MPI.Waitall(t.send_requests)
+    nothing
+end
 
 """
     transpose!(t::Transposition; waitall=true)
@@ -126,8 +129,8 @@ Transpose data from one pencil configuration to the other.
 The first variant allows to optionally delay the wait for MPI send operations to
 complete.
 This is useful if the caller wants to perform other operations with the already received data.
-To do this, the caller should pass `waitall=false`, and manually invoke
-[`MPI.Waitall!`](@ref) on the `Transposition` object once the operations are
+To do this, the caller should pass `waitall = false`, and manually invoke
+[`MPI.Waitall`](@ref) on the `Transposition` object once the operations are
 done.
 Note that this option only has an effect when the transposition method is
 `PointToPoint`.
@@ -151,7 +154,7 @@ function transpose!(t::Transposition; waitall=true)
     @timeit_debug timer "transpose!" begin
         transpose_impl!(t.dim, t)
         if waitall
-            @timeit_debug timer "wait send" MPI.Waitall!(t)
+            @timeit_debug timer "wait send" MPI.Waitall(t)
         end
     end
     t
@@ -491,8 +494,7 @@ function transpose_recv!(
         elseif m == 1
             n = index_local_req  # copy local data first
         else
-            @timeit_debug timer "wait receive" n, status =
-                MPI.Waitany!(recv_req)
+            @timeit_debug timer "wait receive" n = MPI.Waitany(recv_req)
         end
 
         # Non-permuted global indices of received data.
