@@ -483,8 +483,11 @@ function main()
         pen3 = Pencil(pen2, permute=Permutation(3, 2, 1))
 
         u1 = PencilArray{T}(undef, pen1)
-        u2 = PencilArray{T}(undef, pen2)
-        u3 = PencilArray{T}(undef, pen3)
+        u2 = @inferred similar(u1, pen2)
+        u3 = @inferred similar(u1, pen3)
+
+        @test pencil(u2) === pen2
+        @test pencil(u3) === pen3
 
         randn!(rng, u1)
         transpose!(u2, u1)
@@ -499,7 +502,7 @@ function main()
         @test compare_distributed_arrays(u1, u2)
 
         let v = similar(u2)
-            @test u2.pencil === v.pencil
+            @test pencil(u2) === pencil(v)
             transpose!(v, u2)
             @test compare_distributed_arrays(u1, v)
         end
@@ -525,7 +528,7 @@ function main()
         @inferred PencilArray{T}(undef, pen2, 3, 4)
 
         u1 = PencilArray{T}(undef, pen1)
-        u2 = PencilArray{T}(undef, pen2)
+        u2 = similar(u1, pen2)
 
         @inferred Nothing gather(u2)
         @inferred transpose!(u2, u1)
