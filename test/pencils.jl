@@ -128,6 +128,23 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
             @test z isa DummyArray{Float32,3}
             @test size(z) == (3, 4, 2)
         end
+
+        # Test similar(u, [T], q::Pencil)
+        let N = ndims(p)
+            permute = Permutation(N, ntuple(identity, N - 1)...)  # = (N, 1, 2, ..., N - 1)
+            decomp_dims = mod1.(decomposition(p) .+ 1, N)
+            q = Pencil(p; decomp_dims = decomp_dims, permute = permute)
+
+            v = @inferred similar(u, q)
+            @test pencil(v) === q
+            @test eltype(v) === eltype(u)
+            @test size_global(v) === size_global(u)
+
+            w = @inferred similar(u, Int, q)
+            @test pencil(w) === q
+            @test eltype(w) === Int
+            @test size_global(w) === size_global(u)
+        end
     end
 
     @test fill!(u, 42) === u
