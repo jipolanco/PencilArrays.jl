@@ -128,6 +128,23 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
             @test z isa DummyArray{Float32,3}
             @test size(z) == (3, 4, 2)
         end
+
+        # Test similar(u, [T], q::Pencil)
+        let N = ndims(p)
+            permute = Permutation(N, ntuple(identity, N - 1)...)  # = (N, 1, 2, ..., N - 1)
+            decomp_dims = mod1.(decomposition(p) .+ 1, N)
+            q = Pencil(p; decomp_dims = decomp_dims, permute = permute)
+
+            v = @inferred similar(u, q)
+            @test pencil(v) === q
+            @test eltype(v) === eltype(u)
+            @test size_global(v) === size_global(u)
+
+            w = @inferred similar(u, Int, q)
+            @test pencil(w) === q
+            @test eltype(w) === Int
+            @test size_global(w) === size_global(u)
+        end
     end
 
     @test fill!(u, 42) === u
@@ -466,8 +483,11 @@ function main()
         pen3 = Pencil(pen2, permute=Permutation(3, 2, 1))
 
         u1 = PencilArray{T}(undef, pen1)
-        u2 = PencilArray{T}(undef, pen2)
-        u3 = PencilArray{T}(undef, pen3)
+        u2 = @inferred similar(u1, pen2)
+        u3 = @inferred similar(u1, pen3)
+
+        @test pencil(u2) === pen2
+        @test pencil(u3) === pen3
 
         randn!(rng, u1)
         transpose!(u2, u1)
@@ -482,7 +502,7 @@ function main()
         @test compare_distributed_arrays(u1, u2)
 
         let v = similar(u2)
-            @test u2.pencil === v.pencil
+            @test pencil(u2) === pencil(v)
             transpose!(v, u2)
             @test compare_distributed_arrays(u1, v)
         end
@@ -508,7 +528,7 @@ function main()
         @inferred PencilArray{T}(undef, pen2, 3, 4)
 
         u1 = PencilArray{T}(undef, pen1)
-        u2 = PencilArray{T}(undef, pen2)
+        u2 = similar(u1, pen2)
 
         @inferred Nothing gather(u2)
         @inferred transpose!(u2, u1)

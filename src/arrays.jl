@@ -240,6 +240,46 @@ julia> similar(u, ComplexF32) |> summary
 julia> similar(u, ComplexF32, (4, 3)) |> summary
 "4×3 Matrix{ComplexF32}"
 ```
+
+---
+
+    similar(x::PencilArray, [element_type = eltype(x)], p::Pencil)
+
+Create a `PencilArray` with the decomposition described by the given `Pencil`.
+
+This variant may be used to create a `PencilArray` that has a different
+decomposition than the input `PencilArray`.
+
+# Examples
+
+```jldoctest
+julia> pen_u = Pencil((20, 10, 12), (2, 3), MPI.COMM_WORLD);
+
+julia> u = PencilArray{Float64}(undef, pen_u);
+
+julia> pen_v = Pencil(pen_u; decomp_dims = (1, 3), permute = Permutation(2, 3, 1))
+Decomposition of 3D data
+    Data dimensions: (20, 10, 12)
+    Decomposed dimensions: (1, 3)
+    Data permutation: Permutation(2, 3, 1)
+
+julia> v = similar(u, pen_v);
+
+julia> summary(v)
+"20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, Permutation{(2, 3, 1), 3}})"
+
+julia> pencil(v) === pen_v
+true
+
+julia> vint = similar(u, Int, pen_v);
+
+julia> summary(vint)
+"20×10×12 PencilArray{Int64, 3}(::Pencil{3, 2, Permutation{(2, 3, 1), 3}})"
+
+julia> pencil(vint) === pen_v
+true
+
+```
 """
 function Base.similar(x::PencilArray, ::Type{S}) where {S}
     dims_perm = permutation(x) * size(x)
@@ -248,6 +288,13 @@ end
 
 Base.similar(x::PencilArray, ::Type{S}, dims::Dims) where {S} =
     similar(parent(x), S, dims)
+
+function Base.similar(x::PencilArray, ::Type{S}, p::Pencil) where {S}
+    dims_mem = (size_local(p, MemoryOrder())..., extra_dims(x)...)
+    PencilArray(p, similar(x.data, S, dims_mem))
+end
+
+Base.similar(x::PencilArray, p::Pencil) = similar(x, eltype(x), p)
 
 # Use same index style as the parent array.
 Base.IndexStyle(::Type{<:PencilArray{T,N,A}} where {T,N}) where {A} =
