@@ -245,10 +245,10 @@ julia> similar(u, ComplexF32, (4, 3)) |> summary
 
     similar(x::PencilArray, [element_type = eltype(x)], p::Pencil)
 
-Create a `PencilArray` with the decomposition described by the `Pencil` `p`.
+Create a `PencilArray` with the decomposition described by the given `Pencil`.
 
-This variant is useful for creating, from a `PencilArray` with a decomposition
-`A`, a new `PencilArray` with a decomposition `B`.
+This variant may be used to create a `PencilArray` that has a different
+decomposition than the input `PencilArray`.
 
 # Examples
 
