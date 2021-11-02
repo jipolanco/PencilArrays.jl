@@ -10,7 +10,7 @@ rank = MPI.Comm_rank(comm)
 myid = rank + 1
 
 pen = Pencil((16, 32, 14), comm)
-u = PencilArray{Int32}(undef, pen1)
+u = PencilArray{Int32}(undef, pen)
 fill!(u, 2myid)
 
 @testset "Reductions" begin
