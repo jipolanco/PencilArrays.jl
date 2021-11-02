@@ -308,9 +308,9 @@ topology(p::Pencil) = p.topology
 """
     length(p::Pencil)
 
-Get linear length of data associated to the local pencil layout.
+Get linear length of the global data associated to the decomposition.
 """
-Base.length(p::Pencil) = prod(size_local(p))
+Base.length(p::Pencil) = prod(size(p))
 
 """
     range_local(p::Pencil, [order = LogicalOrder()])
@@ -368,6 +368,16 @@ order.
 size_global(p::Pencil, ::LogicalOrder) = p.size_global
 size_global(p::Pencil, ::MemoryOrder) = permutation(p) * p.size_global
 size_global(p) = size_global(p, DefaultOrder())
+
+"""
+    size(p::Pencil)
+
+Returns the global data dimensions associated to the decomposition, in *logical*
+order.
+
+This is defined as `size_global(p, LogicalOrder())`.
+"""
+Base.size(p::Pencil) = size_global(p, LogicalOrder())
 
 """
     to_local(p::Pencil, global_inds, [order = LogicalOrder()])

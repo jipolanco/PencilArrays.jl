@@ -400,6 +400,13 @@ function main()
             (1, 42, 12, 1, 1)
     end
 
+    @testset "Pencil" begin
+        for p ∈ (pen1, pen2, pen3)
+            @test size(p) === size_global(p, LogicalOrder())
+            @test length(p) === prod(size(p))
+        end
+    end
+
     @testset "PencilArray" begin
         test_array_wrappers(pen1)
         test_array_wrappers(pen2)
