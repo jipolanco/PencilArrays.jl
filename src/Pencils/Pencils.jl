@@ -13,7 +13,7 @@ export MemoryOrder, LogicalOrder
 export decomposition, permutation
 export get_comm, timer
 export topology
-export range_local, range_remote, size_local, size_global, to_local
+export range_local, range_remote, size_local, size_global, to_local, length_local
 
 # Describes the portion of an array held by a given MPI process.
 const ArrayRegion{N} = NTuple{N,UnitRange{Int}} where N
@@ -311,6 +311,8 @@ topology(p::Pencil) = p.topology
 Get linear length of the global data associated to the decomposition.
 """
 Base.length(p::Pencil) = prod(size(p))
+
+length_local(p::Pencil) = prod(size_local(p))
 
 """
     range_local(p::Pencil, [order = LogicalOrder()])
