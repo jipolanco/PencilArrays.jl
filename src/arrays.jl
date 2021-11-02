@@ -194,6 +194,13 @@ Get the *global* number of elements stored in the `PencilArray`.
 """
 Base.length(x::PencilArray) = prod(size(x))
 
+length_local(x::PencilArray) = length(parent(x))
+
+# By default, eachindex calls length(x) in this case.
+# Since length returns the *global* length, we override it to return an iterator
+# over the *local* length.
+Base.eachindex(::IndexLinear, x::PencilArray) = Base.oneto(length_local(x))
+
 """
     size_local(x::PencilArray, [order = LogicalOrder()])
     size_local(x::PencilArrayCollection, [order = LogicalOrder()])
