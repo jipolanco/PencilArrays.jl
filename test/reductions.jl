@@ -20,4 +20,10 @@ fill!(u, 2myid)
     @test maximum(abs2, u) == (2nprocs)^2
     @test sum(u) === MPI.Allreduce(sum(parent(u)), +, comm)
     @test sum(abs2, u) === MPI.Allreduce(sum(abs2, parent(u)), +, comm)
+
+    @test foldl(min, u) === minimum(u)
+    @test mapfoldl(abs2, min, u) === minimum(abs2, u)
+
+    @test foldr(min, u) === minimum(u)
+    @test mapfoldr(abs2, min, u) === minimum(abs2, u)
 end
