@@ -197,7 +197,7 @@ function transpose_impl!(::Nothing, t::Transposition)
 
     # Both pencil configurations are identical, so we just copy the data,
     # permuting dimensions if needed.
-    @assert size(Ai) === size(Ao)
+    @assert size_local(Ai) === size_local(Ao)
     ui = parent(Ai)
     uo = parent(Ao)
 

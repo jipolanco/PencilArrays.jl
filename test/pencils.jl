@@ -55,7 +55,7 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     end
 
     @test eltype(u) === eltype(u.data) === T
-    @test length.(axes(u)) === size(u)
+    @test length.(axes(u)) === size_local(u)
     @test sizeof_global(u) == sizeof(T) * prod(size_global(u))
     @test sizeof_global((u, u)) == 2 * sizeof_global(u)
     let umat = [u for i = 1:2, j = 1:3]
@@ -89,13 +89,15 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     @testset "similar" begin
         let v = @inferred similar(u)
             @test typeof(v) === typeof(u)
+            @test length(v) == length(u)
             @test size(v) == size(u)
+            @test size_local(v) == size_local(u)
             @test pencil(v) === pencil(u)
         end
 
         let v = @inferred similar(u, Int)
             @test v isa PencilArray
-            @test size(v) == size(u)
+            @test size_local(v) == size_local(u)
             @test eltype(v) === Int
             @test pencil(v) === pencil(u)
         end
@@ -154,18 +156,19 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
         @test typeof(z) === typeof(u)
         @test pencil(z) === pencil(u)
         @test size(z) === size(u)
+        @test size_local(z) === size_local(u)
     end
 
     let v = similar(u)
         @test typeof(v) === typeof(u)
 
         psize = size_local(p, LogicalOrder())
-        @test psize === size(v) === size(u)
+        @test psize === size_local(v) === size_local(u)
         @test psize === size_local(u, LogicalOrder()) === size_local(v, LogicalOrder())
 
         vp = parent(v)
         randn!(vp)
-        I = size(v) .>> 1  # non-permuted indices
+        I = size_local(v) .>> 1  # non-permuted indices
         J = perm * I
         @test v[I...] == vp[J...]  # the parent takes permuted indices
     end
@@ -252,11 +255,11 @@ function check_iteration_order(u::Union{PencilArray,GlobalPencilArray})
     # Check that the behaviour of `cart` is consistent with that of
     # CartesianIndices.
     @assert size(CartesianIndices(p)) == size(p)
-    @test size(cart) == size(u)
+    @test size(cart) == size_local(u)
 
     # Same for `lin`.
     @assert size(LinearIndices(p)) == size(p)
-    @test size(lin) == size(u)
+    @test size(lin) == size_local(u)
 
     # Check that Cartesian indices iterate in memory order.
     for (n, I) in enumerate(cart)

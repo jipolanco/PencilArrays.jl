@@ -23,7 +23,7 @@ pencil.
     data = zeros(20, 30, 10)       # parent array (with dimensions in memory order)
 
     u = PencilArray(pencil, data)  # wrapper with dimensions (10, 20, 30)
-    @assert size(u) === (10, 20, 30)
+    @assert size_local(u) === (10, 20, 30)
 
     u[15, 25, 5]          # BoundsError (15 > 10 and 25 > 20)
     u[5, 15, 25]          # correct
@@ -181,19 +181,24 @@ end
 """
     size(x::PencilArray)
 
-Return local dimensions of a `PencilArray` in logical order.
+Return global dimensions of a `PencilArray` in logical order.
 
-Same as `size_local(x, LogicalOrder())` (see [`size_local`](@ref)).
+Defined as `size_global(x, LogicalOrder())`.
 """
-Base.size(x::PencilArray) = (x.space_dims..., extra_dims(x)...)
+Base.size(x::PencilArray) = size_global(x, LogicalOrder())
+
+"""
+    length(x::PencilArray)
+
+Get the *global* number of elements stored in the `PencilArray`.
+"""
+Base.length(x::PencilArray) = prod(size(x))
 
 """
     size_local(x::PencilArray, [order = LogicalOrder()])
     size_local(x::PencilArrayCollection, [order = LogicalOrder()])
 
 Local dimensions of the data held by the `PencilArray`.
-
-If `order = LogicalOrder()`, this is the same as `size(x)`.
 
 See also [`size_local(::Pencil)`](@ref).
 """
@@ -282,7 +287,7 @@ true
 ```
 """
 function Base.similar(x::PencilArray, ::Type{S}) where {S}
-    dims_perm = permutation(x) * size(x)
+    dims_perm = permutation(x) * size_local(x)
     PencilArray(x.pencil, similar(x.data, S, dims_perm))
 end
 
@@ -425,6 +430,8 @@ extra_dims(x::PencilArrayCollection) = _apply(extra_dims, x)
 Global dimensions associated to the given array.
 
 By default, the logical dimensions of the dataset are returned.
+
+If `order = LogicalOrder()`, this is the same as `size(x)`.
 
 See also [`size_global(::Pencil)`](@ref).
 """
