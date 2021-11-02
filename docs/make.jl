@@ -36,6 +36,9 @@ function main()
                 "PencilIO.md",
                 "PencilArrays_timers.md",
             ],
+            "Additional notes" => [
+                "notes/reductions.md",
+            ],
         ],
         linkcheck = false,
     )

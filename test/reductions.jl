@@ -21,6 +21,8 @@ fill!(u, 2myid)
     @test sum(u) === MPI.Allreduce(sum(parent(u)), +, comm)
     @test sum(abs2, u) === MPI.Allreduce(sum(abs2, parent(u)), +, comm)
 
+    # These exact equalities work because we're using integers.
+    # They are not guaranteed to work with floats.
     @test foldl(min, u) === minimum(u)
     @test mapfoldl(abs2, min, u) === minimum(abs2, u)
 
