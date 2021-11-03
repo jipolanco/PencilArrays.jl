@@ -43,7 +43,7 @@ function _make_arrays(data::Vector{T}, extra_dims::Dims, p::Pencil,
                       pens::Vararg{Pencil}) where {T}
     dims = (size_local(p, MemoryOrder())..., extra_dims...)
     n = prod(dims)
-    @assert n == length(p) * prod(extra_dims)
+    @assert n == length_local(p) * prod(extra_dims)
     vec = view(data, Base.OneTo(n))
     arr = reshape(vec, dims)
     A = PencilArray(p, arr)

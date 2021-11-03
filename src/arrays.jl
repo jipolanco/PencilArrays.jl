@@ -23,7 +23,7 @@ pencil.
     data = zeros(20, 30, 10)       # parent array (with dimensions in memory order)
 
     u = PencilArray(pencil, data)  # wrapper with dimensions (10, 20, 30)
-    @assert size(u) === (10, 20, 30)
+    @assert size_local(u) === (10, 20, 30)
 
     u[15, 25, 5]          # BoundsError (15 > 10 and 25 > 20)
     u[5, 15, 25]          # correct
@@ -178,28 +178,6 @@ function _apply(f::Function, x::PencilArrayCollection, args...; kwargs...)
     f(a, args...; kwargs...)
 end
 
-"""
-    size(x::PencilArray)
-
-Return local dimensions of a `PencilArray` in logical order.
-
-Same as `size_local(x, LogicalOrder())` (see [`size_local`](@ref)).
-"""
-Base.size(x::PencilArray) = (x.space_dims..., extra_dims(x)...)
-
-"""
-    size_local(x::PencilArray, [order = LogicalOrder()])
-    size_local(x::PencilArrayCollection, [order = LogicalOrder()])
-
-Local dimensions of the data held by the `PencilArray`.
-
-If `order = LogicalOrder()`, this is the same as `size(x)`.
-
-See also [`size_local(::Pencil)`](@ref).
-"""
-size_local(x::MaybePencilArrayCollection, args...; kwargs...) =
-    (size_local(pencil(x), args...; kwargs...)..., extra_dims(x)...)
-
 Base.axes(x::PencilArray) = permutation(x) \ axes(parent(x))
 
 """
@@ -282,7 +260,7 @@ true
 ```
 """
 function Base.similar(x::PencilArray, ::Type{S}) where {S}
-    dims_perm = permutation(x) * size(x)
+    dims_perm = permutation(x) * size_local(x)
     PencilArray(x.pencil, similar(x.data, S, dims_perm))
 end
 
@@ -417,19 +395,6 @@ Return tuple with size of "extra" dimensions of `PencilArray`.
 """
 extra_dims(x::PencilArray) = x.extra_dims
 extra_dims(x::PencilArrayCollection) = _apply(extra_dims, x)
-
-"""
-    size_global(x::PencilArray, [order = LogicalOrder()])
-    size_global(x::PencilArrayCollection, [order = LogicalOrder()])
-
-Global dimensions associated to the given array.
-
-By default, the logical dimensions of the dataset are returned.
-
-See also [`size_global(::Pencil)`](@ref).
-"""
-size_global(x::MaybePencilArrayCollection, args...; kw...) =
-    (size_global(pencil(x), args...; kw...)..., extra_dims(x)...)
 
 """
     sizeof_global(x::PencilArray)

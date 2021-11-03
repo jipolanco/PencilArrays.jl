@@ -19,6 +19,7 @@ import .Pencils:
     range_remote,
     size_local,
     size_global,
+    length_local,
     topology
 
 export PencilArray, GlobalPencilArray, PencilArrayCollection, ManyPencilArray
@@ -32,6 +33,7 @@ include("arrays.jl")       # PencilArray
 include("multiarrays.jl")  # ManyPencilArray
 include("global_view.jl")  # GlobalPencilArray
 include("cartesian_indices.jl")  # PermutedLinearIndices, PermutedCartesianIndices
+include("size.jl")
 
 include("array_interface.jl")
 include("broadcast.jl")

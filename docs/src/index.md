@@ -84,8 +84,8 @@ pen_x = Pencil(topology, dims_global, decomp_dims)
 Ax = PencilArray{Float64}(undef, pen_x)
 fill!(Ax, rank * π)  # each process locally fills its part of the array
 parent(Ax)           # parent array (here, an Array{Float64,3}) holding the local data
-size(Ax)             # size of local part
-size_global(Ax)      # total size of the array = (42, 31, 29)
+size(Ax)             # total size of the array = (42, 31, 29)
+size_local(Ax)       # size of local part
 
 # Create another pencil configuration, decomposing along dimensions (1, 3).
 # We could use the same constructor as before, but it's recommended to reuse the
