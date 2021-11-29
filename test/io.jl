@@ -1,5 +1,3 @@
-#!/usr/bin/env julia
-
 # Packages must be loaded in this order!
 using MPI
 using HDF5
@@ -164,40 +162,45 @@ function test_write_hdf5(filename, u::PencilArray)
     nothing
 end
 
-function main()
-    MPI.Init()
+MPI.Init()
 
-    Nxyz = (16, 21, 41)
-    comm = MPI.COMM_WORLD
-    Nproc = MPI.Comm_size(comm)
-    myrank = MPI.Comm_rank(comm)
+Nxyz = (16, 21, 41)
+comm = MPI.COMM_WORLD
+Nproc = MPI.Comm_size(comm)
+myrank = MPI.Comm_rank(comm)
 
-    silence_stdout(comm)
+silence_stdout(comm)
 
-    @show HDF5.libhdf5
+@show HDF5.API.libhdf5
 
-    rng = MersenneTwister(42)
-    perms = (NoPermutation(), Permutation(2, 3, 1))
-
-    @testset "$perm" for perm in perms
-        pen = Pencil(Nxyz, (1, 3), comm; permute = perm)
-        u = PencilArray{Float64}(undef, pen)
-        randn!(rng, u)
-        u .+= 10 * myrank
-
-        @testset "MPI-IO" begin
-            filename = MPI.bcast(tempname(), 0, comm)
-            test_write_mpiio(filename, u)
-        end
-
-        @testset "HDF5" begin
-            filename = MPI.bcast(tempname(), 0, comm)
-            test_write_hdf5(filename, u)
-        end
+@testset "HDF5" begin
+    let fapl = HDF5.FileAccessProperties()
+        @test PencilIO._is_set(fapl, Val(:fclose_degree)) === false
+        fapl.fclose_degree = :strong
+        @test PencilIO._is_set(fapl, Val(:fclose_degree)) === true
+        @test fapl.fclose_degree === :strong
     end
-
-    HDF5.h5_close()
-    MPI.Finalize()
 end
 
-main()
+rng = MersenneTwister(42)
+perms = (NoPermutation(), Permutation(2, 3, 1))
+
+@testset "$perm" for perm in perms
+    pen = Pencil(Nxyz, (1, 3), comm; permute = perm)
+    u = PencilArray{Float64}(undef, pen)
+    randn!(rng, u)
+    u .+= 10 * myrank
+
+    @testset "MPI-IO" begin
+        filename = MPI.bcast(tempname(), 0, comm)
+        test_write_mpiio(filename, u)
+    end
+
+    @testset "HDF5" begin
+        filename = MPI.bcast(tempname(), 0, comm)
+        test_write_hdf5(filename, u)
+    end
+end
+
+HDF5.API.h5_close()
+MPI.Finalize()

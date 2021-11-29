@@ -1,10 +1,9 @@
 using .HDF5
-import Libdl
 
 export PHDF5Driver
 
 """
-    PHDF5Driver(; fcpl, fapl)
+    PHDF5Driver(; fcpl = HDF5.FileCreateProperties(), fapl = HDF5.FileAccessProperties())
 
 Parallel HDF5 driver using the HDF5.jl package.
 
@@ -15,61 +14,43 @@ Note that the MPIO file access property list does not need to be set, as this is
 done automatically by this driver when the file is opened.
 """
 struct PHDF5Driver <: ParallelIODriver
-    fcpl :: HDF5.Properties
-    fapl :: HDF5.Properties
+    fcpl :: HDF5.FileCreateProperties
+    fapl :: HDF5.FileAccessProperties
     function PHDF5Driver(;
-            fcpl = HDF5.DEFAULT_PROPERTIES,
-            fapl = HDF5.DEFAULT_PROPERTIES,
+            fcpl = HDF5.FileCreateProperties(),
+            fapl = HDF5.FileAccessProperties(),
         )
-        check_hdf5_parallel()
-        if fcpl == HDF5.DEFAULT_PROPERTIES
-            fcpl = create_property(HDF5.H5P_FILE_CREATE)
-        end
-        if fapl == HDF5.DEFAULT_PROPERTIES
-            fapl = create_property(HDF5.H5P_FILE_ACCESS)
-            # This is the default in HDF5.jl -- makes sense due to GC
-            fapl[:fclose_degree] = HDF5.H5F_CLOSE_STRONG
+        # We set fapl.fclose_degree if it hasn't been explicitly set.
+        if !_is_set(fapl, Val(:fclose_degree))
+            # This is the default in HDF5.jl -- makes sense due to GC.
+            fapl.fclose_degree = :strong
         end
         new(fcpl, fapl)
     end
 end
 
-const HDF5FileOrGroup = Union{HDF5.File, HDF5.Group}
-
-const H5MPIHandle = let csize = sizeof(MPI.MPI_Comm)
-    @assert csize in (4, 8)
-    csize === 4 ? HDF5.Hmpih32 : HDF5.Hmpih64
-end
-
-mpi_to_h5_handle(obj::Union{MPI.Comm, MPI.Info}) =
-    reinterpret(H5MPIHandle, obj.val)
-
-function h5_to_mpi_handle(
-        ::Type{T}, h::H5MPIHandle) where {T <: Union{MPI.Comm, MPI.Info}}
-    T(reinterpret(MPI.MPI_Comm, h))
-end
-
-const _HAS_PARALLEL_HDF5 = Libdl.dlopen(HDF5.libhdf5) do lib
-    Libdl.dlsym(lib, :H5Pget_fapl_mpio, throw_error=false) !== nothing
+# TODO Is there a better way to check if fapl.fclose_degree has already
+# been set??
+function _is_set(fapl::HDF5.FileAccessProperties, ::Val{:fclose_degree})
+    id = fapl.id
+    degree = Ref{Cint}()
+    status = ccall(
+        (:H5Pget_fclose_degree, HDF5.API.libhdf5), HDF5.API.herr_t,
+        (HDF5.API.hid_t, Ref{Cint}), id, degree)
+    # A negative value means failure, which we interpret here as meaning that
+    # "fclose_degree" has not been set.
+    status ≥ 0
 end
 
 """
     hdf5_has_parallel() -> Bool
 
 Returns `true` if the loaded HDF5 libraries support MPI-IO.
-"""
-hdf5_has_parallel() = _HAS_PARALLEL_HDF5
 
-function check_hdf5_parallel()
-    hdf5_has_parallel() && return
-    error(
-        "HDF5.jl has no parallel support." *
-        " Make sure that you're using MPI-enabled HDF5 libraries, and that" *
-        " MPI was loaded before HDF5." *
-        " See https://jipolanco.github.io/PencilArrays.jl/latest/PencilIO/#Setting-up-Parallel-HDF5-1" *
-        " for details."
-    )
-end
+This is exactly the same as `HDF5.has_parallel()`, and is left here for
+compatibility with previous versions.
+"""
+hdf5_has_parallel() = HDF5.has_parallel()
 
 function keywords_to_h5open(; kws...)
     flags, other_kws = keywords_to_open(; kws...)
@@ -99,7 +80,8 @@ function Base.open(D::PHDF5Driver, filename::AbstractString, comm::MPI.Comm; kw.
     info = MPI.Info(other_kws...)
     fcpl = D.fcpl
     fapl = D.fapl
-    fapl[:fapl_mpio] = mpi_to_h5_handle.((comm, info))
+    mpio = HDF5.Drivers.MPIO(comm, info)
+    HDF5.Drivers.set_driver!(fapl, mpio)  # fails if no parallel support
     swmr = false
 
     # The code below is adapted from h5open in HDF5.jl v0.15
@@ -111,28 +93,31 @@ function Base.open(D::PHDF5Driver, filename::AbstractString, comm::MPI.Comm; kw.
     end
 
     fid = if cr && (tr || !isfile(filename))
-        flag = swmr ? HDF5.H5F_ACC_TRUNC | HDF5.H5F_ACC_SWMR_WRITE : HDF5.H5F_ACC_TRUNC
-        HDF5.h5f_create(filename, flag, fcpl, fapl)
+        flag = swmr ? HDF5.API.H5F_ACC_TRUNC | HDF5.API.H5F_ACC_SWMR_WRITE :
+                      HDF5.API.H5F_ACC_TRUNC
+        HDF5.API.h5f_create(filename, flag, fcpl, fapl)
     else
         HDF5.ishdf5(filename) ||
             error("unable to determine if $filename is accessible in the HDF5 format (file may not exist)")
-        if wr
-            flag = swmr ? HDF5.H5F_ACC_RDWR | HDF5.H5F_ACC_SWMR_WRITE : HDF5.H5F_ACC_RDWR
+        flag = if wr
+            swmr ? HDF5.API.H5F_ACC_RDWR | HDF5.API.H5F_ACC_SWMR_WRITE :
+                   HDF5.API.H5F_ACC_RDWR
         else
-            flag = swmr ? HDF5.H5F_ACC_RDONLY | HDF5.H5F_ACC_SWMR_READ : HDF5.H5F_ACC_RDONLY
+            swmr ? HDF5.API.H5F_ACC_RDONLY | HDF5.API.H5F_ACC_SWMR_READ :
+                   HDF5.API.H5F_ACC_RDONLY
         end
-        HDF5.h5f_open(filename, flag, fapl)
+        HDF5.API.h5f_open(filename, flag, fapl)
     end
 
     close(fapl)
-    fcpl != HDF5.DEFAULT_PROPERTIES && close(fcpl)
+    close(fcpl)
 
     HDF5.File(fid, filename)
 end
 
 """
     setindex!(
-        g::Union{HDF5.File,HDF5.Group}, x::MaybePencilArrayCollection,
+        g::Union{HDF5.File, HDF5.Group}, x::MaybePencilArrayCollection,
         name::AbstractString; chunks = false, collective = true, prop_lists...,
     )
 
@@ -159,7 +144,7 @@ as a single component of a higher-dimension dataset.
   `prop_lists`, following the [HDF5.jl
   syntax](https://juliaio.github.io/HDF5.jl/stable/#Passing-parameters).
   These property lists take precedence over keyword arguments.
-  For instance, if the `dxpl_mpio = HDF5.H5FD_MPIO_COLLECTIVE` option is passed,
+  For instance, if the `dxpl_mpio = :collective` option is passed,
   then the value of the `collective` argument is ignored.
 
 # Property lists
@@ -194,8 +179,9 @@ end
 
 """
 function Base.setindex!(
-        g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
-        name::AbstractString; chunks=false, collective=true, prop_pairs...,
+        g::Union{HDF5.File, HDF5.Group}, x::MaybePencilArrayCollection,
+        name::AbstractString;
+        chunks=false, collective=true, prop_pairs...,
     )
     to = timer(pencil(x))
 
@@ -204,6 +190,7 @@ function Base.setindex!(
     check_phdf5_file(g, x)
 
     # Add extra property lists if required by keyword args.
+    # TODO avoid using Dict?
     props = Dict{Symbol,Any}(pairs(prop_pairs))
 
     if chunks && !haskey(prop_pairs, :chunk)
@@ -212,7 +199,7 @@ function Base.setindex!(
     end
 
     if collective && !haskey(prop_pairs, :dxpl_mpio)
-        props[:dxpl_mpio] = HDF5.H5FD_MPIO_COLLECTIVE
+        props[:dxpl_mpio] = :collective
     end
 
     dims_global = h5_dataspace_dims(x)
@@ -243,7 +230,7 @@ to_hdf5(val::Tuple) = SVector(val)
 to_hdf5(::Nothing) = false
 
 """
-    read!(g::Union{HDF5File,HDF5Group}, x::MaybePencilArrayCollection,
+    read!(g::Union{HDF5File, HDF5Group}, x::MaybePencilArrayCollection,
           name::AbstractString; collective=true, prop_lists...)
 
 Read [`PencilArray`](@ref) or [`PencilArrayCollection`](@ref) from parallel HDF5
@@ -278,18 +265,18 @@ open(PHDF5Driver(), "filename.h5", comm, read=true) do ff
 end
 ```
 """
-function Base.read!(g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
+function Base.read!(g::Union{HDF5File, HDF5Group}, x::MaybePencilArrayCollection,
                     name::AbstractString; collective=true, prop_pairs...)
     to = timer(pencil(x))
 
     @timeit_debug to "Read HDF5" begin
 
-    dapl = create_property(HDF5.H5P_DATASET_ACCESS; prop_pairs...)
-    dxpl = create_property(HDF5.H5P_DATASET_XFER; prop_pairs...)
+    dapl = HDF5.DatasetAccessProperties(; prop_pairs...)
+    dxpl = HDF5.DatasetTransferProperties(; prop_pairs...)
 
     # Add extra property lists if required by keyword args.
     if collective && !haskey(prop_pairs, :dxpl_mpio)
-        HDF5.h5p_set_dxpl_mpio(dxpl.id, HDF5.H5FD_MPIO_COLLECTIVE)
+        dxpl.dxpl_mpio = :collective
     end
 
     dims_global = h5_dataspace_dims(x)
@@ -310,28 +297,19 @@ function Base.read!(g::HDF5FileOrGroup, x::MaybePencilArrayCollection,
 end
 
 function check_phdf5_file(g, x)
-    check_hdf5_parallel()
-
-    plist_id = HDF5.h5f_get_access_plist(HDF5.file(g))
-    plist = HDF5.Properties(plist_id, HDF5.H5P_FILE_ACCESS)
-
-    # Get HDF5 ids of MPIO driver and of the actual driver being used.
-    driver_mpio = ccall((:H5FD_mpio_init, HDF5.libhdf5), HDF5.hid_t, ())
-    driver = HDF5.h5p_get_driver(plist)
-    if driver !== driver_mpio
-        error("HDF5 file was not opened with the MPIO driver")
-    end
-
-    comm, info = _h5p_get_fapl_mpio(plist)
-    if isdefined(MPI, :Comm_compare)  # requires recent MPI.jl
+    fapl = HDF5.get_access_properties(HDF5.file(g))
+    driver = HDF5.Drivers.get_driver(fapl)
+    if driver isa HDF5.Drivers.MPIO
+        comm = driver.comm
         if MPI.Comm_compare(comm, get_comm(x)) ∉ (MPI.IDENT, MPI.CONGRUENT)
             throw(ArgumentError(
                 "incompatible MPI communicators of HDF5 file and PencilArray"
             ))
         end
+    else
+        error("HDF5 file was not opened with the MPIO driver")
     end
-
-    close(plist)
+    close(fapl)
     nothing
 end
 
@@ -358,11 +336,11 @@ function from_hdf5!(dset, x::PencilArray, inds)
 
     try
         # This only works for stride-1 arrays.
-        HDF5.h5d_read(dset.id, memtype.id, memspace.id, dsel_id, dset.xfer, u)
+        HDF5.API.h5d_read(dset.id, memtype.id, memspace.id, dsel_id, dset.xfer, u)
     finally
         close(memtype)
         close(memspace)
-        HDF5.h5s_close(dsel_id)
+        HDF5.API.h5s_close(dsel_id)
     end
 
     x
@@ -404,10 +382,3 @@ end
 
 h5_chunk_size(x::PencilArrayCollection, args...) =
     (h5_chunk_size(first(x), args...)..., collection_size(x)...)
-
-function _h5p_get_fapl_mpio(fapl_id)
-    h5comm, h5info = HDF5.h5p_get_fapl_mpio(fapl_id, H5MPIHandle)
-    comm = h5_to_mpi_handle(MPI.Comm, h5comm)
-    info = h5_to_mpi_handle(MPI.Info, h5info)
-    comm, info
-end
