@@ -9,6 +9,11 @@ nprocs = MPI.Comm_size(comm)
 rank = MPI.Comm_rank(comm)
 myid = rank + 1
 
+# This can be simplified to `redirect_stdout(devnull)` on Julia ≥ 1.6.
+let dev_null = @static Sys.iswindows() ? "nul" : "/dev/null"
+    MPI.Comm_rank(comm) == 0 || redirect_stdout(open(dev_null, "w"))
+end
+
 pen = Pencil((16, 32, 14), comm)
 u = PencilArray{Int32}(undef, pen)
 fill!(u, 2myid)
