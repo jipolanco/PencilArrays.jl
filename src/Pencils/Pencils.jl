@@ -159,8 +159,8 @@ struct Pencil{
     perm :: P
 
     # Data buffers for transpositions.
-    send_buf :: Vector{UInt8}
-    recv_buf :: Vector{UInt8}
+    send_buf :: AbstractVector{UInt8}
+    recv_buf :: AbstractVector{UInt8}
 
     # Timing information.
     timer :: TimerOutput
@@ -169,7 +169,8 @@ struct Pencil{
             topology::MPITopology{M}, size_global::Dims{N},
             decomp_dims::Dims{M} = default_decomposition(N, Val(M));
             permute::AbstractPermutation = NoPermutation(),
-            send_buf = UInt8[], recv_buf = UInt8[],
+            array_type::Type = Array,
+            send_buf = array_type(UInt8[]), recv_buf = array_type(UInt8[]),
             timer = TimerOutput(),
         ) where {N, M}
         check_permutation(permute)

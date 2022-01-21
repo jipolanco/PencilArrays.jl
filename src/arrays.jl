@@ -474,3 +474,9 @@ function Base.fill!(A::PencilArray, x)
     fill!(parent(A), x)
     A
 end
+
+eltype_ptr(A::PencilArray) = eltype_ptr(A.data)
+eltype_ptr(A::AT) where {AT<:AbstractArray} = typeof(pointer(A)).name.wrapper
+
+eltype_array(A::PencilArray) = eltype_array(A.data)
+eltype_array(A::AT) where {AT<:AbstractArray} = typeof(A).name.wrapper

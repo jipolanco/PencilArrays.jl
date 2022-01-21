@@ -180,11 +180,9 @@ end
 # See for instance:
 # - https://discourse.julialang.org/t/big-overhead-with-the-new-lazy-reshape-reinterpret/7635
 # - https://github.com/JuliaLang/julia/issues/28980
-function unsafe_as_array(::Type{T}, x::Vector{UInt8}, dims) where T
-    p = Ptr{T}(pointer(x))
-    A = unsafe_wrap(Array, p, dims, own=false)
-    @assert sizeof(A) <= sizeof(x)
-    A
+function unsafe_as_array(::Type{T}, x::AbstractVector{UInt8}, dims) where T
+    p = eltype_ptr(x){T}(pointer(x))
+    A = unsafe_wrap(eltype_array(x), p, dims, own=false)
 end
 
 # Only local transposition.
@@ -283,10 +281,12 @@ function transpose_impl!(R::Int, t::Transposition{T}) where {T}
     length_send = length(Ai) - length_self
     length_recv_total = length(Ao)  # includes local exchange with myself
 
-    resize!(Po.send_buf, sizeof(T) * length_send)
+    # Minimum resize is one in order to have a valid pointer
+    # in the case of a CuArray for instance
+    resize!(Po.send_buf, sizeof(T) * max(1, length_send))
     send_buf = unsafe_as_array(T, Po.send_buf, length_send)
 
-    resize!(Po.recv_buf, sizeof(T) * length_recv_total)
+    resize!(Po.recv_buf, sizeof(T) * max(1, length_recv_total))
     recv_buf = unsafe_as_array(T, Po.recv_buf, length_recv_total)
     recv_offsets = Vector{Int}(undef, Nproc)  # all offsets in recv_buf
 
@@ -519,7 +519,9 @@ function get_remote_indices(R::Int, coords_local::Dims{M}, Nproc::Int) where M
     CartesianIndices(t)
 end
 
-function copy_range!(dest::Vector{T}, dest_offset::Int, src::PencilArray{T,N},
+# TODO compile for GPU
+# maybe using permudedims
+function copy_range!(dest::AbstractVector{T}, dest_offset::Int, src::PencilArray{T,N},
                      src_range::ArrayRegion{P}, extra_dims::Dims{E}, timer,
                     ) where {T,N,P,E}
     @assert P + E == N
@@ -536,7 +538,7 @@ function copy_range!(dest::Vector{T}, dest_offset::Int, src::PencilArray{T,N},
 end
 
 function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
-                        src::Vector{T}, src_offset::Int,
+                        src::AbstractVector{T}, src_offset::Int,
                         perm::AbstractPermutation, extra_dims::Dims{E}) where {T,N,P,E}
     @assert P + E == N
 

@@ -27,6 +27,7 @@ export pencil
 export gather
 export global_view
 export ndims_extra, ndims_space, extra_dims, sizeof_global
+export eltype_array, eltype_ptr
 
 # Type definitions
 include("arrays.jl")       # PencilArray
