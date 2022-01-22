@@ -1,6 +1,6 @@
 export MPIIODriver
 
-import JSON3
+import JSON3, VersionParsing
 
 # Version of internal MPIIO format.
 # If the version is updated, it should match the upcoming PencilArrays version.
@@ -111,14 +111,8 @@ Base.seek(ff::MPIFile, pos) = ff.position = pos
 
 mpiio_version(ff::MPIFile) = mpiio_version(metadata(ff))
 
-function mpiio_version(meta::MetadataDict)
-    ver = meta[:driver][:version]
-    if ver isa Int  # this is for version ≤ 0.3
-        VersionNumber(string(ver))
-    else
-        VersionNumber(ver)
-    end
-end
+mpiio_version(meta::MetadataDict) =
+    VersionParsing.vparse(string(meta[:driver][:version]))
 
 """
     open([f::Function], driver::MPIIODriver, filename, comm::MPI.Comm; keywords...)
