@@ -475,8 +475,20 @@ function Base.fill!(A::PencilArray, x)
     A
 end
 
+"""
+    eltype_ptr(::PencilArray)
+    eltype_ptr(::AbstractArray)
+
+Get the type of pointer to the underlying array of a `PencilArray` or `AbstractArray`.
+"""
 eltype_ptr(A::PencilArray) = eltype_ptr(A.data)
 eltype_ptr(A::AT) where {AT<:AbstractArray} = typeof(pointer(A)).name.wrapper
 
+"""
+    eltype_array(::PencilArray)
+    eltype_array(::AbstractArray)
+
+Get the type of array (without the float type)  so it can be used as a constructor.
+"""
 eltype_array(A::PencilArray) = eltype_array(A.data)
 eltype_array(A::AT) where {AT<:AbstractArray} = typeof(A).name.wrapper
