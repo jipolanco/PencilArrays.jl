@@ -46,7 +46,8 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
     @testset "Transpositions" begin
         px = @inferred Pencil(A, (20, 16), (1, ), comm)
-        py = @inferred Pencil(px; decomp_dims = (2, ))
+        py = @inferred Pencil(px; decomp_dims = (2, ), permute = Permutation(2, 1))
+        @test permutation(py) == Permutation(2, 1)
         @test @inferred(typeof_array(px)) === A
         @test @inferred(typeof_array(py)) === A
         ux = rand!(PencilArray{Float64}(undef, px))
