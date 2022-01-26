@@ -29,11 +29,11 @@ function main()
         pages = [
             "Home" => "index.md",
             "Library" => [
-                "MPITopology.md",
                 "Pencils.md",
                 "PencilArrays.md",
                 "Transpositions.md",
                 "PencilIO.md",
+                "MPITopology.md",
                 "PencilArrays_timers.md",
             ],
             "Additional notes" => [

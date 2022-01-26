@@ -58,10 +58,11 @@ The optional argument `A` allows to work with arrays other than the base `Array`
 type. In particular, this should be useful for working with GPU array types such
 as `CuArray`.
 
-The optional parameter `perm` should be a (compile-time) tuple defining a
-permutation of the data indices. Such permutation may be useful for performance
-reasons, since it may be preferable (e.g. for FFTs) that the data is contiguous
-along the pencil direction.
+The optional `permute` parameter may be used to indicate a permutation of the
+data indices from **logical order** (the order in which the
+arrays are accessed in code) to **memory order** (the actual order of indices in
+memory). Permutations must be specified using the exported `Permutation` type,
+as in `permute = Permutation(3, 1, 2)`.
 
 It is also possible to pass a `TimerOutput` to the constructor. See
 [Measuring performance](@ref PencilArrays.measuring_performance) for details.
@@ -144,7 +145,7 @@ struct Pencil{
     # M-dimensional MPI decomposition info (with M < N).
     topology :: MPITopology{M}
 
-    # Global array dimensions (N1, N2, ...).
+    # Global array dimensions (N1, N2, ...) in logical order.
     # These dimensions are *before* permutation by perm.
     size_global :: Dims{N}
 

@@ -16,7 +16,7 @@ A pencil configuration includes:
 
 ## Construction
 
-### High-level interface
+### [High-level interface](@id pencil-high-level)
 
 The simplest way of constructing a new [`Pencil`](@ref) is by passing the
 global dataset dimensions and an MPI communicator to the `Pencil` constructor:

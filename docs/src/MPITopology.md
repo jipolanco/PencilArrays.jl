@@ -5,6 +5,12 @@ decomposition.
 In other words, it contains information about the number of decomposed
 dimensions, and the number of processes in each of these dimensions.
 
+This type should only be used if more control is needed regarding the MPI
+decomposition.
+In particular, dealing with `MPITopology` is not required when using the
+[high-level interface](@ref pencil-high-level) to construct domain
+decomposition configurations.
+
 ## Construction
 
 The main `MPITopology` constructor takes a MPI communicator and a tuple
