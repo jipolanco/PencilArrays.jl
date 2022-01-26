@@ -1,7 +1,7 @@
 name = "PencilArrays"
 uuid = "0e08944d-e94e-41b1-9406-dcf66b6a9d2e"
 authors = ["Juan Ignacio Polanco <jipolanc@gmail.com> and contributors"]
-version = "0.12.1"
+version = "0.13.0"
 
 [deps]
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
