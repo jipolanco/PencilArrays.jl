@@ -230,7 +230,7 @@ to_hdf5(val::Tuple) = SVector(val)
 to_hdf5(::Nothing) = false
 
 """
-    read!(g::Union{HDF5File, HDF5Group}, x::MaybePencilArrayCollection,
+    read!(g::Union{HDF5.File, HDF5.Group}, x::MaybePencilArrayCollection,
           name::AbstractString; collective=true, prop_lists...)
 
 Read [`PencilArray`](@ref) or [`PencilArrayCollection`](@ref) from parallel HDF5
@@ -265,7 +265,7 @@ open(PHDF5Driver(), "filename.h5", comm, read=true) do ff
 end
 ```
 """
-function Base.read!(g::Union{HDF5File, HDF5Group}, x::MaybePencilArrayCollection,
+function Base.read!(g::Union{HDF5.File, HDF5.Group}, x::MaybePencilArrayCollection,
                     name::AbstractString; collective=true, prop_pairs...)
     to = timer(pencil(x))
 
