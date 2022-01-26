@@ -20,7 +20,8 @@ import .Pencils:
     size_local,
     size_global,
     length_local,
-    topology
+    topology,
+    typeof_array
 
 export PencilArray, GlobalPencilArray, PencilArrayCollection, ManyPencilArray
 export pencil

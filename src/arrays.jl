@@ -118,7 +118,8 @@ end
 
 function PencilArray{T}(init, pencil::Pencil, extra_dims::Vararg{Integer}) where {T}
     dims = (size_local(pencil, MemoryOrder())..., extra_dims...)
-    PencilArray(pencil, Array{T}(init, dims))
+    A = typeof_array(pencil)
+    PencilArray(pencil, A{T}(init, dims))
 end
 
 pencil_type(::Type{PencilArray{T,N,A,M,E,P}}) where {T,N,A,M,E,P} = P
@@ -474,3 +475,20 @@ function Base.fill!(A::PencilArray, x)
     fill!(parent(A), x)
     A
 end
+
+"""
+    typeof_ptr(x::AbstractArray)
+    typeof_ptr(x::PencilArray)
+
+Get the type of pointer to the underlying array of a `PencilArray` or `AbstractArray`.
+"""
+typeof_ptr(A::AbstractArray) = typeof(pointer(A)).name.wrapper
+
+"""
+    typeof_array(x::Pencil)
+    typeof_array(x::PencilArray)
+    typeof_array(x::AbstractArray)
+
+Get the type of array (without the element type) so it can be used as a constructor.
+"""
+typeof_array(A::PencilArray) = typeof_array(A.data)

@@ -1,5 +1,5 @@
 """
-    gather(x::PencilArray, [root::Integer=0])
+    gather(x::PencilArray{T, N}, [root::Integer=0]) -> Array{T, N}
 
 Gather data from all MPI processes into one (big) array.
 
@@ -8,8 +8,11 @@ Data is received by the `root` process.
 Returns the full array on the `root` process, and `nothing` on the other
 processes.
 
-This can be useful for testing, but it shouldn't be used with very large
-datasets!
+Note that `gather` always returns a base `Array`, even when the
+`PencilArray` wraps a different kind of array (e.g. a `CuArray`).
+
+This function can be useful for testing, but it shouldn't be used with
+very large datasets!
 """
 function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
     timer = Pencils.timer(pencil(x))
@@ -28,11 +31,11 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
     # sending the data.
     data = let perm = permutation(pen)
         if isidentity(perm)
-            x.data
+            parent(x)
         else
             # Apply inverse permutation.
             p = append(inv(perm), Val(length(extra_dims)))
-            permutedims(x.data, Tuple(p))  # creates copy!
+            permutedims(parent(x), Tuple(p))  # creates copy!
         end
     end
 
@@ -41,8 +44,7 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
         # NOTE: When `data` is a ReshapedArray, I can't pass it directly to
         # MPI.Isend, because Base.cconvert(MPIPtr, ::ReshapedArray) is not
         # defined.
-        # (Maybe it works in the current master of MPI.jl?)
-        buf = data isa Base.ReshapedArray ? parent(data) : data
+        buf = MPI.Buffer(data isa Base.ReshapedArray ? parent(data) : data)
         send_req = MPI.Isend(buf, root, mpi_tag, comm)
         MPI.Wait!(send_req)
         return nothing

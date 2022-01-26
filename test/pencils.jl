@@ -1,5 +1,3 @@
-#!/usr/bin/env julia
-
 using PencilArrays
 using PencilArrays.MPITopologies
 
@@ -11,7 +9,6 @@ using Random
 using Test
 
 const BENCHMARK_ARRAYS = "--benchmark" in ARGS
-BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1.0
 
 Indexation(::Type{IndexLinear}) = LinearIndices
 Indexation(::Type{IndexCartesian}) = CartesianIndices
@@ -404,6 +401,7 @@ function main()
         for p ∈ (pen1, pen2, pen3)
             @test size(p) === size_global(p, LogicalOrder())
             @test length(p) === prod(size(p))
+            @inferred (p -> p.send_buf)(p)
         end
     end
 
