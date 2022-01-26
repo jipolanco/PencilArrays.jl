@@ -22,24 +22,29 @@ struct ManyPencilArray{
         N,  # number of dimensions of each array (including extra_dims)
         M,  # number of arrays
         Arrays <: Tuple{Vararg{PencilArray,M}},
+        DataVector <: AbstractVector{T},
     }
-    data :: Vector{T}
+    data   :: DataVector
     arrays :: Arrays
 
     function ManyPencilArray{T}(
-            init, pencils::Vararg{Pencil{Np},M};
+            init, pfirst::Pencil{Np}, pens::Vararg{Pencil{Np}};
             extra_dims::Dims=(),
-        ) where {Np,M,T}
+        ) where {Np,T}
+        pencils = (pfirst, pens...)
+        BufType = typeof_array(pfirst)
+        @assert all(p -> typeof_array(p) === BufType, pens)
         data_length = max(length.(pencils)...) * prod(extra_dims)
-        data = Vector{T}(init, data_length)
+        data = BufType{T}(init, data_length)
         arrays = _make_arrays(data, extra_dims, pencils...)
         A = typeof(arrays)
         N = Np + length(extra_dims)
-        new{T,N,M,A}(data, arrays)
+        M = length(pencils)
+        new{T, N, M, typeof(arrays), typeof(data)}(data, arrays)
     end
 end
 
-function _make_arrays(data::Vector{T}, extra_dims::Dims, p::Pencil,
+function _make_arrays(data::DenseVector{T}, extra_dims::Dims, p::Pencil,
                       pens::Vararg{Pencil}) where {T}
     dims = (size_local(p, MemoryOrder())..., extra_dims...)
     n = prod(dims)
@@ -50,7 +55,7 @@ function _make_arrays(data::Vector{T}, extra_dims::Dims, p::Pencil,
     (A, _make_arrays(data, extra_dims, pens...)...)
 end
 
-_make_arrays(::Vector, ::Dims) = ()
+_make_arrays(::DenseVector, ::Dims) = ()
 
 Base.eltype(A::ManyPencilArray{T}) where {T} = T
 Base.ndims(A::ManyPencilArray{T,N}) where {T,N} = N

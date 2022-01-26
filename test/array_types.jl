@@ -49,15 +49,16 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
     u = @inferred PencilArray{Int}(undef, pen)
     @test typeof(parent(u)) <: A{Int}
 
-    @test @inferred(PencilArrays.typeof_array(pen)) === A
-    @test @inferred(PencilArrays.typeof_array(u)) === A
+    @test @inferred(typeof_array(pen)) === A
+    @test @inferred(typeof_array(u)) === A
+
+    px = @inferred Pencil(A, (20, 16), (1, ), comm)
+    py = @inferred Pencil(px; decomp_dims = (2, ), permute = Permutation(2, 1))
+    @test permutation(py) == Permutation(2, 1)
+    @test @inferred(typeof_array(px)) === A
+    @test @inferred(typeof_array(py)) === A
 
     @testset "Transpositions" begin
-        px = @inferred Pencil(A, (20, 16), (1, ), comm)
-        py = @inferred Pencil(px; decomp_dims = (2, ), permute = Permutation(2, 1))
-        @test permutation(py) == Permutation(2, 1)
-        @test @inferred(typeof_array(px)) === A
-        @test @inferred(typeof_array(py)) === A
         ux = rand!(PencilArray{Float64}(undef, px))
         uy = @inferred similar(ux, py)
         @test pencil(uy) === py
@@ -71,5 +72,14 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
             @test typeof(gx) === typeof(gy) <: Array
             @test gx == gy
         end
+    end
+
+    @testset "Multiarrays" begin
+        M = @inferred ManyPencilArray{Float32}(undef, px, py)
+        ux = @inferred first(M)
+        uy = @inferred last(M)
+        uxp = parent(parent(parent(ux)))
+        @test uxp === parent(parent(parent(uy)))
+        @test typeof(uxp) <: A{Float32}
     end
 end

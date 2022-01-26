@@ -95,7 +95,13 @@ struct PencilArray{
     # It exists just to enforce that the type of data array is consistent with
     # typeof_array(pencil).
     function PencilArray(
-            ::Type{A}, pencil::Pencil, data::A,
+            ::Type{A}, pencil::Pencil,
+            data::Union{
+                A,
+                # This ugly thing is to allow ManyPencilArrays, which wrap a
+                # reshaped view of an array...
+                Base.ReshapedArray{T, N, <:SubArray{T, M, <:A}} where {T, N, M},
+            },
         ) where {A <: AbstractArray}
         @assert A === typeof_array(pencil)
         N = ndims(data)
