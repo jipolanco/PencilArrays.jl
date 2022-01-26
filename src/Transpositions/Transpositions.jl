@@ -6,7 +6,7 @@ using TimerOutputs
 import MPI
 
 using ..PencilArrays
-using ..PencilArrays: eltype_ptr, eltype_array
+using ..PencilArrays: typeof_ptr, typeof_array
 using ..Pencils: ArrayRegion
 using StaticPermutations
 using Strided: @strided, Strided, StridedView
@@ -182,8 +182,8 @@ end
 # - https://discourse.julialang.org/t/big-overhead-with-the-new-lazy-reshape-reinterpret/7635
 # - https://github.com/JuliaLang/julia/issues/28980
 function unsafe_as_array(::Type{T}, x::AbstractVector{UInt8}, dims) where T
-    p = eltype_ptr(x){T}(pointer(x))
-    A = unsafe_wrap(eltype_array(x), p, dims, own=false)
+    p = typeof_ptr(x){T}(pointer(x))
+    A = unsafe_wrap(typeof_array(x), p, dims, own=false)
 end
 
 # Only local transposition.
