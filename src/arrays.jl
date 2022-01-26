@@ -118,7 +118,8 @@ end
 
 function PencilArray{T}(init, pencil::Pencil, extra_dims::Vararg{Integer}) where {T}
     dims = (size_local(pencil, MemoryOrder())..., extra_dims...)
-    PencilArray(pencil, Array{T}(init, dims))
+    A = typeof_array(pencil)
+    PencilArray(pencil, A{T}(init, dims))
 end
 
 pencil_type(::Type{PencilArray{T,N,A,M,E,P}}) where {T,N,A,M,E,P} = P
@@ -485,10 +486,10 @@ typeof_ptr(A::PencilArray) = typeof_ptr(A.data)
 typeof_ptr(A::AT) where {AT<:AbstractArray} = typeof(pointer(A)).name.wrapper
 
 """
+    typeof_array(::Pencil)
     typeof_array(::PencilArray)
     typeof_array(::AbstractArray)
 
-Get the type of array (without the float type) so it can be used as a constructor.
+Get the type of array (without the element type) so it can be used as a constructor.
 """
 typeof_array(A::PencilArray) = typeof_array(A.data)
-typeof_array(A::AT) where {AT<:AbstractArray} = typeof(A).name.wrapper
