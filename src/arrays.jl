@@ -91,10 +91,14 @@ struct PencilArray{
     space_dims :: Dims{Np}  # spatial dimensions in *logical* order
     extra_dims :: Dims{E}
 
-    function PencilArray(pencil::Pencil{Np, Mp} where {Np, Mp},
-                         data::AbstractArray{T, N}) where {T, N}
-        P = typeof(pencil)
-        A = typeof(data)
+    # This constructor is not to be used directly!
+    # It exists just to enforce that the type of data array is consistent with
+    # typeof_array(pencil).
+    function PencilArray(
+            ::Type{A}, pencil::Pencil, data::A,
+        ) where {A <: AbstractArray}
+        @assert A === typeof_array(pencil)
+        N = ndims(data)
         Np = ndims(pencil)
         E = N - Np
         size_data = size(data)
@@ -112,9 +116,13 @@ struct PencilArray{
 
         space_dims = permutation(pencil) \ geom_dims  # undo permutation
 
-        new{T, N, A, Np, E, P}(pencil, data, space_dims, extra_dims)
+        T = eltype(data)
+        P = typeof(pencil)
+        new{T, N, typeof(data), Np, E, P}(pencil, data, space_dims, extra_dims)
     end
 end
+
+PencilArray(p::Pencil, data::AbstractArray) = PencilArray(typeof_array(p), p, data)
 
 function PencilArray{T}(init, pencil::Pencil, extra_dims::Vararg{Integer}) where {T}
     dims = (size_local(pencil, MemoryOrder())..., extra_dims...)

@@ -38,6 +38,14 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
     @test (@inferred (p -> p.send_buf)(pen)) isa A
     @test (@inferred (p -> p.recv_buf)(pen)) isa A
 
+    # Check that creating a PencilArray with incorrect type of underlying data
+    # fails.
+    ArrayOther = A === Array ? TestArray : Array
+    let dims = size_local(pen, MemoryOrder())
+        data = ArrayOther{Int}(undef, dims)
+        @test_throws MethodError PencilArray(pen, data)
+    end
+
     u = @inferred PencilArray{Int}(undef, pen)
     @test typeof(parent(u)) <: A{Int}
 
