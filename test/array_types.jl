@@ -10,9 +10,6 @@ MPI.Init()
 comm = MPI.COMM_WORLD
 MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
-make_buffer(::Type{A}) where {A} = A{UInt8}(undef, 0)
-make_buffer(; array_type::Type{A}) where {A} = make_buffer(A)
-
 @testset "Array type: $A" for A ∈ (Array, OffsetArray)
     pen = @inferred Pencil(A, (8, 10), comm)
     @test (@inferred (p -> p.send_buf)(pen)) isa A
