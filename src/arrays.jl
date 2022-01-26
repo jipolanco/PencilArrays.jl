@@ -262,7 +262,7 @@ true
 """
 function Base.similar(x::PencilArray, ::Type{S}) where {S}
     dims_perm = permutation(x) * size_local(x)
-    PencilArray(x.pencil, similar(x.data, S, dims_perm))
+    PencilArray(x.pencil, similar(parent(x), S, dims_perm))
 end
 
 Base.similar(x::PencilArray, ::Type{S}, dims::Dims) where {S} =
@@ -270,7 +270,7 @@ Base.similar(x::PencilArray, ::Type{S}, dims::Dims) where {S} =
 
 function Base.similar(x::PencilArray, ::Type{S}, p::Pencil) where {S}
     dims_mem = (size_local(p, MemoryOrder())..., extra_dims(x)...)
-    PencilArray(p, similar(x.data, S, dims_mem))
+    PencilArray(p, similar(parent(x), S, dims_mem))
 end
 
 Base.similar(x::PencilArray, p::Pencil) = similar(x, eltype(x), p)
@@ -288,20 +288,20 @@ end
 
 # Linear indexing
 @propagate_inbounds @inline Base.getindex(x::PencilArray, i::Integer) =
-    x.data[i]
+    parent(x)[i]
 
 @propagate_inbounds @inline Base.setindex!(x::PencilArray, v, i::Integer) =
-    x.data[i] = v
+    parent(x)[i] = v
 
 # Cartesian indexing: assume input indices are unpermuted, and permute them.
 # (This is similar to the implementation of PermutedDimsArray.)
 @propagate_inbounds @inline Base.getindex(
         x::PencilArray{T,N}, I::Vararg{Int,N}) where {T,N} =
-    x.data[_genperm(x, I)...]
+    parent(x)[_genperm(x, I)...]
 
 @propagate_inbounds @inline Base.setindex!(
         x::PencilArray{T,N}, v, I::Vararg{Int,N}) where {T,N} =
-    x.data[_genperm(x, I)...] = v
+    parent(x)[_genperm(x, I)...] = v
 
 @inline function _genperm(x::PencilArray{T,N}, I::NTuple{N,Int}) where {T,N}
     # Split "spatial" and "extra" indices.
@@ -491,4 +491,4 @@ typeof_ptr(A::AbstractArray) = typeof(pointer(A)).name.wrapper
 
 Get the type of array (without the element type) so it can be used as a constructor.
 """
-typeof_array(A::PencilArray) = typeof_array(A.data)
+typeof_array(A::PencilArray) = typeof_array(parent(A))

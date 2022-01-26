@@ -48,6 +48,7 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
         @test range_remote(u, I) === range_remote(p, I)
     end
 
+    @test parent(u) === u.data
     @test eltype(u) === eltype(u.data) === T
     @test length.(axes(u)) === size_local(u)
     @test sizeof_global(u) == sizeof(T) * prod(size_global(u))
@@ -170,7 +171,7 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     let psize = size_local(p, MemoryOrder())
         a = zeros(T, psize)
         u = PencilArray(p, a)
-        @test u.data === a
+        @test parent(u) === a
         @test IndexStyle(typeof(u)) === IndexStyle(typeof(a)) === IndexLinear()
 
         b = zeros(T, psize .+ 2)
