@@ -12,6 +12,7 @@ include("permutations.jl")
 test_files = [
     "reductions.jl",
     "broadcast.jl",
+    "array_types.jl",
     "arrays.jl",
     "pencils.jl",
     "array_interface.jl",
