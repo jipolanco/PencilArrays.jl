@@ -10,9 +10,6 @@ using LinearAlgebra: transpose!
 using Random
 using Test
 
-include("include/MPITools.jl")
-using .MPITools
-
 const BENCHMARK_ARRAYS = "--benchmark" in ARGS
 BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1.0
 
@@ -307,7 +304,7 @@ function main()
     Nproc = MPI.Comm_size(comm)
     myrank = MPI.Comm_rank(comm)
 
-    silence_stdout(comm)
+    MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
     rng = MersenneTwister(42 + myrank)
 

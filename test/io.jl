@@ -14,9 +14,6 @@ end
 using Random
 using Test
 
-include("include/MPITools.jl")
-using .MPITools
-
 function test_write_mpiio(filename, u::PencilArray)
     comm = get_comm(u)
     root = 0
@@ -169,7 +166,7 @@ comm = MPI.COMM_WORLD
 Nproc = MPI.Comm_size(comm)
 myrank = MPI.Comm_rank(comm)
 
-silence_stdout(comm)
+MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
 @show HDF5.API.libhdf5
 
