@@ -1,5 +1,3 @@
-#!/usr/bin/env julia
-
 using PencilArrays
 using PencilArrays.MPITopologies
 
@@ -10,11 +8,7 @@ using LinearAlgebra: transpose!
 using Random
 using Test
 
-include("include/MPITools.jl")
-using .MPITools
-
 const BENCHMARK_ARRAYS = "--benchmark" in ARGS
-BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1.0
 
 Indexation(::Type{IndexLinear}) = LinearIndices
 Indexation(::Type{IndexCartesian}) = CartesianIndices
@@ -307,7 +301,7 @@ function main()
     Nproc = MPI.Comm_size(comm)
     myrank = MPI.Comm_rank(comm)
 
-    silence_stdout(comm)
+    MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
     rng = MersenneTwister(42 + myrank)
 
@@ -407,6 +401,7 @@ function main()
         for p ∈ (pen1, pen2, pen3)
             @test size(p) === size_global(p, LogicalOrder())
             @test length(p) === prod(size(p))
+            @inferred (p -> p.send_buf)(p)
         end
     end
 

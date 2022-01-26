@@ -133,6 +133,7 @@ struct Pencil{
         N,  # spatial dimensions
         M,  # MPI topology dimensions (< N)
         P,  # optional index permutation (see Permutation)
+        BufVector <: AbstractVector{UInt8},
     }
     # M-dimensional MPI decomposition info (with M < N).
     topology :: MPITopology{M}
@@ -159,8 +160,8 @@ struct Pencil{
     perm :: P
 
     # Data buffers for transpositions.
-    send_buf :: AbstractVector{UInt8}
-    recv_buf :: AbstractVector{UInt8}
+    send_buf :: BufVector
+    recv_buf :: BufVector
 
     # Timing information.
     timer :: TimerOutput
@@ -180,8 +181,9 @@ struct Pencil{
         axes_local = axes_all[coords_local(topology)...]
         axes_local_perm = permute * axes_local
         P = typeof(permute)
-        new{N,M,P}(topology, size_global, decomp_dims, axes_all, axes_local,
-                   axes_local_perm, permute, send_buf, recv_buf, timer)
+        BV = typeof(send_buf)
+        new{N,M,P,BV}(topology, size_global, decomp_dims, axes_all, axes_local,
+                      axes_local_perm, permute, send_buf, recv_buf, timer)
     end
 
     function Pencil(p::Pencil{N,M};
