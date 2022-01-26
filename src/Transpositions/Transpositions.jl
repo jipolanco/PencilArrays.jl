@@ -6,6 +6,7 @@ using TimerOutputs
 import MPI
 
 using ..PencilArrays
+using ..PencilArrays: eltype_ptr, eltype_array
 using ..Pencils: ArrayRegion
 using StaticPermutations
 using Strided: @strided, Strided, StridedView
