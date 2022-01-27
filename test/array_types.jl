@@ -1,6 +1,6 @@
 # Test PencilArrays wrapping arrays of type different from the base Array.
-# We use a custom TestArray type as an example, but this should also
-# cover the case of GPU arrays.
+# We use a custom TestArray type as well as the JLArray (<: AbstractGPUArray)
+# type defined in the GPUArrays.jl tests.
 
 using MPI
 using PencilArrays
@@ -34,6 +34,10 @@ Base.pointer(u::TestArray) = pointer(u.data)
 Base.unsafe_wrap(::Type{TestArray}, args...; kws...) =
     TestArray(unsafe_wrap(Array, args...; kws...))
 MPI.Buffer(u::TestArray) = MPI.Buffer(u.data)  # for `gather`
+
+# A bit of type piracy to help tests pass.
+# Note that MPI.Buffer is defined for CuArray.
+MPI.Buffer(u::JLArray) = MPI.Buffer(u.data)
 
 MPI.Init()
 comm = MPI.COMM_WORLD
