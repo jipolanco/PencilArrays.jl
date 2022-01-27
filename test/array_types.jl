@@ -53,12 +53,12 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
     # fails.
     ArrayOther = A === Array ? TestArray : Array
     let dims = size_local(pen, MemoryOrder())
-        data = ArrayOther{Int}(undef, dims)
+        data = ArrayOther{Float32}(undef, dims)
         @test_throws ArgumentError PencilArray(pen, data)
     end
 
-    u = @inferred PencilArray{Int}(undef, pen)
-    @test typeof(parent(u)) <: A{Int}
+    u = @inferred PencilArray{Float32}(undef, pen)
+    @test typeof(parent(u)) <: A{Float32}
 
     @test @inferred(typeof_array(pen)) === A
     @test @inferred(typeof_array(u)) === A
@@ -69,8 +69,16 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
     @test @inferred(typeof_array(px)) === A
     @test @inferred(typeof_array(py)) === A
 
+    # This is in particular to test that, for GPU arrays, scalar indexing is not
+    # performed and the proper GPU functions are called.
+    @testset "Initialisation" begin
+        @test_nowarn fill!(u, 4)
+        @test_nowarn rand!(u)
+        @test_nowarn randn!(u)
+    end
+
     @testset "Transpositions" begin
-        ux = @allowscalar rand!(PencilArray{Float64}(undef, px))
+        ux = @test_nowarn rand!(PencilArray{Float64}(undef, px))
         uy = @inferred similar(ux, py)
         @test pencil(uy) === py
         tr = @inferred Transpositions.Transposition(uy, ux)

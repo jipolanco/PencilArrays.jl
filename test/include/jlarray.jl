@@ -9,6 +9,7 @@
 # in CUDA.jl):
 # - resize!(::DenseJLVector, n)
 # - unsafe_wrap(::Type{JLArray}, ...)
+# - rand!(::AbstractRNG, ::JLArray, ...)
 
 # ============================================================================ #
 
@@ -361,6 +362,11 @@ function GPUArrays.default_rng(::Type{<:JLArray})
     GLOBAL_RNG[]
 end
 
+# Added for PencilArrays tests
+function Random.rand!(rng::AbstractRNG, u::JLArray, ::Type{X}) where {X}
+    rand!(rng, u.data, X)
+    u
+end
 
 ## GPUArrays interfaces
 
