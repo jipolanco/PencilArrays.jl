@@ -265,7 +265,8 @@ function Base.show(io::IO, p::Pencil)
           Decomposition of $(ndims(p))D data
               Data dimensions: $(size_global(p))
               Decomposed dimensions: $(decomposition(p))
-              Data permutation: $(perm)""")
+              Data permutation: $(perm)
+              Array type: $(typeof_array(p))""")
 end
 
 """
