@@ -17,10 +17,12 @@ import ArrayInterface:
 
 struct DummyArray{T,N} <: AbstractArray{T,N}
     dims :: Dims{N}
-    DummyArray{T}(::UndefInitializer, dims) where {T} = new{T,length(dims)}(dims)
+    DummyArray{T}(::UndefInitializer, dims::Dims) where {T} = new{T,length(dims)}(dims)
 end
 
+DummyArray{T}(init, dims...) where {T} = DummyArray{T}(init, dims)
 Base.size(x::DummyArray) = x.dims
+Base.similar(x::DummyArray{T}) where {T} = DummyArray{T}(undef, size(x))
 Base.getindex(::DummyArray{T}, ind...) where {T} = zero(T)
 Base.strides(x::DummyArray) = Base.size_to_strides(1, size(x)...)
 
@@ -43,22 +45,25 @@ function non_contiguous_array(::Type{T}, dims) where {T}
     up
 end
 
-function test_array_interface(p::Pencil)
+function test_array_interface(pen_in::Pencil)
+    pa = Pencil(Array, pen_in)
+    pd = Pencil(DummyArray, pen_in)
+
     # Test different kinds of parent arrays
-    dims_mem = size_local(p, MemoryOrder())
+    dims_mem = size_local(pen_in, MemoryOrder())
     up_regular = Array{Float64}(undef, dims_mem)
     up_noncontig = non_contiguous_array(Float64, dims_mem)
     up_nondense = non_dense_array(Float64, dims_mem)
     up_dummy = DummyArray{Float64}(undef, dims_mem)
 
     parents = (
-        up_regular,
-        up_noncontig,
-        up_nondense,
-        up_dummy,
+        up_regular => pa,
+        up_noncontig => pa,
+        up_nondense => pa,
+        up_dummy => pd,
     )
 
-    @testset "Parent $(typeof(up))" for up in parents
+    @testset "Parent $(typeof(up))" for (up, p) in parents
         u = PencilArray(p, up)
 
         @test ArrayInterface.parent_type(u) === typeof(up)
