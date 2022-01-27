@@ -10,6 +10,9 @@ using LinearAlgebra: transpose!
 using Random
 using Test
 
+include("include/jlarray.jl")
+using .JLArrays
+
 # Define simple array wrapper type for tests.
 struct TestArray{T, N} <: DenseArray{T, N}
     data :: Array{T, N}
@@ -32,7 +35,7 @@ MPI.Init()
 comm = MPI.COMM_WORLD
 MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
-@testset "Array type: $A" for A ∈ (Array, TestArray)
+@testset "Array type: $A" for A ∈ (Array, TestArray, JLArray)
     pen = @inferred Pencil(A, (8, 10), comm)
     @test @inferred(typeof_array(pen)) === A
     @test (@inferred (p -> p.send_buf)(pen)) isa A
