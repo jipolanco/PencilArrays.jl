@@ -523,7 +523,7 @@ function get_remote_indices(R::Int, coords_local::Dims{M}, Nproc::Int) where M
     CartesianIndices(t)
 end
 
-# Specialisation for CPU Arrays.
+# Specialisation for CPU arrays.
 function copy_range!(
         dest::Vector, dest_offset::Integer,
         src::PencilArray, src_range_memorder::NTuple,
@@ -558,41 +558,77 @@ function copy_range!(
 end
 
 function copy_permuted!(
-        dest::PencilArray, o_range_iperm::NTuple,
+        dst::PencilArray, o_range_iperm::NTuple,
         src::AbstractVector, src_offset::Integer,
         perm::AbstractPermutation,
     )
-    N = ndims(dest)
+    N = ndims(dst)
     P = length(o_range_iperm)
-    exdims = extra_dims(dest)
+    exdims = extra_dims(dst)
     E = length(exdims)
     @assert P + E == N
 
-    src_view = let src_dims = (map(length, o_range_iperm)..., exdims...)
-        Ndata = prod(src_dims)
-        n = src_offset
-        v = Strided.sview(src, (n + 1):(n + Ndata))
-        Strided.sreshape(v, src_dims)
+    src_dims = (map(length, o_range_iperm)..., exdims...)
+    src_view = _viewreshape(src, src_dims, src_offset)
+
+    dst_inds = perm * o_range_iperm  # destination indices in memory order
+    _permutedims!(dst, src_view, dst_inds, perm)
+
+    dst
+end
+
+# Case of CPU arrays.
+# Note that Strided uses scalar indexing at some point, and for that reason it
+# doesn't work with GPU arrays.
+function _viewreshape(src::Vector, src_dims, n)
+    N = prod(src_dims)
+    v = Strided.sview(src, (n + 1):(n + N))
+    Strided.sreshape(v, src_dims)
+end
+
+# Generic case, used in particular for GPU arrays.
+function _viewreshape(src::AbstractVector, src_dims, n)
+    N = prod(src_dims)
+    v = view(src, (n + 1):(n + N))
+    reshape(v, src_dims)
+end
+
+function _permutedims!(dst::PencilArray, src, dst_inds, perm)
+    exdims = extra_dims(dst)
+    v = view(parent(dst), dst_inds..., map(Base.OneTo, exdims)...)
+    _permutedims!(typeof_array(pencil(dst)), v, src, perm)
+end
+
+# Specialisation for CPU arrays.
+# Note that v_in is the raw array (in memory order) wrapped by a PencilArray.
+function _permutedims!(::Type{Array}, v_in::SubArray, src, perm)
+    v = StridedView(v_in)
+    vperm = if isidentity(perm)
+        v
+    else
+        E = ndims(v) - length(perm)  # number of "extra dims"
+        pperm = append(perm, Val(E))
+        # This is the equivalent of a PermutedDimsArray in Strided.jl.
+        # Note that this is a lazy object (a StridedView)!
+        permutedims(v, Tuple(inv(pperm))) :: StridedView
     end
+    copyto!(vperm, src)
+end
 
-    dest_view = let dest_p = parent(dest)  # array with non-permuted indices
-        indices = perm * o_range_iperm
-        v = StridedView(
-            view(dest_p, indices..., map(Base.OneTo, exdims)...)
-        )
-        if isidentity(perm)
-            v
-        else
-            pperm = append(perm, Val(E))
-            # This is the equivalent of a PermutedDimsArray in Strided.jl.
-            # Note that this is a lazy object (a StridedView)!
-            permutedims(v, Tuple(inv(pperm))) :: StridedView
-        end
+# General case, used in particular for GPU arrays.
+# For now, this avoids scalar indexing when permutations are disabled
+# (i.e. isidentity(perm) = true).
+# Otherwise, the `permutedims!` below seems to call the generic implementation
+# in Base Julia, which uses indexing.
+function _permutedims!(::Type{<:AbstractArray}, v::SubArray, src, perm)
+    if isidentity(perm)
+        copyto!(v, src)
+    else
+        E = ndims(v) - length(perm)  # number of "extra dims"
+        pperm = append(perm, Val(E))
+        permutedims!(v, src, Tuple(inv(pperm)))
     end
-
-    copyto!(dest_view, src_view)
-
-    dest
+    v
 end
 
 end  # module Transpositions

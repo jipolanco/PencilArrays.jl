@@ -5,7 +5,6 @@
 using MPI
 using PencilArrays
 using PencilArrays: typeof_array
-using OffsetArrays
 using LinearAlgebra: transpose!
 using Random
 using Test
@@ -43,7 +42,7 @@ MPI.Init()
 comm = MPI.COMM_WORLD
 MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
-@testset "Array type: $A" for A ∈ (Array, TestArray, JLArray)
+@testset "Array type: $A" for A ∈ (JLArray, Array, TestArray)
     pen = @inferred Pencil(A, (8, 10), comm)
     @test @inferred(typeof_array(pen)) === A
     @test (@inferred (p -> p.send_buf)(pen)) isa A
@@ -63,42 +62,53 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
     @test @inferred(typeof_array(pen)) === A
     @test @inferred(typeof_array(u)) === A
 
-    px = @inferred Pencil(A, (20, 16), (1, ), comm)
-    py = @inferred Pencil(px; decomp_dims = (2, ), permute = Permutation(2, 1))
-    @test permutation(py) == Permutation(2, 1)
-    @test @inferred(typeof_array(px)) === A
-    @test @inferred(typeof_array(py)) === A
-
     # This is in particular to test that, for GPU arrays, scalar indexing is not
-    # performed and the proper GPU functions are called.
+    # performed and the correct GPU functions are called.
     @testset "Initialisation" begin
         @test_nowarn fill!(u, 4)
         @test_nowarn rand!(u)
         @test_nowarn randn!(u)
     end
 
-    @testset "Transpositions" begin
-        ux = @test_nowarn rand!(PencilArray{Float64}(undef, px))
-        uy = @inferred similar(ux, py)
-        @test pencil(uy) === py
-        tr = @inferred Transpositions.Transposition(uy, ux)
-        @allowscalar transpose!(tr)
+    px = @inferred Pencil(A, (20, 16), (1, ), comm)
 
-        # Verify transposition
-        gx = @inferred Nothing gather(ux)
-        gy = @inferred Nothing gather(uy)
-        if !(nothing === gx === gy)
-            @test typeof(gx) === typeof(gy) <: Array
-            @test gx == gy
+    @testset "Permutation: $perm" for perm ∈ (NoPermutation(), Permutation(2, 1))
+        py = @inferred Pencil(px; decomp_dims = (2, ), permute = perm)
+        @test permutation(py) == perm
+        @test @inferred(typeof_array(px)) === A
+        @test @inferred(typeof_array(py)) === A
+
+        @testset "Transpositions" begin
+            ux = @test_nowarn rand!(PencilArray{Float64}(undef, px))
+            uy = @inferred similar(ux, py)
+            @test pencil(uy) === py
+            tr = @inferred Transpositions.Transposition(uy, ux)
+
+            if perm == NoPermutation()
+                transpose!(tr)
+            else
+                # For now scalar indexing is needed when permutations are
+                # enabled, which may lead to poor performance on GPUs.
+                # TODO can we avoid scalar indexing?
+                @allowscalar transpose!(tr)
+            end
+
+            # Verify transposition
+            gx = @inferred Nothing gather(ux)
+            gy = @inferred Nothing gather(uy)
+            if !(nothing === gx === gy)
+                @test typeof(gx) === typeof(gy) <: Array
+                @test gx == gy
+            end
         end
-    end
 
-    @testset "Multiarrays" begin
-        M = @inferred ManyPencilArray{Float32}(undef, px, py)
-        ux = @inferred first(M)
-        uy = @inferred last(M)
-        uxp = parent(parent(parent(ux)))
-        @test uxp === parent(parent(parent(uy)))
-        @test typeof(uxp) <: A{Float32}
-    end
+        @testset "Multiarrays" begin
+            M = @inferred ManyPencilArray{Float32}(undef, px, py)
+            ux = @inferred first(M)
+            uy = @inferred last(M)
+            uxp = parent(parent(parent(ux)))
+            @test uxp === parent(parent(parent(uy)))
+            @test typeof(uxp) <: A{Float32}
+        end
+    end  # permutation
 end
