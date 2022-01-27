@@ -16,17 +16,17 @@ struct TestArray{T, N} <: DenseArray{T, N}
 end
 TestArray{T}(args...) where {T} = TestArray(Array{T}(args...))
 TestArray{T,N}(args...) where {T,N} = TestArray(Array{T,N}(args...))
-Base.parent(u::TestArray) = u.data
-Base.size(u::TestArray) = size(parent(u))
+Base.parent(u::TestArray) = u  # this is just for the tests...
+Base.size(u::TestArray) = size(u.data)
 Base.similar(u::TestArray, ::Type{T}, dims::Dims) where {T} =
-    TestArray(similar(parent(u), T, dims))
-Base.getindex(u::TestArray, args...) = getindex(parent(u), args...)
-Base.setindex!(u::TestArray, args...) = (setindex!(parent(u), args...); u)
-Base.resize!(u::TestArray, args...) = (resize!(parent(u), args...); u)
-Base.pointer(u::TestArray) = pointer(parent(u))
+    TestArray(similar(u.data, T, dims))
+Base.getindex(u::TestArray, args...) = getindex(u.data, args...)
+Base.setindex!(u::TestArray, args...) = setindex!(u.data, args...)
+Base.resize!(u::TestArray, args...) = (resize!(u.data, args...); u)
+Base.pointer(u::TestArray) = pointer(u.data)
 Base.unsafe_wrap(::Type{TestArray}, args...; kws...) =
     TestArray(unsafe_wrap(Array, args...; kws...))
-MPI.Buffer(u::TestArray) = MPI.Buffer(parent(u))  # for `gather`
+MPI.Buffer(u::TestArray) = MPI.Buffer(u.data)  # for `gather`
 
 MPI.Init()
 comm = MPI.COMM_WORLD
@@ -43,7 +43,7 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
     ArrayOther = A === Array ? TestArray : Array
     let dims = size_local(pen, MemoryOrder())
         data = ArrayOther{Int}(undef, dims)
-        @test_throws MethodError PencilArray(pen, data)
+        @test_throws ArgumentError PencilArray(pen, data)
     end
 
     u = @inferred PencilArray{Int}(undef, pen)

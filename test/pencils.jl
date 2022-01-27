@@ -16,8 +16,9 @@ Indexation(::Type{IndexCartesian}) = CartesianIndices
 # For testing `similar` for PencilArray.
 struct DummyArray{T,N} <: AbstractArray{T,N}
     dims :: Dims{N}
-    DummyArray{T}(::UndefInitializer, dims) where {T} = new{T,length(dims)}(dims)
+    DummyArray{T}(::UndefInitializer, dims::Dims) where {T} = new{T,length(dims)}(dims)
 end
+DummyArray{T}(init, dims...) where {T} = DummyArray{T}(init, dims)
 Base.size(x::DummyArray) = x.dims
 Base.getindex(::DummyArray{T}, ind...) where {T} = zero(T)
 Base.similar(x::DummyArray, ::Type{S}, dims::Dims) where {S} = DummyArray{S}(undef, dims)
@@ -110,7 +111,8 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
         end
 
         let A = DummyArray{Int}(undef, size_local(p, MemoryOrder()))
-            local u = @inferred PencilArray(p, A)
+            pdummy = Pencil(DummyArray, p)
+            local u = @inferred PencilArray(pdummy, A)
             @test parent(u) === A
 
             v = @inferred similar(u)

@@ -94,16 +94,9 @@ struct PencilArray{
     # This constructor is not to be used directly!
     # It exists just to enforce that the type of data array is consistent with
     # typeof_array(pencil).
-    function PencilArray(
-            ::Type{A}, pencil::Pencil,
-            data::Union{
-                A,
-                # This ugly thing is to allow ManyPencilArrays, which wrap a
-                # reshaped view of an array...
-                Base.ReshapedArray{T, N, <:SubArray{T, M, <:A}} where {T, N, M},
-            },
-        ) where {A <: AbstractArray}
-        @assert A === typeof_array(pencil)
+    function PencilArray(pencil::Pencil, data::AbstractArray)
+        _check_compatible(pencil, data)
+
         N = ndims(data)
         Np = ndims(pencil)
         E = N - Np
@@ -128,7 +121,15 @@ struct PencilArray{
     end
 end
 
-PencilArray(p::Pencil, data::AbstractArray) = PencilArray(typeof_array(p), p, data)
+@inline _check_compatible(p::Pencil, u) = _check_compatible(typeof_array(p), u)
+@inline function _check_compatible(::Type{A}, u, ubase = u) where {A}
+    typeof(u) <: A && return nothing
+    up = parent(u)
+    typeof(up) === typeof(u) && throw(ArgumentError(
+        "type of data array ($(typeof(ubase))) is not compatible with expected array type ($A)"
+    ))
+    _check_compatible(A, up, ubase)
+end
 
 function PencilArray{T}(init, pencil::Pencil, extra_dims::Vararg{Integer}) where {T}
     dims = (size_local(pencil, MemoryOrder())..., extra_dims...)
