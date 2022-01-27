@@ -10,6 +10,10 @@ using LinearAlgebra: transpose!
 using Random
 using Test
 
+# TODO
+# Some operations still need to be adapted for GPU arrays to remove @allowscalar
+using GPUArrays: @allowscalar
+
 include("include/jlarray.jl")
 using .JLArrays
 
@@ -62,15 +66,15 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
     @test @inferred(typeof_array(py)) === A
 
     @testset "Transpositions" begin
-        ux = rand!(PencilArray{Float64}(undef, px))
+        ux = @allowscalar rand!(PencilArray{Float64}(undef, px))
         uy = @inferred similar(ux, py)
         @test pencil(uy) === py
         tr = @inferred Transpositions.Transposition(uy, ux)
-        transpose!(tr)
+        @allowscalar transpose!(tr)
 
         # Verify transposition
-        gx = @inferred Nothing gather(ux)
-        gy = @inferred Nothing gather(uy)
+        gx = @allowscalar @inferred Nothing gather(ux)
+        gy = @allowscalar @inferred Nothing gather(uy)
         if !(nothing === gx === gy)
             @test typeof(gx) === typeof(gy) <: Array
             @test gx == gy

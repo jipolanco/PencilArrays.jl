@@ -1,11 +1,12 @@
-# File adapted from GPUArrays.jl test suite
+# File adapted from GPUArrays.jl test suite:
 # https://raw.githubusercontent.com/JuliaGPU/GPUArrays.jl/master/test/jlarray.jl
 #
 # The MIT License (MIT)
 # Copyright © 2016 Simon Danisch
 # Copyright © 2018 JuliaGPU developers
 #
-# Added functions:
+# Added functions for PencilArrays tests (these seem to be defined for CuArray
+# in CUDA.jl):
 # - resize!(::DenseJLVector, n)
 # - unsafe_wrap(::Type{JLArray}, ...)
 
