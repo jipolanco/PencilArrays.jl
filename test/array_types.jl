@@ -85,8 +85,8 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
         @allowscalar transpose!(tr)
 
         # Verify transposition
-        gx = @allowscalar @inferred Nothing gather(ux)
-        gy = @allowscalar @inferred Nothing gather(uy)
+        gx = @inferred Nothing gather(ux)
+        gy = @inferred Nothing gather(uy)
         if !(nothing === gx === gy)
             @test typeof(gx) === typeof(gy) <: Array
             @test gx == gy

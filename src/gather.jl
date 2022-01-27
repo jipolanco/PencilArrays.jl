@@ -77,9 +77,13 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
     # Unpack data.
     dest = Array{T,N}(undef, size_global(x))
 
+    # For GPU arrays, this transfers data to the CPU (allocating a new Array).
+    # If `data` is already an Array{T}, this is non-allocating.
+    data_cpu = oftype(dest, data)
+
     # Copy local data.
     colons_extra_dims = ntuple(n -> Colon(), Val(length(extra_dims)))
-    dest[pen.axes_local..., colons_extra_dims...] .= data
+    dest[pen.axes_local..., colons_extra_dims...] .= data_cpu
 
     # Copy remote data.
     for m = 2:Nproc
