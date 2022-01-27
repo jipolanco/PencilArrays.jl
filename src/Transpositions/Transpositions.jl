@@ -371,13 +371,15 @@ function transpose_send!(
             @assert length_recv_n == length_self
             recv_offsets[n] = length_recv
             @timeit_debug timer "copy_range!" copy_range!(
-                recv_buf, length_recv, Ai, local_send_range, exdims, timer)
+                recv_buf, length_recv, Ai, local_send_range,
+            )
             transpose_send_self!(method, n, requests, buf_info)
             index_local_req = n
         else
             # Copy data into contiguous buffer, then send the buffer.
             @timeit_debug timer "copy_range!" copy_range!(
-                send_buf, isend, Ai, local_send_range, exdims, timer)
+                send_buf, isend, Ai, local_send_range,
+            )
             transpose_send_other!(
                 method, buf_info, (length_send_n, length_recv_n), n,
                 requests, (rank, comm), eltype(Ai),
@@ -498,7 +500,8 @@ function transpose_recv!(
 
         # Copy data to `Ao`, permuting dimensions if required.
         @timeit_debug timer "copy_permuted!" copy_permuted!(
-            Ao, o_range_iperm, recv_buf, off, perm, exdims)
+            Ao, o_range_iperm, recv_buf, off, perm,
+        )
     end
 
     Ao
@@ -522,14 +525,19 @@ end
 
 # TODO compile for GPU
 # maybe using permudedims
-function copy_range!(dest::AbstractVector{T}, dest_offset::Int, src::PencilArray{T,N},
-                     src_range::ArrayRegion{P}, extra_dims::Dims{E}, timer,
-                    ) where {T,N,P,E}
+function copy_range!(
+        dest::AbstractVector, dest_offset::Integer,
+        src::PencilArray, src_range::NTuple,
+    )
+    exdims = extra_dims(src)
+    N = ndims(src)
+    P = length(src_range)
+    E = length(exdims)
     @assert P + E == N
 
     n = dest_offset
     src_p = parent(src)  # array with non-permuted indices
-    for K in CartesianIndices(extra_dims)
+    for K in CartesianIndices(exdims)
         for I in CartesianIndices(src_range)
             @inbounds dest[n += 1] = src_p[I, K]
         end
@@ -538,12 +546,18 @@ function copy_range!(dest::AbstractVector{T}, dest_offset::Int, src::PencilArray
     dest
 end
 
-function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
-                        src::AbstractVector{T}, src_offset::Int,
-                        perm::AbstractPermutation, extra_dims::Dims{E}) where {T,N,P,E}
+function copy_permuted!(
+        dest::PencilArray, o_range_iperm::NTuple,
+        src::AbstractVector, src_offset::Integer,
+        perm::AbstractPermutation,
+    )
+    N = ndims(dest)
+    P = length(o_range_iperm)
+    exdims = extra_dims(dest)
+    E = length(exdims)
     @assert P + E == N
 
-    src_view = let src_dims = (map(length, o_range_iperm)..., extra_dims...)
+    src_view = let src_dims = (map(length, o_range_iperm)..., exdims...)
         Ndata = prod(src_dims)
         n = src_offset
         v = Strided.sview(src, (n + 1):(n + Ndata))
@@ -553,7 +567,7 @@ function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
     dest_view = let dest_p = parent(dest)  # array with non-permuted indices
         indices = perm * o_range_iperm
         v = StridedView(
-            view(dest_p, indices..., map(Base.OneTo, extra_dims)...)
+            view(dest_p, indices..., map(Base.OneTo, exdims)...)
         )
         if isidentity(perm)
             v
