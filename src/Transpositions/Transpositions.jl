@@ -523,26 +523,37 @@ function get_remote_indices(R::Int, coords_local::Dims{M}, Nproc::Int) where M
     CartesianIndices(t)
 end
 
-# TODO compile for GPU
-# maybe using permudedims
+# Specialisation for CPU Arrays.
 function copy_range!(
-        dest::AbstractVector, dest_offset::Integer,
-        src::PencilArray, src_range::NTuple,
+        dest::Vector, dest_offset::Integer,
+        src::PencilArray, src_range_memorder::NTuple,
     )
     exdims = extra_dims(src)
-    N = ndims(src)
-    P = length(src_range)
-    E = length(exdims)
-    @assert P + E == N
-
     n = dest_offset
-    src_p = parent(src)  # array with non-permuted indices
+    src_p = parent(src)  # array with non-permuted indices (memory order)
     for K in CartesianIndices(exdims)
-        for I in CartesianIndices(src_range)
+        for I in CartesianIndices(src_range_memorder)
             @inbounds dest[n += 1] = src_p[I, K]
         end
     end
+    dest
+end
 
+# Generic case avoiding scalar indexing, should work for GPU arrays.
+function copy_range!(
+        dest::AbstractVector, dest_offset::Integer,
+        src::PencilArray, src_range_memorder::NTuple,
+    )
+    exdims = extra_dims(src)
+    n = dest_offset
+    src_p = parent(src)  # array with non-permuted indices (memory order)
+    Ks = CartesianIndices(exdims)
+    Is = CartesianIndices(src_range_memorder)
+    len = length(Is) * length(Ks)
+    src_view = @view src_p[Is, Ks]
+    dst_view = @view dest[(n + 1):(n + len)]
+    # TODO this allocates... can it be improved?
+    copyto!(dst_view, src_view)
     dest
 end
 
