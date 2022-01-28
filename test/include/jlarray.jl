@@ -340,10 +340,9 @@ Base.copyto!(dest::DenseJLArray{T}, source::DenseJLArray{T}) where {T} =
 Base.resize!(u::DenseJLVector, n) = (resize!(u.data, n); u)
 
 # Added for PencilArrays tests
-function Base.unsafe_wrap(::Type{JLArray}, args...; kws...)
-    data = unsafe_wrap(Array, args...; kws...)
-    T, N = eltype(data), ndims(data)
-    JLArray{T, N}(data, size(data))
+function Base.unsafe_wrap(::Type{JLArray}, p::Ptr, dims::Union{Integer, Dims}; kws...)
+    data = unsafe_wrap(Array, p, dims; kws...)
+    JLArray(data)
 end
 
 ## random number generation

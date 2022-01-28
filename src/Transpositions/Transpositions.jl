@@ -174,16 +174,16 @@ function assert_compatible(p::Pencil, q::Pencil)
     nothing
 end
 
-# Reinterpret UInt8 array as a different type of array.
+# Reinterpret UInt8 vector as a different type of array.
 # The input array should have enough space for the reinterpreted array with the
 # given dimensions.
 # This is a workaround to the performance issues when using `reinterpret`.
 # See for instance:
 # - https://discourse.julialang.org/t/big-overhead-with-the-new-lazy-reshape-reinterpret/7635
 # - https://github.com/JuliaLang/julia/issues/28980
-function unsafe_as_array(::Type{T}, x::AbstractVector{UInt8}, dims) where T
+function unsafe_as_array(::Type{T}, x::AbstractVector{UInt8}, dims) where {T}
     p = typeof_ptr(x){T}(pointer(x))
-    A = unsafe_wrap(typeof_array(x), p, dims, own=false)
+    unsafe_wrap(typeof_array(x), p, dims, own=false)
 end
 
 # Only local transposition.
@@ -552,7 +552,7 @@ function copy_range!(
     len = length(Is) * length(Ks)
     src_view = @view src_p[Is, Ks]
     dst_view = @view dest[(n + 1):(n + len)]
-    # TODO this allocates... can it be improved?
+    # TODO this allocates on GPUArrays... can it be improved?
     copyto!(dst_view, src_view)
     dest
 end
@@ -588,9 +588,13 @@ end
 
 # Generic case, used in particular for GPU arrays.
 function _viewreshape(src::AbstractVector, src_dims, n)
-    N = prod(src_dims)
-    v = view(src, (n + 1):(n + N))
-    reshape(v, src_dims)
+    @boundscheck begin
+        N = prod(src_dims)
+        checkbounds(src, (n + 1):(n + N))
+    end
+    # On GPUs, we use unsafe_wrap to make sure that the returned array is an
+    # AbstractGPUArray, for which `permutedims!` is implemented in GPUArrays.jl.
+    unsafe_wrap(typeof_array(src), pointer(src, n + 1), src_dims)
 end
 
 function _permutedims!(dst::PencilArray, src, dst_inds, perm)
@@ -616,17 +620,20 @@ function _permutedims!(::Type{Array}, v_in::SubArray, src, perm)
 end
 
 # General case, used in particular for GPU arrays.
-# For now, this avoids scalar indexing when permutations are disabled
-# (i.e. isidentity(perm) = true).
-# Otherwise, the `permutedims!` below seems to call the generic implementation
-# in Base Julia, which uses indexing.
 function _permutedims!(::Type{<:AbstractArray}, v::SubArray, src, perm)
     if isidentity(perm)
         copyto!(v, src)
     else
         E = ndims(v) - length(perm)  # number of "extra dims"
-        pperm = append(perm, Val(E))
-        permutedims!(v, src, Tuple(inv(pperm)))
+        iperm = inv(append(perm, Val(E)))
+        # On GPUs, if `src` is an AbstractGPUArray, then there is a `permutedims!`
+        # implementation for GPUs (in GPUArrays.jl) if the destination is also
+        # an AbstractGPUArray.
+        # Note that AbstractGPUArray <: DenseArray, and `v` is generally not
+        # dense, so we need an intermediate array for the destination.
+        tmp = similar(src, iperm * size(src))  # TODO avoid allocation!
+        permutedims!(tmp, src, Tuple(iperm))
+        copyto!(v, tmp)
     end
     v
 end

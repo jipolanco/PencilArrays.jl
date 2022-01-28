@@ -9,10 +9,6 @@ using LinearAlgebra: transpose!
 using Random
 using Test
 
-# TODO
-# Some operations still need to be adapted for GPU arrays to remove @allowscalar
-using GPUArrays: @allowscalar
-
 include("include/jlarray.jl")
 using .JLArrays
 
@@ -30,8 +26,9 @@ Base.getindex(u::TestArray, args...) = getindex(u.data, args...)
 Base.setindex!(u::TestArray, args...) = setindex!(u.data, args...)
 Base.resize!(u::TestArray, args...) = (resize!(u.data, args...); u)
 Base.pointer(u::TestArray) = pointer(u.data)
-Base.unsafe_wrap(::Type{TestArray}, args...; kws...) =
-    TestArray(unsafe_wrap(Array, args...; kws...))
+Base.pointer(u::TestArray, n::Integer) = pointer(u.data, n)  # needed to avoid ambiguity
+Base.unsafe_wrap(::Type{TestArray}, p::Ptr, dims::Union{Integer, Dims}; kws...) =
+    TestArray(unsafe_wrap(Array, p, dims; kws...))
 MPI.Buffer(u::TestArray) = MPI.Buffer(u.data)  # for `gather`
 
 # A bit of type piracy to help tests pass.
@@ -83,15 +80,7 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
             uy = @inferred similar(ux, py)
             @test pencil(uy) === py
             tr = @inferred Transpositions.Transposition(uy, ux)
-
-            if perm == NoPermutation()
-                transpose!(tr)
-            else
-                # For now scalar indexing is needed when permutations are
-                # enabled, which may lead to poor performance on GPUs.
-                # TODO can we avoid scalar indexing?
-                @allowscalar transpose!(tr)
-            end
+            transpose!(tr)
 
             # Verify transposition
             gx = @inferred Nothing gather(ux)
