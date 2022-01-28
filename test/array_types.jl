@@ -5,14 +5,9 @@
 using MPI
 using PencilArrays
 using PencilArrays: typeof_array
-using OffsetArrays
 using LinearAlgebra: transpose!
 using Random
 using Test
-
-# TODO
-# Some operations still need to be adapted for GPU arrays to remove @allowscalar
-using GPUArrays: @allowscalar
 
 include("include/jlarray.jl")
 using .JLArrays
@@ -31,8 +26,9 @@ Base.getindex(u::TestArray, args...) = getindex(u.data, args...)
 Base.setindex!(u::TestArray, args...) = setindex!(u.data, args...)
 Base.resize!(u::TestArray, args...) = (resize!(u.data, args...); u)
 Base.pointer(u::TestArray) = pointer(u.data)
-Base.unsafe_wrap(::Type{TestArray}, args...; kws...) =
-    TestArray(unsafe_wrap(Array, args...; kws...))
+Base.pointer(u::TestArray, n::Integer) = pointer(u.data, n)  # needed to avoid ambiguity
+Base.unsafe_wrap(::Type{TestArray}, p::Ptr, dims::Union{Integer, Dims}; kws...) =
+    TestArray(unsafe_wrap(Array, p, dims; kws...))
 MPI.Buffer(u::TestArray) = MPI.Buffer(u.data)  # for `gather`
 
 # A bit of type piracy to help tests pass.
@@ -43,7 +39,7 @@ MPI.Init()
 comm = MPI.COMM_WORLD
 MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
-@testset "Array type: $A" for A ∈ (Array, TestArray, JLArray)
+@testset "Array type: $A" for A ∈ (JLArray, Array, TestArray)
     pen = @inferred Pencil(A, (8, 10), comm)
     @test @inferred(typeof_array(pen)) === A
     @test (@inferred (p -> p.send_buf)(pen)) isa A
@@ -53,44 +49,55 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
     # fails.
     ArrayOther = A === Array ? TestArray : Array
     let dims = size_local(pen, MemoryOrder())
-        data = ArrayOther{Int}(undef, dims)
+        data = ArrayOther{Float32}(undef, dims)
         @test_throws ArgumentError PencilArray(pen, data)
     end
 
-    u = @inferred PencilArray{Int}(undef, pen)
-    @test typeof(parent(u)) <: A{Int}
+    u = @inferred PencilArray{Float32}(undef, pen)
+    @test typeof(parent(u)) <: A{Float32}
 
     @test @inferred(typeof_array(pen)) === A
     @test @inferred(typeof_array(u)) === A
 
+    # This is in particular to test that, for GPU arrays, scalar indexing is not
+    # performed and the correct GPU functions are called.
+    @testset "Initialisation" begin
+        @test_nowarn fill!(u, 4)
+        @test_nowarn rand!(u)
+        @test_nowarn randn!(u)
+    end
+
     px = @inferred Pencil(A, (20, 16), (1, ), comm)
-    py = @inferred Pencil(px; decomp_dims = (2, ), permute = Permutation(2, 1))
-    @test permutation(py) == Permutation(2, 1)
-    @test @inferred(typeof_array(px)) === A
-    @test @inferred(typeof_array(py)) === A
 
-    @testset "Transpositions" begin
-        ux = @allowscalar rand!(PencilArray{Float64}(undef, px))
-        uy = @inferred similar(ux, py)
-        @test pencil(uy) === py
-        tr = @inferred Transpositions.Transposition(uy, ux)
-        @allowscalar transpose!(tr)
+    @testset "Permutation: $perm" for perm ∈ (NoPermutation(), Permutation(2, 1))
+        py = @inferred Pencil(px; decomp_dims = (2, ), permute = perm)
+        @test permutation(py) == perm
+        @test @inferred(typeof_array(px)) === A
+        @test @inferred(typeof_array(py)) === A
 
-        # Verify transposition
-        gx = @allowscalar @inferred Nothing gather(ux)
-        gy = @allowscalar @inferred Nothing gather(uy)
-        if !(nothing === gx === gy)
-            @test typeof(gx) === typeof(gy) <: Array
-            @test gx == gy
+        @testset "Transpositions" begin
+            ux = @test_nowarn rand!(PencilArray{Float64}(undef, px))
+            uy = @inferred similar(ux, py)
+            @test pencil(uy) === py
+            tr = @inferred Transpositions.Transposition(uy, ux)
+            transpose!(tr)
+
+            # Verify transposition
+            gx = @inferred Nothing gather(ux)
+            gy = @inferred Nothing gather(uy)
+            if !(nothing === gx === gy)
+                @test typeof(gx) === typeof(gy) <: Array
+                @test gx == gy
+            end
         end
-    end
 
-    @testset "Multiarrays" begin
-        M = @inferred ManyPencilArray{Float32}(undef, px, py)
-        ux = @inferred first(M)
-        uy = @inferred last(M)
-        uxp = parent(parent(parent(ux)))
-        @test uxp === parent(parent(parent(uy)))
-        @test typeof(uxp) <: A{Float32}
-    end
+        @testset "Multiarrays" begin
+            M = @inferred ManyPencilArray{Float32}(undef, px, py)
+            ux = @inferred first(M)
+            uy = @inferred last(M)
+            uxp = parent(parent(parent(ux)))
+            @test uxp === parent(parent(parent(uy)))
+            @test typeof(uxp) <: A{Float32}
+        end
+    end  # permutation
 end

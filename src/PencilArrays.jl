@@ -38,6 +38,7 @@ include("size.jl")
 
 include("array_interface.jl")
 include("broadcast.jl")
+include("random.jl")
 include("reductions.jl")
 include("gather.jl")
 

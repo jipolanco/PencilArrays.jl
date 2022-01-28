@@ -174,16 +174,16 @@ function assert_compatible(p::Pencil, q::Pencil)
     nothing
 end
 
-# Reinterpret UInt8 array as a different type of array.
+# Reinterpret UInt8 vector as a different type of array.
 # The input array should have enough space for the reinterpreted array with the
 # given dimensions.
 # This is a workaround to the performance issues when using `reinterpret`.
 # See for instance:
 # - https://discourse.julialang.org/t/big-overhead-with-the-new-lazy-reshape-reinterpret/7635
 # - https://github.com/JuliaLang/julia/issues/28980
-function unsafe_as_array(::Type{T}, x::AbstractVector{UInt8}, dims) where T
+function unsafe_as_array(::Type{T}, x::AbstractVector{UInt8}, dims) where {T}
     p = typeof_ptr(x){T}(pointer(x))
-    A = unsafe_wrap(typeof_array(x), p, dims, own=false)
+    unsafe_wrap(typeof_array(x), p, dims, own=false)
 end
 
 # Only local transposition.
@@ -371,13 +371,15 @@ function transpose_send!(
             @assert length_recv_n == length_self
             recv_offsets[n] = length_recv
             @timeit_debug timer "copy_range!" copy_range!(
-                recv_buf, length_recv, Ai, local_send_range, exdims, timer)
+                recv_buf, length_recv, Ai, local_send_range,
+            )
             transpose_send_self!(method, n, requests, buf_info)
             index_local_req = n
         else
             # Copy data into contiguous buffer, then send the buffer.
             @timeit_debug timer "copy_range!" copy_range!(
-                send_buf, isend, Ai, local_send_range, exdims, timer)
+                send_buf, isend, Ai, local_send_range,
+            )
             transpose_send_other!(
                 method, buf_info, (length_send_n, length_recv_n), n,
                 requests, (rank, comm), eltype(Ai),
@@ -498,7 +500,8 @@ function transpose_recv!(
 
         # Copy data to `Ao`, permuting dimensions if required.
         @timeit_debug timer "copy_permuted!" copy_permuted!(
-            Ao, o_range_iperm, recv_buf, off, perm, exdims)
+            Ao, o_range_iperm, recv_buf, off, perm,
+        )
     end
 
     Ao
@@ -520,54 +523,119 @@ function get_remote_indices(R::Int, coords_local::Dims{M}, Nproc::Int) where M
     CartesianIndices(t)
 end
 
-# TODO compile for GPU
-# maybe using permudedims
-function copy_range!(dest::AbstractVector{T}, dest_offset::Int, src::PencilArray{T,N},
-                     src_range::ArrayRegion{P}, extra_dims::Dims{E}, timer,
-                    ) where {T,N,P,E}
-    @assert P + E == N
-
+# Specialisation for CPU arrays.
+function copy_range!(
+        dest::Vector, dest_offset::Integer,
+        src::PencilArray, src_range_memorder::NTuple,
+    )
+    exdims = extra_dims(src)
     n = dest_offset
-    src_p = parent(src)  # array with non-permuted indices
-    for K in CartesianIndices(extra_dims)
-        for I in CartesianIndices(src_range)
+    src_p = parent(src)  # array with non-permuted indices (memory order)
+    for K in CartesianIndices(exdims)
+        for I in CartesianIndices(src_range_memorder)
             @inbounds dest[n += 1] = src_p[I, K]
         end
     end
-
     dest
 end
 
-function copy_permuted!(dest::PencilArray{T,N}, o_range_iperm::ArrayRegion{P},
-                        src::AbstractVector{T}, src_offset::Int,
-                        perm::AbstractPermutation, extra_dims::Dims{E}) where {T,N,P,E}
+# Generic case avoiding scalar indexing, should work for GPU arrays.
+function copy_range!(
+        dest::AbstractVector, dest_offset::Integer,
+        src::PencilArray, src_range_memorder::NTuple,
+    )
+    exdims = extra_dims(src)
+    n = dest_offset
+    src_p = parent(src)  # array with non-permuted indices (memory order)
+    Ks = CartesianIndices(exdims)
+    Is = CartesianIndices(src_range_memorder)
+    len = length(Is) * length(Ks)
+    src_view = @view src_p[Is, Ks]
+    dst_view = @view dest[(n + 1):(n + len)]
+    # TODO this allocates on GPUArrays... can it be improved?
+    copyto!(dst_view, src_view)
+    dest
+end
+
+function copy_permuted!(
+        dst::PencilArray, o_range_iperm::NTuple,
+        src::AbstractVector, src_offset::Integer,
+        perm::AbstractPermutation,
+    )
+    N = ndims(dst)
+    P = length(o_range_iperm)
+    exdims = extra_dims(dst)
+    E = length(exdims)
     @assert P + E == N
 
-    src_view = let src_dims = (map(length, o_range_iperm)..., extra_dims...)
-        Ndata = prod(src_dims)
-        n = src_offset
-        v = Strided.sview(src, (n + 1):(n + Ndata))
-        Strided.sreshape(v, src_dims)
+    src_dims = (map(length, o_range_iperm)..., exdims...)
+    src_view = _viewreshape(src, src_dims, src_offset)
+
+    dst_inds = perm * o_range_iperm  # destination indices in memory order
+    _permutedims!(dst, src_view, dst_inds, perm)
+
+    dst
+end
+
+# Case of CPU arrays.
+# Note that Strided uses scalar indexing at some point, and for that reason it
+# doesn't work with GPU arrays.
+function _viewreshape(src::Vector, src_dims, n)
+    N = prod(src_dims)
+    v = Strided.sview(src, (n + 1):(n + N))
+    Strided.sreshape(v, src_dims)
+end
+
+# Generic case, used in particular for GPU arrays.
+function _viewreshape(src::AbstractVector, src_dims, n)
+    @boundscheck begin
+        N = prod(src_dims)
+        checkbounds(src, (n + 1):(n + N))
     end
+    # On GPUs, we use unsafe_wrap to make sure that the returned array is an
+    # AbstractGPUArray, for which `permutedims!` is implemented in GPUArrays.jl.
+    unsafe_wrap(typeof_array(src), pointer(src, n + 1), src_dims)
+end
 
-    dest_view = let dest_p = parent(dest)  # array with non-permuted indices
-        indices = perm * o_range_iperm
-        v = StridedView(
-            view(dest_p, indices..., map(Base.OneTo, extra_dims)...)
-        )
-        if isidentity(perm)
-            v
-        else
-            pperm = append(perm, Val(E))
-            # This is the equivalent of a PermutedDimsArray in Strided.jl.
-            # Note that this is a lazy object (a StridedView)!
-            permutedims(v, Tuple(inv(pperm))) :: StridedView
-        end
+function _permutedims!(dst::PencilArray, src, dst_inds, perm)
+    exdims = extra_dims(dst)
+    v = view(parent(dst), dst_inds..., map(Base.OneTo, exdims)...)
+    _permutedims!(typeof_array(pencil(dst)), v, src, perm)
+end
+
+# Specialisation for CPU arrays.
+# Note that v_in is the raw array (in memory order) wrapped by a PencilArray.
+function _permutedims!(::Type{Array}, v_in::SubArray, src, perm)
+    v = StridedView(v_in)
+    vperm = if isidentity(perm)
+        v
+    else
+        E = ndims(v) - length(perm)  # number of "extra dims"
+        pperm = append(perm, Val(E))
+        # This is the equivalent of a PermutedDimsArray in Strided.jl.
+        # Note that this is a lazy object (a StridedView)!
+        permutedims(v, Tuple(inv(pperm))) :: StridedView
     end
+    copyto!(vperm, src)
+end
 
-    copyto!(dest_view, src_view)
-
-    dest
+# General case, used in particular for GPU arrays.
+function _permutedims!(::Type{<:AbstractArray}, v::SubArray, src, perm)
+    if isidentity(perm)
+        copyto!(v, src)
+    else
+        E = ndims(v) - length(perm)  # number of "extra dims"
+        iperm = inv(append(perm, Val(E)))
+        # On GPUs, if `src` is an AbstractGPUArray, then there is a `permutedims!`
+        # implementation for GPUs (in GPUArrays.jl) if the destination is also
+        # an AbstractGPUArray.
+        # Note that AbstractGPUArray <: DenseArray, and `v` is generally not
+        # dense, so we need an intermediate array for the destination.
+        tmp = similar(src, iperm * size(src))  # TODO avoid allocation!
+        permutedims!(tmp, src, Tuple(iperm))
+        copyto!(v, tmp)
+    end
+    v
 end
 
 end  # module Transpositions
