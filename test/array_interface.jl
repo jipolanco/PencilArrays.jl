@@ -67,7 +67,7 @@ function test_array_interface(pen_in::Pencil)
         u = PencilArray(p, up)
 
         @test ArrayInterface.parent_type(u) === typeof(up)
-        @test ArrayInterface.known_length(u) === missing
+        @test ArrayInterface.known_length(u) === missing  # assume ArrayInterface version ≥ 4
         @test !ArrayInterface.can_change_size(u)
         @test ArrayInterface.ismutable(u)
         @test ArrayInterface.can_setindex(u)
