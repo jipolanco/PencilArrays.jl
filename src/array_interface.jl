@@ -15,7 +15,8 @@ contiguous_axis(::Type{A}) where {A <: PencilArray} =
         permutation(A),
     )
 
-_contiguous_axis(x::Missing, ::AbstractPermutation) = x
+_contiguous_axis(x::Nothing, ::AbstractPermutation) = x  # ArrayInterface v3 (to be removed)
+_contiguous_axis(x::Missing, ::AbstractPermutation) = x  # ArrayInterface v4
 _contiguous_axis(x::StaticInt, ::NoPermutation) = x
 @inline function _contiguous_axis(x::StaticInt{i}, p::Permutation) where {i}
     i == -1 && return x
@@ -27,7 +28,8 @@ contiguous_batch_size(::Type{A}) where {A <: PencilArray} =
 
 function stride_rank(::Type{A}) where {A <: PencilArray}
     rank = stride_rank(parent_type(A))
-    rank === missing && return missing
+    rank === nothing && return nothing  # ArrayInterface v3 (to be removed)
+    rank === missing && return missing  # ArrayInterface v4
     iperm = Tuple(inv(permutation(A)))
     iperm === nothing && return rank
     ArrayInterface.permute(rank, Val(iperm))
@@ -35,7 +37,8 @@ end
 
 function dense_dims(::Type{A}) where {A <: PencilArray}
     dense = dense_dims(parent_type(A))
-    dense === missing && return missing
+    dense === nothing && return nothing  # ArrayInterface v3 (to be removed)
+    dense === missing && return missing  # ArrayInterface v4
     perm = Tuple(inv(permutation(A)))
     perm === nothing && return dense
     ArrayInterface.permute(dense, Val(perm))
