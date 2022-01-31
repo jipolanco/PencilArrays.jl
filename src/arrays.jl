@@ -151,12 +151,18 @@ function Base.showarg(io::IO, u::PencilArray, toplevel)
     nothing
 end
 
+const TupleOfPencilArrays = NTuple{N, PencilArray} where {N}
+const StructArrayOfPencilArrays =
+    StructArray{<:Any, <:Any, <:TupleOfPencilArrays}
+
 """
     PencilArrayCollection
 
 `UnionAll` type describing a collection of [`PencilArray`](@ref)s.
 
-Such a collection can be a tuple or an array of `PencilArray`s.
+Such a collection can either be a tuple or a
+[`StructArray`](https://github.com/JuliaArrays/StructArrays.jl) made of
+`PencilArray`s.
 
 Collections are **by assumption** homogeneous: each array has the same
 properties, and in particular, is associated to the same [`Pencil`](@ref)
@@ -167,28 +173,25 @@ for `PencilArrayCollection`, and return the same value as for a single
 `PencilArray`.
 Some examples are [`pencil`](@ref), [`range_local`](@ref) and
 [`get_comm`](@ref).
-
-Also note that functions from `Base`, such as `size`, `ndims` and `eltype`, are **not**
-overloaded for `PencilArrayCollection`, since they already have a definition
-for tuples and arrays (and redefining them would be type piracy...).
 """
 const PencilArrayCollection =
-    Union{Tuple{Vararg{A}}, AbstractArray{A}} where {A <: PencilArray}
+    Union{Tuple{Vararg{<:PencilArray}}, <:StructArrayOfPencilArrays}
 
 collection_size(x::Tuple{Vararg{PencilArray}}) = (length(x), )
-collection_size(x::AbstractArray{<:PencilArray}) = size(x)
+collection_size(x::StructArrayOfPencilArrays) = collection_size(components(x))
 collection_size(::PencilArray) = ()
 
 # This is convenient for iterating over one or more PencilArrays.
 # A single PencilArray is treated as a "collection" of one array.
-collection(x::PencilArrayCollection) = x
-collection(x::PencilArray) = (x, )
+StructArrays.components(x::Tuple{Vararg{PencilArray}}) = x
+StructArrays.components(x::PencilArray) = (x, )
+@deprecate collection StructArrays.components
 
 const MaybePencilArrayCollection = Union{PencilArray, PencilArrayCollection}
 
-function _apply(f::Function, x::PencilArrayCollection, args...; kwargs...)
-    a = first(x)
-    if !all(b -> pencil(a) === pencil(b), x)
+function _apply(f::F, x::PencilArrayCollection, args...; kwargs...) where {F}
+    a = first(components(x))
+    if !all(b -> pencil(a) === pencil(b), components(x))
         throw(ArgumentError("PencilArrayCollection is not homogeneous"))
     end
     f(a, args...; kwargs...)
@@ -419,7 +422,7 @@ extra_dims(x::PencilArrayCollection) = _apply(extra_dims, x)
 Global size of array in bytes.
 """
 sizeof_global(x::PencilArray) = prod(size_global(x)) * sizeof(eltype(x))
-sizeof_global(x::PencilArrayCollection) = sum(sizeof_global, x)
+sizeof_global(x::PencilArrayCollection) = sum(sizeof_global, components(x))
 
 """
     range_local(x::PencilArray, [order = LogicalOrder()])

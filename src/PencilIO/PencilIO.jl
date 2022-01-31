@@ -1,7 +1,8 @@
 module PencilIO
 
 using ..PencilArrays
-import ..PencilArrays: MaybePencilArrayCollection, collection_size, collection
+import ..PencilArrays: MaybePencilArrayCollection, collection_size
+using StructArrays: components
 
 using MPI
 using Requires: @require

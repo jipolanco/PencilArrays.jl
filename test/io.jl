@@ -3,6 +3,7 @@ using MPI
 using HDF5
 using PencilArrays
 using PencilArrays.PencilIO
+using StructArrays
 
 import JSON3
 
@@ -20,6 +21,7 @@ function test_write_mpiio(filename, u::PencilArray)
     rank = MPI.Comm_rank(comm)
 
     X = (u, u .+ 1, u .+ 2, u .+ 3, u .+ 4)
+    S = StructArray(X)
 
     kws = Iterators.product((false, true), (false, true))
 
@@ -37,6 +39,7 @@ function test_write_mpiio(filename, u::PencilArray)
     open(MPIIODriver(), filename, comm, write=true, append=true) do ff
         ff["field_5", chunks=false] = X[5]
         ff["collection"] = X
+        ff["StructArray"] = S
     end
 
     @test isfile("$filename.json")
@@ -67,9 +70,12 @@ function test_write_mpiio(filename, u::PencilArray)
             # Verify appended data
             mpiio_read_serial!(ff, y, meta, "field_5")
             @test y == Xg[5]
-            let y = similar.(Xg)
-                mpiio_read_serial!(ff, y, meta, "collection")
-                @test all(y .== Xg)
+            let ys = similar.(Xg)
+                for name ∈ ("collection", "StructArray")
+                    map(y -> y .= 0, ys)
+                    mpiio_read_serial!(ff, ys, meta, name)
+                    @test all(ys .== Xg)
+                end
             end
         end
     end
@@ -78,9 +84,12 @@ function test_write_mpiio(filename, u::PencilArray)
     y = similar(X[1])
     @test_nowarn open(MPIIODriver(), filename, comm, read=true) do ff
         @test_throws ErrorException read!(ff, y, "field not in file")
-        let y = similar.(X)
-            read!(ff, y, "collection")
-            @test all(y .== X)
+        let ys = similar.(X)
+            for name ∈ ("collection", "StructArray")
+                map(y -> y .= 0, ys)
+                read!(ff, ys, name)
+                @test all(ys .== X)
+            end
         end
         for (i, (collective, _)) in enumerate(kws)
             name = "field_$i"
@@ -123,7 +132,8 @@ function test_write_hdf5(filename, u::PencilArray)
         @test isopen(ff)
         @test_nowarn ff["scalar", collective=true, chunks=false] = u
         @test_nowarn ff["vector_tuple", collective=false, chunks=true] = (u, v, w)
-        @test_nowarn ff["vector_array", collective=true, chunks=true] = [u, v, w]
+        @test_nowarn ff["vector_structarray", collective=true, chunks=true] =
+            StructArray((u, v, w))
     end
 
     @test_nowarn open(PHDF5Driver(), filename, comm, append=true) do ff
@@ -152,7 +162,7 @@ function test_write_hdf5(filename, u::PencilArray)
         @test all(uvw .== uvw_r)
 
         fill!.(uvw_r, 0)
-        read!(ff, collect(uvw_r), "vector_array", collective=false)
+        read!(ff, StructArray(uvw_r), "vector_structarray", collective=false)
         @test all(uvw .== uvw_r)
     end
 
@@ -200,4 +210,3 @@ perms = (NoPermutation(), Permutation(2, 3, 1))
 end
 
 HDF5.API.h5_close()
-MPI.Finalize()

@@ -174,6 +174,7 @@ comm = get_comm(u)
 open(PHDF5Driver(), "filename.h5", comm, write=true) do ff
     ff["u", chunks=true] = u
     ff["uv"] = (u, v)  # this is a two-component PencilArrayCollection (assuming equal dimensions of `u` and `v`)
+    ff["uv_alt"] = StructArray((u, v))  # this is exactly equivalent to the above
 end
 ```
 
@@ -351,17 +352,17 @@ for func in (:from_hdf5!, :to_hdf5)
     @eval function $func(dset, col::PencilArrayCollection, inds_in)
         for I in CartesianIndices(collection_size(col))
             inds = (inds_in..., Tuple(I)...)
-            $func(dset, col[I], inds)
+            $func(dset, components(col)[I], inds)
         end
     end
 end
 
 h5_datatype(x::PencilArray) = datatype(eltype(x))
-h5_datatype(x::PencilArrayCollection) = h5_datatype(first(x))
+h5_datatype(x::PencilArrayCollection) = h5_datatype(first(components(x)))
 
 h5_dataspace_dims(x::PencilArray) = size_global(x, MemoryOrder())
 h5_dataspace_dims(x::PencilArrayCollection) =
-    (h5_dataspace_dims(first(x))..., collection_size(x)...)
+    (h5_dataspace_dims(first(components(x)))..., collection_size(x)...)
 
 function h5_chunk_size(x::PencilArray, order = MemoryOrder())
     # Determine chunk size for writing to HDF5 dataset.
@@ -381,4 +382,4 @@ function h5_chunk_size(x::PencilArray, order = MemoryOrder())
 end
 
 h5_chunk_size(x::PencilArrayCollection, args...) =
-    (h5_chunk_size(first(x), args...)..., collection_size(x)...)
+    (h5_chunk_size(first(components(x)), args...)..., collection_size(x)...)

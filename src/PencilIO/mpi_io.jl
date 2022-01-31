@@ -165,7 +165,7 @@ function Base.setindex!(
     )
     file = parent(ff)
     offset = position(ff)
-    for u in collection(x)
+    for u in components(x)
         # TODO write all collection components at once (should be easier in the
         # discontiguous case)
         if chunks
@@ -181,7 +181,7 @@ function Base.setindex!(
 end
 
 eltype_collection(x::PencilArray) = eltype(x)
-eltype_collection(x::PencilArrayCollection) = eltype(first(x))
+eltype_collection(x::PencilArrayCollection) = eltype(first(components(x)))
 
 function add_metadata(file::MPIFile, x, name, chunks::Bool)
     meta = metadata(file)
@@ -220,7 +220,7 @@ function Base.read!(ff::MPIFile, x::MaybePencilArrayCollection, name::AbstractSt
     offset = meta.offset_bytes :: Int
     chunks = meta.chunks :: Bool
     chunks && check_read_chunks(x, meta.process_dims, name)
-    for u in collection(x)
+    for u in components(x)
         if chunks
             read_contiguous!(file, u; offset=offset, collective=collective, kw...)
         else

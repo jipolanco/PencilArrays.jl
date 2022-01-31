@@ -5,6 +5,7 @@ using OffsetArrays
 using Reexport
 using StaticPermutations
 using TimerOutputs
+using StructArrays: StructArrays, StructArray, components
 
 import Base: @propagate_inbounds
 import LinearAlgebra
