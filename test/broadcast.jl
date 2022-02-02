@@ -26,16 +26,15 @@ pencils = (
 
 @testset "$s" for (s, pen) in pencils
     A = PencilArray{Float64}(undef, pen)
-    G = global_view(A)
     randn!(A)
     perm = permutation(A)
 
-    @testset "Broadcast $(nameof(typeof(x)))" for x in (A, G)
+    @testset "Broadcast" begin
         @test typeof(2A) == typeof(A)
         @test typeof(A .+ A) == typeof(A)
         @test typeof(A .+ A .+ 3) == typeof(A)
         @test parent(2A) == 2parent(A)
-        let y = similar(x)
+        let x = A, y = similar(x)
             broadcast!(+, y, x, x, 3)  # precompile before measuring allocations
             alloc = @allocated broadcast!(+, y, x, x, 3)
             @test alloc == 0
@@ -48,15 +47,6 @@ pencils = (
         P = parent(A) :: Array
         @test typeof(P .+ A) == typeof(A)
         @test P .+ A == 2A
-
-        # Combine PencilArray and GlobalPencilArray
-        @test_throws ArgumentError A .+ G
-        # @test typeof(A .+ G) == typeof(G .+ A) == typeof(A)  # PencilArray wins
-        # @test A .+ G == 2A
-
-        # Combine Array and GlobalPencilArray
-        @test typeof(P .+ G) == typeof(G) == typeof(2G)
-        @test P .+ G == 2G
     end
 
     @testset "GPU arrays" begin

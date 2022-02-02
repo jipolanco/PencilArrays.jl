@@ -12,36 +12,27 @@ using Base.Broadcast:
     BroadcastStyle, Broadcasted,
     AbstractArrayStyle, DefaultArrayStyle
 
-abstract type AbstractPencilArrayStyle{N} <: AbstractArrayStyle{N} end
+struct PencilArrayStyle{N} <: AbstractArrayStyle{N} end
 
-struct PencilArrayStyle{N} <: AbstractPencilArrayStyle{N} end
-struct GlobalPencilArrayStyle{N} <: AbstractPencilArrayStyle{N} end
-
-struct PencilArrayBroadcastable{T, N, A <: Union{PencilArray, GlobalPencilArray}}
+struct PencilArrayBroadcastable{T, N, A <: PencilArray{T, N}}
     data :: A
-    PencilArrayBroadcastable(u::AbstractArray{T, N}) where {T, N} =
+    PencilArrayBroadcastable(u::PencilArray{T, N}) where {T, N} =
         new{T, N, typeof(u)}(u)
 end
 
 _actual_parent(u::PencilArray) = parent(u)
-_actual_parent(u::GlobalPencilArray) = parent(parent(u))
 _actual_parent(bc::PencilArrayBroadcastable) = _actual_parent(bc.data)
 
-Broadcast.broadcastable(x::Union{PencilArray, GlobalPencilArray}) =
-    PencilArrayBroadcastable(x)
+Broadcast.broadcastable(x::PencilArray) = PencilArrayBroadcastable(x)
 
-Base.axes(bc::PencilArrayBroadcastable{Union{PencilArray, GlobalPencilArray}}) =
-    axes(_actual_parent(bc))
+Base.axes(bc::PencilArrayBroadcastable{PencilArray}) = axes(_actual_parent(bc))
 Base.eltype(::Type{<:PencilArrayBroadcastable{T}}) where {T} = T
 Base.ndims(::Type{<:PencilArrayBroadcastable{T, N}}) where {T, N} = N
 Base.size(bc::PencilArrayBroadcastable) = size(_actual_parent(bc))
 Base.@propagate_inbounds Base.getindex(bc::PencilArrayBroadcastable, inds...) =
     _actual_parent(bc)[inds...]
 
-function Broadcast.materialize!(
-        u::Union{PencilArray, GlobalPencilArray},
-        bc_in::Broadcasted,
-    )
+function Broadcast.materialize!(u::PencilArray, bc_in::Broadcasted)
     dest = _actual_parent(u)
     bc = _unwrap_pa(bc_in)
     Broadcast.materialize!(dest, bc)
@@ -52,9 +43,7 @@ end
 # This is to make sure that the right `copyto!` is called.
 # For GPU arrays, this enables the use of the `copyto!` implementation in
 # GPUArrays.jl, avoiding scalar indexing.
-function Base.copyto!(
-        dest_in::Union{PencilArray, GlobalPencilArray}, bc_in::Broadcasted{Nothing},
-    )
+function Base.copyto!(dest_in::PencilArray, bc_in::Broadcasted{Nothing})
     dest = _actual_parent(dest_in)
     bc = _unwrap_pa(bc_in)
     copyto!(dest, bc)
@@ -76,27 +65,15 @@ _unwrap_pa(u) = u
 
 BroadcastStyle(::Type{<:PencilArrayBroadcastable{T, N, <:PencilArray}}) where {T, N} =
     PencilArrayStyle{N}()
-BroadcastStyle(::Type{<:PencilArrayBroadcastable{T, N, <:GlobalPencilArray}}) where {T, N} =
-    GlobalPencilArrayStyle{N}()
 
-# AbstractPencilArrayStyle wins against other array styles
-BroadcastStyle(style::AbstractPencilArrayStyle, ::AbstractArrayStyle) = style
+# PencilArrayStyle wins against other array styles
+BroadcastStyle(style::PencilArrayStyle, ::AbstractArrayStyle) = style
 
 # This is needed to avoid ambiguities
-BroadcastStyle(style::AbstractPencilArrayStyle, ::DefaultArrayStyle) = style
-
-# TODO can this be allowed?
-# Make PencilArray and GlobalPencilArray incompatible for broadcasting.
-# Without this, broadcasting will work with 1 MPI process, but fail with more
-# (with an error by OffsetArrays), which is annoying when testing code.
-function BroadcastStyle(::GlobalPencilArrayStyle, ::PencilArrayStyle)
-    throw(ArgumentError(
-        "cannot combine PencilArray and GlobalPencilArray in broadcast"
-    ))
-end
+BroadcastStyle(style::PencilArrayStyle, ::DefaultArrayStyle) = style
 
 function Base.similar(
-        bc::Broadcasted{<:AbstractPencilArrayStyle}, ::Type{T},
+        bc::Broadcasted{<:PencilArrayStyle}, ::Type{T},
     ) where {T}
     br = find_pa(bc) :: PencilArrayBroadcastable
     A = br.data
@@ -108,7 +85,7 @@ function Base.similar(
     similar(A, T)
 end
 
-# Find PencilArray or GlobalPencilArray among broadcast arguments.
+# Find PencilArray among broadcast arguments.
 find_pa(bc::Broadcasted) = find_pa(bc.args)
 find_pa(args::Tuple) = find_pa(find_pa(args[1]), Base.tail(args))
 find_pa(x) = x
