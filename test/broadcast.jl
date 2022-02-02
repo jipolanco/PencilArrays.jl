@@ -3,10 +3,9 @@ using PencilArrays
 using Random
 using Test
 
-# TODO test this?
-# using GPUArrays
-# include("include/jlarray.jl")
-# using .JLArrays
+using GPUArrays
+include("include/jlarray.jl")
+using .JLArrays
 
 MPI.Init()
 
@@ -58,5 +57,28 @@ pencils = (
         # Combine Array and GlobalPencilArray
         @test typeof(P .+ G) == typeof(G) == typeof(2G)
         @test P .+ G == 2G
+    end
+
+    @testset "GPU arrays" begin
+        pp = Pencil(JLArray, pen)
+        u = PencilArray{Float32}(undef, pp)
+        randn!(u)
+
+        # Some basic stuff that should work without scalar indexing
+        # (Nothing to do with broadcasting though...)
+        v = @test_nowarn copy(u)
+        @test typeof(v) === typeof(u)
+        @test_nowarn v == u
+        @test v == u
+        @test v ≈ u
+
+        @test parent(u) isa JLArray
+        @test_nowarn u .+ u  # should avoid scalar indexing
+        @test u .+ u == 2u
+        @test typeof(u .+ u) == typeof(u)
+
+        @test_nowarn v .= u .+ 2u
+        @test typeof(v) == typeof(u)
+        @test parent(v) ≈ 3parent(u)
     end
 end

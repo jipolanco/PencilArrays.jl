@@ -32,27 +32,47 @@ Broadcast.broadcastable(x::Union{PencilArray, GlobalPencilArray}) =
 
 Base.axes(bc::PencilArrayBroadcastable{Union{PencilArray, GlobalPencilArray}}) =
     axes(_actual_parent(bc))
-Base.ndims(::Type{PencilArrayBroadcastable{T, N}}) where {T, N} = N
+Base.eltype(::Type{<:PencilArrayBroadcastable{T}}) where {T} = T
+Base.ndims(::Type{<:PencilArrayBroadcastable{T, N}}) where {T, N} = N
 Base.size(bc::PencilArrayBroadcastable) = size(_actual_parent(bc))
 Base.@propagate_inbounds Base.getindex(bc::PencilArrayBroadcastable, inds...) =
     _actual_parent(bc)[inds...]
-Base.@propagate_inbounds Base.setindex!(bc::PencilArrayBroadcastable, args...) =
-    setindex!(_actual_parent(bc), args...)
-Base.similar(bc::PencilArrayBroadcastable, ::Type{T}) where {T} =
-    PencilArrayBroadcastable(similar(bc.data, T))
 
 function Broadcast.materialize!(
         u::Union{PencilArray, GlobalPencilArray},
-        bc::Broadcasted,
+        bc_in::Broadcasted,
     )
-    Broadcast.materialize!(_actual_parent(u), bc)
+    dest = _actual_parent(u)
+    bc = _unwrap_pa(bc_in)
+    Broadcast.materialize!(dest, bc)
     u
 end
 
-function Broadcast.materialize(bc::Broadcasted{<:AbstractPencilArrayStyle})
-    u = copy(Broadcast.instantiate(bc)) :: PencilArrayBroadcastable
-    u.data
+# When materialising the broadcast, we unwrap all arrays wrapped by PencilArrays.
+# This is to make sure that the right `copyto!` is called.
+# For GPU arrays, this enables the use of the `copyto!` implementation in
+# GPUArrays.jl, avoiding scalar indexing.
+function Base.copyto!(
+        dest_in::Union{PencilArray, GlobalPencilArray}, bc_in::Broadcasted{Nothing},
+    )
+    dest = _actual_parent(dest_in)
+    bc = _unwrap_pa(bc_in)
+    copyto!(dest, bc)
+    dest_in
 end
+
+function _unwrap_pa(bc::Broadcasted{Style}) where {Style}
+    args = map(_unwrap_pa, bc.args)
+    axs = axes(bc)
+    if Style === Nothing
+        Broadcasted{Nothing}(bc.f, args, axs)  # used by copyto!
+    else
+        Broadcasted(bc.f, args, axs)  # used by materialize!
+    end
+end
+
+_unwrap_pa(u::PencilArrayBroadcastable) = _actual_parent(u)
+_unwrap_pa(u) = u
 
 BroadcastStyle(::Type{<:PencilArrayBroadcastable{T, N, <:PencilArray}}) where {T, N} =
     PencilArrayStyle{N}()
@@ -78,9 +98,12 @@ end
 function Base.similar(
         bc::Broadcasted{<:AbstractPencilArrayStyle}, ::Type{T},
     ) where {T}
-    A = find_pa(bc)
-    if axes(bc) != axes(A)
-        throw(DimensionMismatch("arrays cannot be broadcast; got axes $(axes(bc)) and $(axes(A))"))
+    br = find_pa(bc) :: PencilArrayBroadcastable
+    A = br.data
+    axs_a = permutation(A) * axes(A)  # in memory order
+    axs_b = axes(bc)
+    if axs_a ≠ axs_b
+        throw(DimensionMismatch("arrays cannot be broadcast; got axes $axs_a and $axs_b"))
     end
     similar(A, T)
 end
