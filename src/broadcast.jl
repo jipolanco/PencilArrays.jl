@@ -91,31 +91,3 @@ find_pa(args::Tuple) = find_pa(find_pa(args[1]), Base.tail(args))
 find_pa(x) = x
 find_pa(::Any, rest) = find_pa(rest)
 find_pa(A::PencilArrayBroadcastable, rest) = A
-
-# When materialising the broadcast, we unwrap all arrays wrapped by PencilArrays.
-# This is to make sure that the right `copyto!` is called.
-# For GPU arrays, this enables the use of the `copyto!` implementation in
-# GPUArrays.jl, avoiding scalar indexing.
-function Base.copyto!(dest_in::PencilArray, bc_in::Broadcasted{Nothing})
-    dest = _unwrap_pa(dest_in)
-    perm = permutation(dest_in)
-    bc = _unwrap_pa(bc_in, perm)
-    @show bc
-    copyto!(dest, bc)
-    dest_in
-end
-
-function _unwrap_pa(bc::Broadcasted{Nothing}, perm)
-    args = map(_unwrap_pa, bc.args)
-    axs = perm * axes(bc)  # apply possible permutation
-    Broadcasted{Nothing}(bc.f, args, axs)
-end
-
-_unwrap_pa(u::PencilArray) = parent(u)
-_unwrap_pa(u::GlobalPencilArray) = _unwrap_pa(parent(u))
-_unwrap_pa(u) = u
-
-function Base.copyto!(dest::GlobalPencilArray, bc::Broadcasted{Nothing})
-    copyto!(parent(dest), bc)
-    dest
-end
