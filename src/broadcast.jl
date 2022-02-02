@@ -25,12 +25,8 @@ _actual_parent(bc::PencilArrayBroadcastable) = _actual_parent(bc.data)
 
 Broadcast.broadcastable(x::PencilArray) = PencilArrayBroadcastable(x)
 
-Base.axes(bc::PencilArrayBroadcastable{PencilArray}) = axes(_actual_parent(bc))
 Base.eltype(::Type{<:PencilArrayBroadcastable{T}}) where {T} = T
-Base.ndims(::Type{<:PencilArrayBroadcastable{T, N}}) where {T, N} = N
 Base.size(bc::PencilArrayBroadcastable) = size(_actual_parent(bc))
-Base.@propagate_inbounds Base.getindex(bc::PencilArrayBroadcastable, inds...) =
-    _actual_parent(bc)[inds...]
 
 function Broadcast.materialize!(u::PencilArray, bc_in::Broadcasted)
     dest = _actual_parent(u)
@@ -79,9 +75,8 @@ function Base.similar(
     A = br.data
     axs_a = permutation(A) * axes(A)  # in memory order
     axs_b = axes(bc)
-    if axs_a ≠ axs_b
+    axs_a == axs_b ||
         throw(DimensionMismatch("arrays cannot be broadcast; got axes $axs_a and $axs_b"))
-    end
     similar(A, T)
 end
 
