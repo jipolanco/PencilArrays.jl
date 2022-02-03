@@ -71,6 +71,12 @@ For more details, see for instance [the gradient
 example](https://jipolanco.github.io/PencilFFTs.jl/stable/examples/gradient/#gradient_method_global)
 in the PencilFFTs docs.
 
+!!! warning "Global views"
+
+    Regular `PencilArray`s have more functionality than global view wrappers.
+    This includes broadcasting, which is currently not supported for global views.
+    In general it should be preferred to work with `PencilArray`s.
+
 ## Types
 
 ```@docs

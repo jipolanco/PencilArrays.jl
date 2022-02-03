@@ -1,34 +1,43 @@
-#!/usr/bin/env julia
-
 using MPI
 using PencilArrays
 using Random
 using Test
 
+using GPUArrays
+include("include/jlarray.jl")
+using .JLArrays
+
 MPI.Init()
 
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
-Nproc = MPI.Comm_size(comm)
+rank == 0 || redirect_stdout(devnull)
 
-let dev_null = @static Sys.iswindows() ? "nul" : "/dev/null"
-    rank == 0 || redirect_stdout(open(dev_null, "w"))
-end
+topo = MPITopology(comm, Val(1))
 
-function test_pencil(pen)
+dims = (11, 12, 2)
+perm = Permutation(2, 3, 1)
+@assert inv(perm) != perm
+
+pencils = (
+    "Non-permuted" => Pencil(topo, dims, (2, )),
+    "Permuted" => Pencil(topo, dims, (2, ); permute = perm),
+)
+
+@testset "$s" for (s, pen) in pencils
     A = PencilArray{Float64}(undef, pen)
-    G = global_view(A)
     randn!(A)
-    perm = Tuple(permutation(A))
+    perm = permutation(A)
 
-    @testset "Broadcast $(nameof(typeof(x)))" for x in (A, G)
-        test_broadcast(x)
-        let y = similar(x)
+    @testset "Broadcast" begin
+        @test typeof(2A) == typeof(A)
+        @test typeof(A .+ A) == typeof(A)
+        @test typeof(A .+ A .+ 3) == typeof(A)
+        @test parent(2A) == 2parent(A)
+        let x = A, y = similar(x)
             broadcast!(+, y, x, x, 3)  # precompile before measuring allocations
             alloc = @allocated broadcast!(+, y, x, x, 3)
-            if VERSION ≥ v"1.5"  # there are small allocations in Julia 1.3
-                @test alloc == 0
-            end
+            @test alloc == 0
             @test y ≈ 2x .+ 3
         end
     end
@@ -36,32 +45,30 @@ function test_pencil(pen)
     @testset "Combinations" begin
         # Combine with regular Array
         P = parent(A) :: Array
-        P′ = perm === nothing ? P : PermutedDimsArray(P, perm)
-        @test typeof(P′ .+ A) == typeof(A)
-
-        # Combine PencilArray and GlobalPencilArray
-        @test_throws ArgumentError A .+ G
-
-        # Combine Array and GlobalPencilArray
-        @test_throws ArgumentError P .+ G
+        @test typeof(P .+ A) == typeof(A)
+        @test P .+ A == 2A
     end
-end
 
-function test_broadcast(A)
-    @test typeof(2A) == typeof(A)
-    @test typeof(A .+ A) == typeof(A)
-    @test typeof(A .+ A .+ 3) == typeof(A)
-    @test parent(2A) == 2parent(A)
-    nothing
-end
+    @testset "GPU arrays" begin
+        pp = Pencil(JLArray, pen)
+        u = PencilArray{Float32}(undef, pp)
+        randn!(u)
 
-topo = MPITopology(comm, (Nproc, ))
+        # Some basic stuff that should work without scalar indexing
+        # (Nothing to do with broadcasting though...)
+        v = @test_nowarn copy(u)
+        @test typeof(v) === typeof(u)
+        @test_nowarn v == u
+        @test v == u
+        @test v ≈ u
 
-pencils = (
-    "Non-permuted" => Pencil(topo, (11, 12), (2, )),
-    "Permuted" => Pencil(topo, (11, 12), (2, ), permute=Permutation(2, 1)),
-)
+        @test parent(u) isa JLArray
+        @test_nowarn u .+ u  # should avoid scalar indexing
+        @test u .+ u == 2u
+        @test typeof(u .+ u) == typeof(u)
 
-@testset "$s" for (s, pen) in pencils
-    test_pencil(pen)
+        @test_nowarn v .= u .+ 2u
+        @test typeof(v) == typeof(u)
+        @test parent(v) ≈ 3parent(u)
+    end
 end

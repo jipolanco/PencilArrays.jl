@@ -484,7 +484,34 @@ Get [`MPITopology`](@ref) associated to a `PencilArray`.
 """
 topology(x::MaybePencilArrayCollection) = topology(pencil(x))
 
+## Common array operations
+# We try to avoid falling onto the generic AbstractArray interface, because it
+# generally uses scalar indexing which is not liked by GPU arrays.
 Base.zero(x::PencilArray) = fill!(similar(x), zero(eltype(x)))
+
+function _check_compatible_arrays(x::PencilArray, y::PencilArray)
+    # The condition is stronger than needed, but it's pretty common for arrays
+    # to share the same Pencil, and it's more efficient to compare this way.
+    pencil(x) === pencil(y) ||
+        throw(ArgumentError("arrays are not compatible"))
+end
+
+function Base.copyto!(x::PencilArray, y::PencilArray)
+    _check_compatible_arrays(x, y)
+    copyto!(parent(x), parent(y))
+    x
+end
+
+# Should this be an equality across all MPI processes?
+function Base.:(==)(x::PencilArray, y::PencilArray)
+    _check_compatible_arrays(x, y)
+    parent(x) == parent(y)
+end
+
+function Base.isapprox(x::PencilArray, y::PencilArray; kws...)
+    _check_compatible_arrays(x, y)
+    isapprox(parent(x), parent(y); kws...)
+end
 
 function Base.fill!(A::PencilArray, x)
     fill!(parent(A), x)
