@@ -298,253 +298,248 @@ function compare_distributed_arrays(u_local::PencilArray, v_local::PencilArray)
     same[]
 end
 
-function main()
-    Nxyz = (16, 21, 41)
+MPI.Init()
+
+Nxyz = (16, 21, 41)
+comm = MPI.COMM_WORLD
+Nproc = MPI.Comm_size(comm)
+myrank = MPI.Comm_rank(comm)
+
+MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
+
+rng = MersenneTwister(42 + myrank)
+
+# Let MPI_Dims_create choose the values of (P1, P2).
+proc_dims = MPITopologies.dims_create(comm, Val(2))
+
+# Note that using dims_create is the default in MPITopology
+@test MPITopology(comm, proc_dims) == MPITopology(comm, Val(2))
+
+@test_throws ArgumentError MPITopology(comm, proc_dims .- 1)
+@test_throws ArgumentError MPITopology(comm, proc_dims .+ 1)
+topo = MPITopology(comm, proc_dims)
+@test match(
+    r"^MPI topology: 2D decomposition \(\d+×\d+ processes\)$",
+    string(topo),
+) !== nothing
+@test ndims(topo) == length(proc_dims) == 2
+
+pen1 = @inferred Pencil(topo, Nxyz)
+let p = @inferred Pencil(topo, Nxyz, (2, 3))  # this is the default decomposition
+    @test decomposition(p) === decomposition(pen1)
+end
+pen2 = @inferred Pencil(pen1, decomp_dims=(1, 3), permute=Permutation(2, 3, 1))
+pen3 = @inferred Pencil(pen2, decomp_dims=(1, 2), permute=Permutation(3, 2, 1))
+
+@test match(r"Pencil{3, 2, NoPermutation, Vector{\w+}}", summary(pen1)) !== nothing
+@test match(r"Pencil{3, 2, Permutation{.*}, Vector{\w+}}", summary(pen2)) !== nothing
+
+println("Pencil 1: ", pen1, "\n")
+println("Pencil 2: ", pen2, "\n")
+println("Pencil 3: ", pen3, "\n")
+
+@testset "Pencil constructors" begin
     comm = MPI.COMM_WORLD
-    Nproc = MPI.Comm_size(comm)
-    myrank = MPI.Comm_rank(comm)
 
-    MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
+    p = @inferred Pencil((5, 4, 4, 3), comm)
+    @test decomposition(p) == (2, 3, 4)
+    @test ndims(topology(p)) == 3
+    @test permutation(p) == NoPermutation()
 
-    rng = MersenneTwister(42 + myrank)
+    p = @inferred Pencil((5, 4, 4, 3), comm;
+                         permute = Permutation(2, 3, 4, 1))
+    @test decomposition(p) == (2, 3, 4)
+    @test ndims(topology(p)) == 3
+    @test permutation(p) == Permutation(2, 3, 4, 1)
 
-    # Let MPI_Dims_create choose the values of (P1, P2).
-    proc_dims = MPITopologies.dims_create(comm, Val(2))
-
-    # Note that using dims_create is the default in MPITopology
-    @test MPITopology(comm, proc_dims) == MPITopology(comm, Val(2))
-
-    @test_throws ArgumentError MPITopology(comm, proc_dims .- 1)
-    @test_throws ArgumentError MPITopology(comm, proc_dims .+ 1)
-    topo = MPITopology(comm, proc_dims)
-    @test match(
-        r"^MPI topology: 2D decomposition \(\d+×\d+ processes\)$",
-        string(topo),
-    ) !== nothing
-    @test ndims(topo) == length(proc_dims) == 2
-
-    pen1 = @inferred Pencil(topo, Nxyz)
-    let p = @inferred Pencil(topo, Nxyz, (2, 3))  # this is the default decomposition
-        @test decomposition(p) === decomposition(pen1)
-    end
-    pen2 = @inferred Pencil(pen1, decomp_dims=(1, 3), permute=Permutation(2, 3, 1))
-    pen3 = @inferred Pencil(pen2, decomp_dims=(1, 2), permute=Permutation(3, 2, 1))
-
-    @test match(r"Pencil{3, 2, NoPermutation}", summary(pen1)) !== nothing
-    @test match(r"Pencil{3, 2, Permutation{.*}}", summary(pen2)) !== nothing
-
-    println("Pencil 1: ", pen1, "\n")
-    println("Pencil 2: ", pen2, "\n")
-    println("Pencil 3: ", pen3, "\n")
-
-    @testset "Pencil constructors" begin
-        comm = MPI.COMM_WORLD
-
-        p = @inferred Pencil((5, 4, 4, 3), comm)
-        @test decomposition(p) == (2, 3, 4)
-        @test ndims(topology(p)) == 3
-        @test permutation(p) == NoPermutation()
-
-        p = @inferred Pencil((5, 4, 4, 3), comm;
-                             permute = Permutation(2, 3, 4, 1))
-        @test decomposition(p) == (2, 3, 4)
-        @test ndims(topology(p)) == 3
-        @test permutation(p) == Permutation(2, 3, 4, 1)
-
-        p = @inferred Pencil((5, 4, 4, 3), (2, 3), comm;
-                             permute = Permutation(2, 3, 4, 1))
-        @test decomposition(p) == (2, 3)
-        @test ndims(topology(p)) == 2
-        @test permutation(p) == Permutation(2, 3, 4, 1)
-    end
-
-    @testset "ManyPencilArray" begin
-        test_multiarrays(pen1, pen2, pen3)
-    end
-
-    @testset "Topology" begin
-        @test topology(pen2) === topo
-        @test range_remote(pen2, coords_local(topo)) == range_local(pen2)
-        @test eachindex(topo) isa LinearIndices
-        for (n, I) in zip(eachindex(topo), CartesianIndices(topo))
-            for order in (MemoryOrder(), LogicalOrder())
-                @test range_remote(pen2, Tuple(I), order) ==
-                    range_remote(pen2, n, order)
-            end
-        end
-    end
-
-    # Note: the permutation of pen2 was chosen such that the inverse permutation
-    # is different.
-    @assert permutation(pen2) != inv(permutation(pen2))
-
-    @testset "Pencil constructor checks" begin
-        # Too many decomposed directions
-        @test_throws ArgumentError Pencil(
-            MPITopology(comm, (Nproc, 1, 1)), Nxyz, (1, 2, 3))
-
-        # Invalid permutations
-        @test_throws TypeError Pencil(
-            topo, Nxyz, (1, 2), permute=(2, 3, 1))
-        @test_throws ArgumentError Pencil(
-            topo, Nxyz, (1, 2), permute=Permutation(0, 3, 15))
-
-        # Decomposed dimensions may not be repeated.
-        @test_throws ArgumentError Pencil(topo, Nxyz, (2, 2))
-
-        # Decomposed dimensions must be in 1:N = 1:3.
-        @test_throws ArgumentError Pencil(topo, Nxyz, (1, 4))
-        @test_throws ArgumentError Pencil(topo, Nxyz, (0, 2))
-
-        @test Pencils.complete_dims(Val(5), (2, 3), (42, 12)) ===
-            (1, 42, 12, 1, 1)
-    end
-
-    @testset "Pencil" begin
-        for p ∈ (pen1, pen2, pen3)
-            @test size(p) === size_global(p, LogicalOrder())
-            @test length(p) === prod(size(p))
-            @inferred (p -> p.send_buf)(p)
-        end
-    end
-
-    @testset "PencilArray" begin
-        test_array_wrappers(pen1)
-        test_array_wrappers(pen2)
-        test_array_wrappers(pen3)
-    end
-
-    transpose_methods = (Transpositions.PointToPoint(),
-                         Transpositions.Alltoallv())
-
-    @testset "transpose! $method" for method in transpose_methods
-        T = Float64
-        u1 = PencilArray{T}(undef, pen1)
-        u2 = PencilArray{T}(undef, pen2)
-        u3 = PencilArray{T}(undef, pen3)
-
-        # Set initial random data.
-        randn!(rng, u1)
-        u1 .+= 10 * myrank
-        u1_orig = copy(u1)
-
-        # Direct u1 -> u3 transposition is not possible!
-        @test_throws ArgumentError transpose!(u3, u1, method=method)
-
-        # Transpose back and forth between different pencil configurations
-        transpose!(u2, u1, method=method)
-        @test compare_distributed_arrays(u1, u2)
-
-        transpose!(u3, u2, method=method)
-        @test compare_distributed_arrays(u2, u3)
-
-        transpose!(u2, u3, method=method)
-        @test compare_distributed_arrays(u2, u3)
-
-        transpose!(u1, u2, method=method)
-        @test compare_distributed_arrays(u1, u2)
-
-        @test u1_orig == u1
-
-        # Test transpositions without permutations.
-        let pen2 = Pencil(pen1, decomp_dims=(1, 3))
-            u2 = PencilArray{T}(undef, pen2)
-            transpose!(u2, u1, method=method)
-            @test compare_distributed_arrays(u1, u2)
-        end
-
-    end
-
-    # Test arrays with extra dimensions.
-    @testset "extra dimensions" begin
-        T = Float32
-        u1 = PencilArray{T}(undef, pen1, 3, 4)
-        u2 = PencilArray{T}(undef, pen2, 3, 4)
-        u3 = PencilArray{T}(undef, pen3, 3, 4)
-        @test range_local(u2) ===
-            (range_local(pen2)..., Base.OneTo.((3, 4))...)
-        @test range_remote(u2, 1) ===
-            (range_remote(pen2, 1)..., Base.OneTo.((3, 4))...)
-        randn!(rng, u1)
-        transpose!(u2, u1)
-        @test compare_distributed_arrays(u1, u2)
-        transpose!(u3, u2)
-        @test compare_distributed_arrays(u2, u3)
-
-        for v in (u1, u2, u3)
-            @test check_iteration_order(v)
-        end
-
-        @inferred global_view(u1)
-    end
-
-    # Test slab (1D) decomposition.
-    @testset "1D decomposition" begin
-        T = Float32
-        topo = MPITopology(comm, (Nproc, ))
-        @test ndims(topo) == 1
-
-        pen1 = Pencil(topo, Nxyz, (1, ))
-        pen2 = Pencil(pen1, decomp_dims=(2, ))
-
-        # Same decomposed dimension as pen2, but different permutation.
-        pen3 = Pencil(pen2, permute=Permutation(3, 2, 1))
-
-        u1 = PencilArray{T}(undef, pen1)
-        u2 = @inferred similar(u1, pen2)
-        u3 = @inferred similar(u1, pen3)
-
-        @test pencil(u2) === pen2
-        @test pencil(u3) === pen3
-
-        randn!(rng, u1)
-        transpose!(u2, u1)
-        @test compare_distributed_arrays(u1, u2)
-
-        transpose!(u3, u2)
-        @test compare_distributed_arrays(u1, u3)
-        @test check_iteration_order(u3)
-
-        # Test transposition between two identical configurations.
-        transpose!(u2, u2)
-        @test compare_distributed_arrays(u1, u2)
-
-        let v = similar(u2)
-            @test pencil(u2) === pencil(v)
-            transpose!(v, u2)
-            @test compare_distributed_arrays(u1, v)
-        end
-
-        test_multiarrays(pen1, pen2, pen3)
-    end
-
-    begin
-        periods = zeros(Int, length(proc_dims))
-        comm_cart = MPI.Cart_create(comm, collect(proc_dims), periods, false)
-        @inferred MPITopologies.create_subcomms(Val(2), comm_cart)
-        @test_throws ArgumentError MPITopology{3}(comm_cart)  # wrong dimensionality
-        @inferred MPITopology{2}(comm_cart)
-        @inferred MPITopologies.get_cart_ranks_subcomm(pen1.topology.subcomms[1])
-
-        @inferred PencilArrays.to_local(pen2, (1:2, 1:2, 1:2), MemoryOrder())
-        @inferred PencilArrays.to_local(pen2, (1:2, 1:2, 1:2), LogicalOrder())
-
-        @inferred PencilArrays.size_local(pen2, MemoryOrder())
-
-        T = Int
-        @inferred PencilArray{T}(undef, pen2)
-        @inferred PencilArray{T}(undef, pen2, 3, 4)
-
-        u1 = PencilArray{T}(undef, pen1)
-        u2 = similar(u1, pen2)
-
-        @inferred Nothing gather(u2)
-        @inferred transpose!(u2, u1)
-        @inferred Transpositions.get_remote_indices(1, (2, 3), 8)
-    end
-
-    nothing
+    p = @inferred Pencil((5, 4, 4, 3), (2, 3), comm;
+                         permute = Permutation(2, 3, 4, 1))
+    @test decomposition(p) == (2, 3)
+    @test ndims(topology(p)) == 2
+    @test permutation(p) == Permutation(2, 3, 4, 1)
 end
 
-MPI.Init()
-main()
+@testset "ManyPencilArray" begin
+    test_multiarrays(pen1, pen2, pen3)
+end
+
+@testset "Topology" begin
+    @test topology(pen2) === topo
+    @test range_remote(pen2, coords_local(topo)) == range_local(pen2)
+    @test eachindex(topo) isa LinearIndices
+    for (n, I) in zip(eachindex(topo), CartesianIndices(topo))
+        for order in (MemoryOrder(), LogicalOrder())
+            @test range_remote(pen2, Tuple(I), order) ==
+                range_remote(pen2, n, order)
+        end
+    end
+end
+
+# Note: the permutation of pen2 was chosen such that the inverse permutation
+# is different.
+@assert permutation(pen2) != inv(permutation(pen2))
+
+@testset "Pencil constructor checks" begin
+    # Too many decomposed directions
+    @test_throws ArgumentError Pencil(
+        MPITopology(comm, (Nproc, 1, 1)), Nxyz, (1, 2, 3))
+
+    # Invalid permutations
+    @test_throws TypeError Pencil(
+        topo, Nxyz, (1, 2), permute=(2, 3, 1))
+    @test_throws ArgumentError Pencil(
+        topo, Nxyz, (1, 2), permute=Permutation(0, 3, 15))
+
+    # Decomposed dimensions may not be repeated.
+    @test_throws ArgumentError Pencil(topo, Nxyz, (2, 2))
+
+    # Decomposed dimensions must be in 1:N = 1:3.
+    @test_throws ArgumentError Pencil(topo, Nxyz, (1, 4))
+    @test_throws ArgumentError Pencil(topo, Nxyz, (0, 2))
+
+    @test Pencils.complete_dims(Val(5), (2, 3), (42, 12)) ===
+        (1, 42, 12, 1, 1)
+end
+
+@testset "Pencil" begin
+    for p ∈ (pen1, pen2, pen3)
+        @test size(p) === size_global(p, LogicalOrder())
+        @test length(p) === prod(size(p))
+        @inferred (p -> p.send_buf)(p)
+    end
+end
+
+@testset "PencilArray" begin
+    test_array_wrappers(pen1)
+    test_array_wrappers(pen2)
+    test_array_wrappers(pen3)
+end
+
+transpose_methods = (Transpositions.PointToPoint(),
+                     Transpositions.Alltoallv())
+
+@testset "transpose! $method" for method in transpose_methods
+    T = Float64
+    u1 = PencilArray{T}(undef, pen1)
+    u2 = PencilArray{T}(undef, pen2)
+    u3 = PencilArray{T}(undef, pen3)
+
+    # Set initial random data.
+    randn!(rng, u1)
+    u1 .+= 10 * myrank
+    u1_orig = copy(u1)
+
+    # Direct u1 -> u3 transposition is not possible!
+    @test_throws ArgumentError transpose!(u3, u1, method=method)
+
+    # Transpose back and forth between different pencil configurations
+    transpose!(u2, u1, method=method)
+    @test compare_distributed_arrays(u1, u2)
+
+    transpose!(u3, u2, method=method)
+    @test compare_distributed_arrays(u2, u3)
+
+    transpose!(u2, u3, method=method)
+    @test compare_distributed_arrays(u2, u3)
+
+    transpose!(u1, u2, method=method)
+    @test compare_distributed_arrays(u1, u2)
+
+    @test u1_orig == u1
+
+    # Test transpositions without permutations.
+    let pen2 = Pencil(pen1, decomp_dims=(1, 3))
+        u2 = PencilArray{T}(undef, pen2)
+        transpose!(u2, u1, method=method)
+        @test compare_distributed_arrays(u1, u2)
+    end
+
+end
+
+# Test arrays with extra dimensions.
+@testset "extra dimensions" begin
+    T = Float32
+    u1 = PencilArray{T}(undef, pen1, 3, 4)
+    u2 = PencilArray{T}(undef, pen2, 3, 4)
+    u3 = PencilArray{T}(undef, pen3, 3, 4)
+    @test range_local(u2) ===
+        (range_local(pen2)..., Base.OneTo.((3, 4))...)
+    @test range_remote(u2, 1) ===
+        (range_remote(pen2, 1)..., Base.OneTo.((3, 4))...)
+    randn!(rng, u1)
+    transpose!(u2, u1)
+    @test compare_distributed_arrays(u1, u2)
+    transpose!(u3, u2)
+    @test compare_distributed_arrays(u2, u3)
+
+    for v in (u1, u2, u3)
+        @test check_iteration_order(v)
+    end
+
+    @inferred global_view(u1)
+end
+
+# Test slab (1D) decomposition.
+@testset "1D decomposition" begin
+    T = Float32
+    topo = MPITopology(comm, (Nproc, ))
+    @test ndims(topo) == 1
+
+    pen1 = Pencil(topo, Nxyz, (1, ))
+    pen2 = Pencil(pen1, decomp_dims=(2, ))
+
+    # Same decomposed dimension as pen2, but different permutation.
+    pen3 = Pencil(pen2, permute=Permutation(3, 2, 1))
+
+    u1 = PencilArray{T}(undef, pen1)
+    u2 = @inferred similar(u1, pen2)
+    u3 = @inferred similar(u1, pen3)
+
+    @test pencil(u2) === pen2
+    @test pencil(u3) === pen3
+
+    randn!(rng, u1)
+    transpose!(u2, u1)
+    @test compare_distributed_arrays(u1, u2)
+
+    transpose!(u3, u2)
+    @test compare_distributed_arrays(u1, u3)
+    @test check_iteration_order(u3)
+
+    # Test transposition between two identical configurations.
+    transpose!(u2, u2)
+    @test compare_distributed_arrays(u1, u2)
+
+    let v = similar(u2)
+        @test pencil(u2) === pencil(v)
+        transpose!(v, u2)
+        @test compare_distributed_arrays(u1, v)
+    end
+
+    test_multiarrays(pen1, pen2, pen3)
+end
+
+@testset "Inference" begin
+    periods = zeros(Int, length(proc_dims))
+    comm_cart = MPI.Cart_create(comm, collect(proc_dims), periods, false)
+    @inferred MPITopologies.create_subcomms(Val(2), comm_cart)
+    @test_throws ArgumentError MPITopology{3}(comm_cart)  # wrong dimensionality
+    @inferred MPITopology{2}(comm_cart)
+    @inferred MPITopologies.get_cart_ranks_subcomm(pen1.topology.subcomms[1])
+
+    @inferred PencilArrays.to_local(pen2, (1:2, 1:2, 1:2), MemoryOrder())
+    @inferred PencilArrays.to_local(pen2, (1:2, 1:2, 1:2), LogicalOrder())
+
+    @inferred PencilArrays.size_local(pen2, MemoryOrder())
+
+    T = Int
+    @inferred PencilArray{T}(undef, pen2)
+    @inferred PencilArray{T}(undef, pen2, 3, 4)
+
+    u1 = PencilArray{T}(undef, pen1)
+    u2 = similar(u1, pen2)
+
+    @inferred Nothing gather(u2)
+    @inferred transpose!(u2, u1)
+    @inferred Transpositions.get_remote_indices(1, (2, 3), 8)
+end
