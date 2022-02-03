@@ -215,7 +215,10 @@ Pencil(dims::Dims{N}, comm::MPI.Comm; kws...) where {N} =
     Pencil(dims, default_decomposition(N, Val(N - 1)), comm; kws...)
 
 function Pencil(::Type{A}, args...; kws...) where {A <: AbstractArray}
-    send_buf = A{UInt8}(undef, 0)
+    # fix:
+    # not size 0 to have a valid Ptr
+    # for some type of arrays (CuArray for instance)
+    send_buf = A{UInt8}(undef, 1)
     Pencil(args...; kws..., send_buf, recv_buf = similar(send_buf))
 end
 
