@@ -17,16 +17,16 @@ ug = global_view(u)
 
 @testset "Indices" begin
     for A in (u, ug)
-        for (n, I) in zip(LinearIndices(A), CartesianIndices(A))
-            @test A[n] === A[I]
+        @test all(zip(LinearIndices(A), CartesianIndices(A))) do (n, I)
+            A[n] === A[I]
         end
 
-        for (n, v) in pairs(IndexLinear(), A)
-            @test A[n] === v
+        @test all(pairs(IndexLinear(), A)) do (n, v)
+            A[n] === v
         end
 
-        for (I, v) in pairs(IndexCartesian(), A)
-            @test A[I] === v
+        @test all(pairs(IndexCartesian(), A)) do (I, v)
+            A[I] === v
         end
     end
 end
