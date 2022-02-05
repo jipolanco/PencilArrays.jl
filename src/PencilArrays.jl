@@ -12,6 +12,9 @@ import LinearAlgebra
 include("Pencils/Pencils.jl")
 @reexport using .Pencils
 
+include("LocalGrids/LocalGrids.jl")
+@reexport using .LocalGrids
+
 import .Pencils:
     get_comm,
     permutation,
