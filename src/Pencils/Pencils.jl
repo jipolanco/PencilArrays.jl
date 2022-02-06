@@ -1,5 +1,8 @@
 module Pencils
 
+import ..Permutations: permutation
+import ..LocalGrids
+
 using StaticPermutations
 
 using MPI
@@ -418,6 +421,22 @@ function to_local(p::Pencil{N}, global_inds::ArrayRegion{N},
         (first(rg) + δ):(last(rg) + δ)
     end :: ArrayRegion{N}
     order === MemoryOrder() ? (permutation(p) * ind) : ind
+end
+
+"""
+    localgrid(p::Pencil, (x_global, y_global, ...)) -> LocalRectilinearGrid
+
+Create a [`LocalRectilinearGrid`](@ref) from a decomposition configuration and
+from a set of orthogonal global coordinates `(x_global, y_global, ...)`.
+
+In this case, each `*_global` is an `AbstractVector` describing the coordinates
+along one dimension of the global grid.
+"""
+function LocalGrids.localgrid(p::Pencil, coords_global::Tuple{Vararg{AbstractVector}})
+    perm = permutation(p)
+    ranges = range_local(p, LogicalOrder())
+    coords_local = map(view, coords_global, ranges)
+    LocalGrids.localgrid(coords_local, perm)
 end
 
 end

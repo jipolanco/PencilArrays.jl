@@ -1,5 +1,6 @@
 module PermutedIndices
 
+import ..Permutations: permutation
 using StaticPermutations
 
 export PermutedLinearIndices, PermutedCartesianIndices
@@ -25,9 +26,11 @@ struct PermutedLinearIndices{
     end
 end
 
+permutation(L::PermutedLinearIndices) = L.perm
+
 Base.length(L::PermutedLinearIndices) = length(L.data)
-Base.size(L::PermutedLinearIndices) = L.perm \ size(L.data)
-Base.axes(L::PermutedLinearIndices) = L.perm \ axes(L.data)
+Base.size(L::PermutedLinearIndices) = permutation(L) \ size(L.data)
+Base.axes(L::PermutedLinearIndices) = permutation(L) \ axes(L.data)
 Base.iterate(L::PermutedLinearIndices, args...) = iterate(L.data, args...)
 Base.lastindex(L::PermutedLinearIndices) = lastindex(L.data)
 
@@ -40,7 +43,7 @@ end
 @inline function Base.getindex(
         L::PermutedLinearIndices{N}, I::Vararg{Integer,N},
     ) where {N}
-    J = L.perm * I
+    J = permutation(L) * I
     @boundscheck checkbounds(L.data, J...)
     @inbounds L.data[J...]
 end
@@ -57,14 +60,16 @@ struct PermutedCartesianIndices{
     end
 end
 
-Base.size(C::PermutedCartesianIndices) = C.perm \ size(C.data)
-Base.axes(C::PermutedCartesianIndices) = C.perm \ axes(C.data)
+permutation(C::PermutedCartesianIndices) = C.perm
+
+Base.size(C::PermutedCartesianIndices) = permutation(C) \ size(C.data)
+Base.axes(C::PermutedCartesianIndices) = permutation(C) \ axes(C.data)
 
 @inline function Base.iterate(C::PermutedCartesianIndices, args...)
     next = iterate(C.data, args...)
     next === nothing && return nothing
     I, state = next  # `I` has permuted indices
-    J = C.perm \ I   # unpermute indices
+    J = permutation(C) \ I   # unpermute indices
     J, state
 end
 
@@ -73,7 +78,7 @@ end
 @inline function Base.getindex(C::PermutedCartesianIndices, i::Integer)
     @boundscheck checkbounds(C.data, i)
     @inbounds I = C.data[i]  # convert linear to Cartesian index (relatively slow...)
-    C.perm \ I           # unpermute indices
+    permutation(C) \ I       # unpermute indices
 end
 
 # Not sure if this is what makes the most sense, but it's consistent with the
