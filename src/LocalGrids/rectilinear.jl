@@ -45,47 +45,51 @@ end
 
 # We define this wrapper type to be able to control broadcasting on separate
 # grid components (x, y, ...).
-struct RectilinearCoords1D{
+struct RectilinearGridComponent{
         i,  # dimension of this coordinate
         FullGrid <: LocalRectilinearGrid,  # dataset dimension
         Coords <: AbstractVector,
     }
     grid :: FullGrid
     data :: Coords
-    function RectilinearCoords1D(g::LocalRectilinearGrid, ::Val{i}) where {i}
+    @inline function RectilinearGridComponent(
+            g::LocalRectilinearGrid, ::Val{i},
+        ) where {i}
         data = components(g)[i]
         new{i, typeof(g), typeof(data)}(g, data)
     end
 end
 
-function Base.show(io::IO, xs::RectilinearCoords1D{i}) where {i}
+function Base.show(io::IO, xs::RectilinearGridComponent{i}) where {i}
     print(io, "Component i = $i of ")
     summary(io, xs.grid)
     print(io, ": ", xs.data)
     nothing
 end
 
-Base.getindex(g::LocalRectilinearGrid, i::Val) = RectilinearCoords1D(g, i)
+@inline Base.getindex(g::LocalRectilinearGrid, i::Val) =
+    RectilinearGridComponent(g, i)
 @inline Base.getindex(g::LocalRectilinearGrid, i::Int) = g[Val(i)]
 
 @inline function Base.getindex(
         g::LocalRectilinearGrid{N}, inds::Vararg{Integer, N},
     ) where {N}
     @boundscheck checkbounds(CartesianIndices(axes(g)), inds...)
-    inds_perm = permutation(g) * inds
-    map((xs, i) -> @inbounds(xs[i]), components(g), inds_perm)
+    map((xs, i) -> @inbounds(xs[i]), components(g), inds)
 end
 
 @inline Base.getindex(g::LocalRectilinearGrid, I::CartesianIndex) =
     g[Tuple(I)...]
 
 @inline function Base.CartesianIndices(g::LocalRectilinearGrid)
-    inds = CartesianIndices(axes(g))
-    PermutedCartesianIndices(inds, permutation(g))
+    perm = permutation(g)
+    axs = perm * axes(g)          # axes in memory order
+    inds = CartesianIndices(axs)  # each index inds[i] is in memory order
+    PermutedCartesianIndices(inds, perm)
 end
 
 # This is used by eachindex(::LocalRectilinearGrid)
-Base.keys(g::LocalRectilinearGrid) = CartesianIndices(g)
+@inline Base.keys(g::LocalRectilinearGrid) = CartesianIndices(g)
 
 @inline function Base.iterate(g::LocalRectilinearGrid, state = nothing)
     perm = permutation(g)
@@ -104,7 +108,7 @@ Base.keys(g::LocalRectilinearGrid) = CartesianIndices(g)
     x⃗_log, (iter, next)
 end
 
-function Broadcast.broadcastable(xs::RectilinearCoords1D{i}) where {i}
+function Broadcast.broadcastable(xs::RectilinearGridComponent{i}) where {i}
     g = xs.grid
     N = ndims(g)
     perm = permutation(g)

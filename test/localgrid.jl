@@ -5,8 +5,15 @@ using Test
 using PencilArrays.LocalGrids:
     LocalRectilinearGrid, components
 
+# TODO
+# - return SVector for grid elements?
+# - benchmarks:
+#   * with/out permutations
+#   * iteration vs Cartesian indexing vs using raw fields
+
 MPI.Init()
 comm = MPI.COMM_WORLD
+MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
 perm = Permutation(2, 3, 1)
 @assert inv(perm) != perm
@@ -39,13 +46,29 @@ pen = Pencil(dims, comm; permute = perm)
 
     # Broadcasting
     u = PencilArray{Float32}(undef, pen)
+    @test @inferred(localgrid(u, coords_global)) === grid
     @test_nowarn @. u = grid.x * grid.y + grid.z
 
-    # Iteration
+    # Indexing
+    @test eachindex(grid) === CartesianIndices(grid)
+    @test eachindex(grid) === CartesianIndices(u)
+    @test all(eachindex(grid)) do I
+        x, y, z = grid[I]
+        u[I] ≈ x * y + z
+    end
+
+    # Iteration: check that grids and arrays iterate in the same order
+    @test all(zip(u, grid)) do (v, xyz)
+        x, y, z = xyz
+        v ≈ x * y + z
+    end
+
+    @test all(enumerate(grid)) do (i, xyz)
+        x, y, z = xyz
+        u[i] ≈ x * y + z
+    end
     coords_col = @inferred collect(grid)
     @test coords_col isa Vector
     @test eltype(coords_col) === eltype(grid) ===
         typeof(map(first, components(grid)))  # = Tuple{Float64, Float64, Int}
-
-    # Indexing
 end

@@ -1,6 +1,7 @@
 module LocalGrids
 
 import ..Permutations: permutation
+using ..PermutedIndices
 
 using Base.Broadcast
 using StaticPermutations
@@ -19,7 +20,7 @@ Base.ndims(g::AbstractLocalGrid) = ndims(typeof(g))
 permutation(g::AbstractLocalGrid) = g.perm
 
 """
-    components(g::LocalRectilinearGrid) -> (xs, ys, zs, ...)
+    LocalGrids.components(g::LocalRectilinearGrid) -> (xs, ys, zs, ...)
 
 Get coordinates associated to the current MPI process.
 """

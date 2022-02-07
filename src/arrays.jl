@@ -534,3 +534,10 @@ typeof_ptr(A::AbstractArray) = typeof(pointer(A)).name.wrapper
 Get the type of array (without the element type) so it can be used as a constructor.
 """
 typeof_array(A::PencilArray) = typeof_array(parent(A))
+
+"""
+    localgrid(x::PencilArray, args...)
+
+Equivalent of `localgrid(pencil(x), args...)`.
+"""
+LocalGrids.localgrid(A::PencilArray, args...) = localgrid(pencil(A), args...)
