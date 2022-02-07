@@ -71,20 +71,20 @@ end
 Base.IndexStyle(::Type{<:RectilinearGridComponent}) = IndexLinear()
 Base.parent(xs::RectilinearGridComponent) = xs.data
 Base.size(xs::RectilinearGridComponent) = size(parent(xs))
-@inline Base.getindex(xs::RectilinearGridComponent, i) = parent(xs)[i]
+@propagate_inbounds Base.getindex(xs::RectilinearGridComponent, i) = parent(xs)[i]
 
 @inline Base.getindex(g::LocalRectilinearGrid, i::Val) =
     RectilinearGridComponent(g, i)
 @inline Base.getindex(g::LocalRectilinearGrid, i::Int) = g[Val(i)]
 
-@inline function Base.getindex(
+@propagate_inbounds function Base.getindex(
         g::LocalRectilinearGrid{N}, inds::Vararg{Integer, N},
     ) where {N}
     @boundscheck checkbounds(CartesianIndices(axes(g)), inds...)
     map((xs, i) -> @inbounds(xs[i]), components(g), inds)
 end
 
-@inline Base.getindex(g::LocalRectilinearGrid, I::CartesianIndex) =
+@propagate_inbounds Base.getindex(g::LocalRectilinearGrid, I::CartesianIndex) =
     g[Tuple(I)...]
 
 @inline function Base.CartesianIndices(g::LocalRectilinearGrid)
@@ -97,17 +97,22 @@ end
 # This is used by eachindex(::LocalRectilinearGrid)
 @inline Base.keys(g::LocalRectilinearGrid) = CartesianIndices(g)
 
-@inline function Base.iterate(g::LocalRectilinearGrid, state = nothing)
+@inline function Base.iterate(g::LocalRectilinearGrid)
     perm = permutation(g)
-    stuff = if state === nothing
-        # Create and advance actual iterator
-        coords_mem = perm * components(g)  # iterate in memory order
-        iter = Iterators.product(coords_mem...)
-        iterate(iter)
-    else
-        iter = first(state)
-        iterate(state...)
-    end
+    coords_mem = perm * components(g)  # iterate in memory order
+    # Create and advance actual iterator
+    iter = Iterators.product(coords_mem...)
+    stuff = iterate(iter)
+    stuff === nothing && return nothing
+    x⃗_mem, next = stuff
+    x⃗_log = perm \ x⃗_mem  # current coordinate in logical order (x, y, z, ...)
+    x⃗_log, (iter, next)
+end
+
+@inline function Base.iterate(g::LocalRectilinearGrid, state)
+    perm = permutation(g)
+    iter = first(state)
+    stuff = iterate(state...)
     stuff === nothing && return nothing
     x⃗_mem, next = stuff
     x⃗_log = perm \ x⃗_mem  # current coordinate in logical order (x, y, z, ...)

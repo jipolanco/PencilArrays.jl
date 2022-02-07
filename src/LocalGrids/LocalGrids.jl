@@ -4,6 +4,7 @@ import ..Permutations: permutation
 using ..PermutedIndices
 
 using Base.Broadcast
+using Base: @propagate_inbounds
 using StaticPermutations
 
 export localgrid

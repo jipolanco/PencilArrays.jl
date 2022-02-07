@@ -302,15 +302,17 @@ Base.IndexStyle(::Type{<:PencilArray{T,N,A}} where {T,N}) where {A} =
 end
 
 # Linear indexing
-@propagate_inbounds @inline Base.getindex(x::PencilArray, i::Integer) =
+@propagate_inbounds function Base.getindex(x::PencilArray, i::Integer)
     parent(x)[i]
+end
 
-@propagate_inbounds @inline Base.setindex!(x::PencilArray, v, i::Integer) =
+@propagate_inbounds function Base.setindex!(x::PencilArray, v, i::Integer)
     parent(x)[i] = v
+end
 
 # Cartesian indexing: assume input indices are unpermuted, and permute them.
 # (This is similar to the implementation of PermutedDimsArray.)
-@propagate_inbounds @inline Base.getindex(
+@propagate_inbounds Base.getindex(
         x::PencilArray{T,N}, I::Vararg{Int,N}) where {T,N} =
     parent(x)[_genperm(x, I)...]
 
@@ -323,8 +325,8 @@ end
     M = ndims_space(x)
     E = ndims_extra(x)
     @assert M + E === N
-    J = ntuple(n -> I[n], Val(M))
-    K = ntuple(n -> I[M + n], Val(E))
+    J = ntuple(n -> @inbounds(I[n]), Val(M))
+    K = ntuple(n -> @inbounds(I[M + n]), Val(E))
     perm = permutation(x)
     ((perm * J)..., K...)
 end
