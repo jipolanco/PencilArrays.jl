@@ -47,16 +47,17 @@ end
 # grid components (x, y, ...).
 struct RectilinearGridComponent{
         i,  # dimension of this coordinate
+        T,
         FullGrid <: LocalRectilinearGrid,  # dataset dimension
-        Coords <: AbstractVector,
-    }
+        Coords <: AbstractVector{T},
+    } <: AbstractVector{T}
     grid :: FullGrid
     data :: Coords
     @inline function RectilinearGridComponent(
             g::LocalRectilinearGrid, ::Val{i},
         ) where {i}
         data = components(g)[i]
-        new{i, typeof(g), typeof(data)}(g, data)
+        new{i, eltype(data), typeof(g), typeof(data)}(g, data)
     end
 end
 
@@ -66,6 +67,11 @@ function Base.show(io::IO, xs::RectilinearGridComponent{i}) where {i}
     print(io, ": ", xs.data)
     nothing
 end
+
+Base.IndexStyle(::Type{<:RectilinearGridComponent}) = IndexLinear()
+Base.parent(xs::RectilinearGridComponent) = xs.data
+Base.size(xs::RectilinearGridComponent) = size(parent(xs))
+@inline Base.getindex(xs::RectilinearGridComponent, i) = parent(xs)[i]
 
 @inline Base.getindex(g::LocalRectilinearGrid, i::Val) =
     RectilinearGridComponent(g, i)

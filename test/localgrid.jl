@@ -43,6 +43,11 @@ pen = Pencil(dims, comm; permute = perm)
     @test match(
         r"^Component i = 2 of LocalRectilinearGrid\{3\}:", repr(grid.y),
     ) !== nothing
+    xl, yl, zl = @inferred components(grid)
+    @test grid.x == xl
+    @test all(i -> xl[i] == grid.x[i], eachindex(grid.x))
+    @test all(i -> yl[i] == grid.y[i], eachindex(grid.y))
+    @test all(i -> zl[i] == grid.z[i], eachindex(grid.z))
 
     # Broadcasting
     u = PencilArray{Float32}(undef, pen)
