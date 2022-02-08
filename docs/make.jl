@@ -31,6 +31,7 @@ function main()
             "Library" => [
                 "Pencils.md",
                 "PencilArrays.md",
+                "LocalGrids.md",
                 "Transpositions.md",
                 "PencilIO.md",
                 "MPITopology.md",

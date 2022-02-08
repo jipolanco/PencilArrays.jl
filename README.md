@@ -36,16 +36,18 @@ provides efficient and highly scalable distributed FFTs.
 
 - decomposition of arrays along an arbitrary subset of dimensions;
 
+- tools for conveniently and efficiently iterating over the coordinates of distributed multidimensional geometries;
+
 - transpositions between different decomposition configurations, using
   point-to-point and collective MPI communications;
 
-- zero-cost, convenient dimension permutations using [StaticPermutations](https://github.com/jipolanco/StaticPermutations.jl);
+- zero-cost, convenient dimension permutations using the [StaticPermutations.jl](https://github.com/jipolanco/StaticPermutations.jl) package;
 
 - convenient parallel I/O using either MPI-IO or the [Parallel
   HDF5](https://portal.hdfgroup.org/display/HDF5/Parallel+HDF5) libraries;
 
 - distributed FFTs and related transforms via the
-  [PencilFFTs](https://github.com/jipolanco/PencilFFTs.jl) package.
+  [PencilFFTs.jl](https://github.com/jipolanco/PencilFFTs.jl) package.
 
 ## Installation
 
@@ -85,6 +87,21 @@ parent(Ax)           # parent array holding the local data (here, an Array{Float
 size(Ax)             # total size of the array = (42, 31, 29)
 size_local(Ax)       # size of local part, e.g. (42, 8, 10) for a given process
 range_local(Ax)      # range of local part on global grid, e.g. (1:42, 16:23, 20:29)
+
+# Let's associate the dimensions to a global grid of coordinates (x_i, y_j, z_k)
+xs_global = range(0, 1;  length = dims_global[1])
+ys_global = range(0, 2;  length = dims_global[2])
+zs_global = range(0, 2π; length = dims_global[3])
+
+# Part of the grid associated to the local MPI process:
+grid = localgrid(pen_x, (xs_global, ys_global, zs_global))
+
+# This is convenient for example if we want to initialise the `Ax` array as
+# a function of the grid coordinates (x, y, z):
+@. Ax = grid.x + (2 * grid.y * cos(grid.z))
+
+# Alternatively (useful in higher dimensions):
+@. Ax = grid[1] + (2 * grid[2] * cos(grid[3]))
 
 # Create another pencil configuration, decomposing along dimensions (1, 3).
 # We could use the same constructor as before, but it's recommended to reuse the
