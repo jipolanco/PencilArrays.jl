@@ -12,6 +12,8 @@ DocMeta.setdocmeta!(
     recursive=true,
 )
 
+doctest(PencilArrays; fix = false)
+
 function main()
     makedocs(;
         modules = [PencilArrays],
@@ -31,6 +33,7 @@ function main()
             "Library" => [
                 "Pencils.md",
                 "PencilArrays.md",
+                "LocalGrids.md",
                 "Transpositions.md",
                 "PencilIO.md",
                 "MPITopology.md",

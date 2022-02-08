@@ -10,6 +10,7 @@ using PencilArrays
 include("permutations.jl")
 
 test_files = [
+    "localgrid.jl",
     "reductions.jl",
     "broadcast.jl",
     "array_types.jl",

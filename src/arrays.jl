@@ -71,10 +71,10 @@ julia> pen = Pencil((20, 10, 12), MPI.COMM_WORLD);
 julia> u = PencilArray{Float64}(undef, pen);
 
 julia> summary(u)
-"20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation})"
+"20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation, Array})"
 
 julia> PencilArray{Float64}(undef, pen, 4, 3) |> summary
-"20×10×12×4×3 PencilArray{Float64, 5}(::Pencil{3, 2, NoPermutation})"
+"20×10×12×4×3 PencilArray{Float64, 5}(::Pencil{3, 2, NoPermutation, Array})"
 
 ```
 """
@@ -217,10 +217,10 @@ julia> pen = Pencil((20, 10, 12), MPI.COMM_WORLD);
 julia> u = PencilArray{Float64}(undef, pen);
 
 julia> similar(u) |> summary
-"20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation})"
+"20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation, Array})"
 
 julia> similar(u, ComplexF32) |> summary
-"20×10×12 PencilArray{ComplexF32, 3}(::Pencil{3, 2, NoPermutation})"
+"20×10×12 PencilArray{ComplexF32, 3}(::Pencil{3, 2, NoPermutation, Array})"
 
 julia> similar(u, (4, 3, 8)) |> summary
 "4×3×8 Array{Float64, 3}"
@@ -229,7 +229,7 @@ julia> similar(u, (4, 3)) |> summary
 "4×3 Matrix{Float64}"
 
 julia> similar(u, ComplexF32) |> summary
-"20×10×12 PencilArray{ComplexF32, 3}(::Pencil{3, 2, NoPermutation})"
+"20×10×12 PencilArray{ComplexF32, 3}(::Pencil{3, 2, NoPermutation, Array})"
 
 julia> similar(u, ComplexF32, (4, 3)) |> summary
 "4×3 Matrix{ComplexF32}"
@@ -256,11 +256,12 @@ Decomposition of 3D data
     Data dimensions: (20, 10, 12)
     Decomposed dimensions: (1, 3)
     Data permutation: Permutation(2, 3, 1)
+    Array type: Array
 
 julia> v = similar(u, pen_v);
 
 julia> summary(v)
-"20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, Permutation{(2, 3, 1), 3}})"
+"20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, Permutation{(2, 3, 1), 3}, Array})"
 
 julia> pencil(v) === pen_v
 true
@@ -268,7 +269,7 @@ true
 julia> vint = similar(u, Int, pen_v);
 
 julia> summary(vint)
-"20×10×12 PencilArray{Int64, 3}(::Pencil{3, 2, Permutation{(2, 3, 1), 3}})"
+"20×10×12 PencilArray{Int64, 3}(::Pencil{3, 2, Permutation{(2, 3, 1), 3}, Array})"
 
 julia> pencil(vint) === pen_v
 true
@@ -302,15 +303,17 @@ Base.IndexStyle(::Type{<:PencilArray{T,N,A}} where {T,N}) where {A} =
 end
 
 # Linear indexing
-@propagate_inbounds @inline Base.getindex(x::PencilArray, i::Integer) =
+@propagate_inbounds function Base.getindex(x::PencilArray, i::Integer)
     parent(x)[i]
+end
 
-@propagate_inbounds @inline Base.setindex!(x::PencilArray, v, i::Integer) =
+@propagate_inbounds function Base.setindex!(x::PencilArray, v, i::Integer)
     parent(x)[i] = v
+end
 
 # Cartesian indexing: assume input indices are unpermuted, and permute them.
 # (This is similar to the implementation of PermutedDimsArray.)
-@propagate_inbounds @inline Base.getindex(
+@propagate_inbounds Base.getindex(
         x::PencilArray{T,N}, I::Vararg{Int,N}) where {T,N} =
     parent(x)[_genperm(x, I)...]
 
@@ -323,8 +326,8 @@ end
     M = ndims_space(x)
     E = ndims_extra(x)
     @assert M + E === N
-    J = ntuple(n -> I[n], Val(M))
-    K = ntuple(n -> I[M + n], Val(E))
+    J = ntuple(n -> @inbounds(I[n]), Val(M))
+    K = ntuple(n -> @inbounds(I[M + n]), Val(E))
     perm = permutation(x)
     ((perm * J)..., K...)
 end
@@ -534,3 +537,10 @@ typeof_ptr(A::AbstractArray) = typeof(pointer(A)).name.wrapper
 Get the type of array (without the element type) so it can be used as a constructor.
 """
 typeof_array(A::PencilArray) = typeof_array(parent(A))
+
+"""
+    localgrid(x::PencilArray, args...)
+
+Equivalent of `localgrid(pencil(x), args...)`.
+"""
+LocalGrids.localgrid(A::PencilArray, args...) = localgrid(pencil(A), args...)

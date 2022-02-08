@@ -1,5 +1,8 @@
 module Pencils
 
+import ..Permutations: permutation
+import ..LocalGrids
+
 using StaticPermutations
 
 using MPI
@@ -80,12 +83,14 @@ Decomposition of 3D data
     Data dimensions: (4, 8, 12)
     Decomposed dimensions: (2, 3)
     Data permutation: NoPermutation()
+    Array type: Array
 
 julia> Pencil(topo, (4, 8, 12), (2, 3); permute = Permutation(3, 2, 1))
 Decomposition of 3D data
     Data dimensions: (4, 8, 12)
     Decomposed dimensions: (2, 3)
     Data permutation: Permutation(3, 2, 1)
+    Array type: Array
 
 ```
 
@@ -112,12 +117,14 @@ Decomposition of 3D data
     Data dimensions: (4, 8, 12)
     Decomposed dimensions: (2, 3)
     Data permutation: NoPermutation()
+    Array type: Array
 
 julia> Pencil((4, 8, 12), (1, ), MPI.COMM_WORLD)
 Decomposition of 3D data
     Data dimensions: (4, 8, 12)
     Decomposed dimensions: (1,)
     Data permutation: NoPermutation()
+    Array type: Array
 ```
 
 ---
@@ -256,9 +263,10 @@ _sort_dimensions(dims::Dims{N}) where {N} = Tuple(sort(SVector(dims)))
 
 Base.summary(io::IO, p::Pencil) = Base.showarg(io, p, true)
 
-function Base.showarg(io::IO, p::Pencil{N,M,P,B}, toplevel) where {N,M,P,B}
+function Base.showarg(io::IO, p::Pencil{N,M,P}, toplevel) where {N,M,P}
     toplevel || print(io, "::")
-    print(io, nameof(typeof(p)), "{$N, $M, $P, $B}")
+    A = typeof_array(p)
+    print(io, nameof(typeof(p)), "{$N, $M, $P, $A}")
 end
 
 function Base.show(io::IO, p::Pencil)
@@ -418,6 +426,24 @@ function to_local(p::Pencil{N}, global_inds::ArrayRegion{N},
         (first(rg) + δ):(last(rg) + δ)
     end :: ArrayRegion{N}
     order === MemoryOrder() ? (permutation(p) * ind) : ind
+end
+
+"""
+    localgrid(p::Pencil, (x_global, y_global, ...))      -> LocalRectilinearGrid
+    localgrid(u::PencilArray, (x_global, y_global, ...)) -> LocalRectilinearGrid
+
+Create a [`LocalRectilinearGrid`](@ref LocalGrids.LocalRectilinearGrid) from a
+decomposition configuration and from a set of orthogonal global coordinates
+`(x_global, y_global, ...)`.
+
+In this case, each `*_global` is an `AbstractVector` describing the coordinates
+along one dimension of the global grid.
+"""
+function LocalGrids.localgrid(p::Pencil, coords_global::Tuple{Vararg{AbstractVector}})
+    perm = permutation(p)
+    ranges = range_local(p, LogicalOrder())
+    coords_local = map(view, coords_global, ranges)
+    LocalGrids.localgrid(coords_local, perm)
 end
 
 end

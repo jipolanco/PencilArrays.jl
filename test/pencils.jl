@@ -331,8 +331,8 @@ end
 pen2 = @inferred Pencil(pen1, decomp_dims=(1, 3), permute=Permutation(2, 3, 1))
 pen3 = @inferred Pencil(pen2, decomp_dims=(1, 2), permute=Permutation(3, 2, 1))
 
-@test match(r"Pencil{3, 2, NoPermutation, Vector{\w+}}", summary(pen1)) !== nothing
-@test match(r"Pencil{3, 2, Permutation{.*}, Vector{\w+}}", summary(pen2)) !== nothing
+@test match(r"Pencil{3, 2, NoPermutation, Array}", summary(pen1)) !== nothing
+@test match(r"Pencil{3, 2, Permutation{.*}, Array}", summary(pen2)) !== nothing
 
 println("Pencil 1: ", pen1, "\n")
 println("Pencil 2: ", pen2, "\n")

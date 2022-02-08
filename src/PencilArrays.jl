@@ -9,12 +9,20 @@ using TimerOutputs
 import Base: @propagate_inbounds
 import LinearAlgebra
 
+include("Permutations.jl")
+import .Permutations: permutation
+
+include("PermutedIndices/PermutedIndices.jl")
+using .PermutedIndices
+
+include("LocalGrids/LocalGrids.jl")
+@reexport using .LocalGrids
+
 include("Pencils/Pencils.jl")
 @reexport using .Pencils
 
 import .Pencils:
     get_comm,
-    permutation,
     range_local,
     range_remote,
     size_local,
@@ -24,7 +32,7 @@ import .Pencils:
     typeof_array
 
 export PencilArray, GlobalPencilArray, PencilArrayCollection, ManyPencilArray
-export pencil
+export pencil, permutation
 export gather
 export global_view
 export ndims_extra, ndims_space, extra_dims, sizeof_global
