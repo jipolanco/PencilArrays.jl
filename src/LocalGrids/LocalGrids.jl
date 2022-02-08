@@ -18,14 +18,14 @@ abstract type AbstractLocalGrid{N, Perm <: AbstractPermutation} end
 
 Base.ndims(::Type{<:AbstractLocalGrid{N}}) where {N} = N
 Base.ndims(g::AbstractLocalGrid) = ndims(typeof(g))
-permutation(g::AbstractLocalGrid) = g.perm
+permutation(g::AbstractLocalGrid) = getfield(g, :perm)
 
 """
     LocalGrids.components(g::LocalRectilinearGrid) -> (xs, ys, zs, ...)
 
 Get coordinates associated to the current MPI process.
 """
-components(g::AbstractLocalGrid) = g.coords
+components(g::AbstractLocalGrid) = getfield(g, :coords)
 
 include("rectilinear.jl")
 

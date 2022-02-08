@@ -7,9 +7,6 @@ using PencilArrays.LocalGrids:
 
 # TODO
 # - return SVector for grid elements?
-# - benchmarks:
-#   * with/out permutations
-#   * iteration vs Cartesian indexing vs using raw fields
 
 MPI.Init()
 comm = MPI.COMM_WORLD
@@ -55,7 +52,7 @@ pen = Pencil(dims, comm; permute = perm)
     @test_nowarn @. u = grid.x * grid.y + grid.z
 
     # Indexing
-    @test eachindex(grid) === CartesianIndices(grid)
+    @test @inferred(eachindex(grid)) === @inferred(CartesianIndices(grid))
     @test eachindex(grid) === CartesianIndices(u)
     @test all(eachindex(grid)) do I
         x, y, z = grid[I]
