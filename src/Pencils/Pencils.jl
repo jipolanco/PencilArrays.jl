@@ -83,12 +83,14 @@ Decomposition of 3D data
     Data dimensions: (4, 8, 12)
     Decomposed dimensions: (2, 3)
     Data permutation: NoPermutation()
+    Array type: Array
 
 julia> Pencil(topo, (4, 8, 12), (2, 3); permute = Permutation(3, 2, 1))
 Decomposition of 3D data
     Data dimensions: (4, 8, 12)
     Decomposed dimensions: (2, 3)
     Data permutation: Permutation(3, 2, 1)
+    Array type: Array
 
 ```
 
@@ -115,12 +117,14 @@ Decomposition of 3D data
     Data dimensions: (4, 8, 12)
     Decomposed dimensions: (2, 3)
     Data permutation: NoPermutation()
+    Array type: Array
 
 julia> Pencil((4, 8, 12), (1, ), MPI.COMM_WORLD)
 Decomposition of 3D data
     Data dimensions: (4, 8, 12)
     Decomposed dimensions: (1,)
     Data permutation: NoPermutation()
+    Array type: Array
 ```
 
 ---
@@ -259,9 +263,10 @@ _sort_dimensions(dims::Dims{N}) where {N} = Tuple(sort(SVector(dims)))
 
 Base.summary(io::IO, p::Pencil) = Base.showarg(io, p, true)
 
-function Base.showarg(io::IO, p::Pencil{N,M,P,B}, toplevel) where {N,M,P,B}
+function Base.showarg(io::IO, p::Pencil{N,M,P}, toplevel) where {N,M,P}
     toplevel || print(io, "::")
-    print(io, nameof(typeof(p)), "{$N, $M, $P, $B}")
+    A = typeof_array(p)
+    print(io, nameof(typeof(p)), "{$N, $M, $P, $A}")
 end
 
 function Base.show(io::IO, p::Pencil)

@@ -12,6 +12,8 @@ DocMeta.setdocmeta!(
     recursive=true,
 )
 
+doctest(PencilArrays; fix = false)
+
 function main()
     makedocs(;
         modules = [PencilArrays],
