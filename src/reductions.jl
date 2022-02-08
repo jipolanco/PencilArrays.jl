@@ -13,3 +13,11 @@ for (func, commutative) in [:mapreduce => true, :mapfoldl => false, :mapfoldr =>
         MPI.Allreduce(rlocal, op_mpi, get_comm(u))
     end
 end
+for (func, commutative) in [:mapreduce => true, :mapfoldl => false, :mapfoldr => false]
+    @eval function Base.$func(f::F, op::OP, u::PencilArray, v::PencilArray; kws...) where {F, OP}
+        rlocal = $func(f, op, parent(u), parent(v); kws...)
+        op_mpi = MPI.Op(op, typeof(rlocal); iscommutative = $commutative)
+        @assert get_comm(u) == get_comm(v)
+        MPI.Allreduce(rlocal, op_mpi, get_comm(u))
+    end
+end
