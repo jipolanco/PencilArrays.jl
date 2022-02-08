@@ -79,7 +79,7 @@ for I ∈ eachindex(grid)
 end
 ```
 
-## API
+## Library
 
 ```@docs
 AbstractLocalGrid
