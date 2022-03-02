@@ -222,9 +222,9 @@ Pencil(dims::Dims{N}, comm::MPI.Comm; kws...) where {N} =
     Pencil(dims, default_decomposition(N, Val(N - 1)), comm; kws...)
 
 function Pencil(::Type{A}, args...; kws...) where {A <: AbstractArray}
-    # fix:
-    # not size 0 to have a valid Ptr
-    # for some type of arrays (CuArray for instance)
+    # We initialise the array with a single element to work around problem
+    # with CuArrays: if its length is zero, then the CuArray doesn't have a
+    # valid pointer.
     send_buf = A{UInt8}(undef, 1)
     Pencil(args...; kws..., send_buf, recv_buf = similar(send_buf))
 end
