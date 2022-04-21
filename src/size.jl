@@ -1,27 +1,35 @@
+"""
+    length_local(x::PencilArray)
+
+Get linear length of the local data held by a `PencilArray`.
+"""
 length_local(x::Union{<:PencilArray, <:GlobalPencilArray}) = length(parent(x))
+
+"""
+    length_global(x::PencilArray)
+
+Get linear length of the global data held by a `PencilArray`.
+"""
+length_global(x::Union{<:PencilArray, <:GlobalPencilArray}) = prod(size_global(x))
 
 """
     size(x::PencilArray)
 
-Return global dimensions of a `PencilArray` in logical order.
+Return the *local* dimensions of a `PencilArray` in logical order.
 
-Defined as `size_global(x, LogicalOrder())`.
+Defined as `size_local(x, LogicalOrder())`.
 """
 Base.size(x::Union{<:PencilArray, <:GlobalPencilArray}) =
-    size_global(x, LogicalOrder())
+    size_local(x, LogicalOrder())
 
 """
     length(x::PencilArray)
 
-Get the *global* number of elements stored in the `PencilArray`.
-"""
-Base.length(x::Union{<:PencilArray, <:GlobalPencilArray}) = prod(size(x))
+Get the *local* number of elements stored in the `PencilArray`.
 
-# By default, eachindex calls length(x) in this case.
-# Since length returns the *global* length, we override it to return an iterator
-# over the *local* length.
-Base.eachindex(::IndexLinear, x::Union{<:PencilArray, <:GlobalPencilArray}) =
-    Base.OneTo(length_local(x))
+Equivalent to `length_local(x)`.
+"""
+Base.length(x::Union{<:PencilArray, <:GlobalPencilArray}) = length(parent(x))
 
 """
     size_local(x::PencilArray, [order = LogicalOrder()])

@@ -16,7 +16,8 @@ export MemoryOrder, LogicalOrder
 export decomposition, permutation
 export get_comm, timer
 export topology
-export range_local, range_remote, size_local, size_global, to_local, length_local
+export range_local, range_remote, size_local, size_global, to_local,
+       length_local, length_global
 
 # Describes the portion of an array held by a given MPI process.
 const ArrayRegion{N} = NTuple{N,UnitRange{Int}} where N
@@ -337,11 +338,25 @@ topology(p::Pencil) = p.topology
 """
     length(p::Pencil)
 
-Get linear length of the global data associated to the decomposition.
+Get linear length of the *local* data associated to the decomposition.
+
+Equivalent to `length_local(p)`.
 """
 Base.length(p::Pencil) = prod(size(p))
 
+"""
+    length_local(p::Pencil)
+
+Get linear length of the local data associated to the decomposition.
+"""
 length_local(p::Pencil) = prod(size_local(p))
+
+"""
+    length_global(p::Pencil)
+
+Get linear length of the global data associated to the decomposition.
+"""
+length_global(p::Pencil) = prod(size_global(p))
 
 """
     range_local(p::Pencil, [order = LogicalOrder()])
@@ -403,12 +418,12 @@ size_global(p) = size_global(p, DefaultOrder())
 """
     size(p::Pencil)
 
-Returns the global data dimensions associated to the decomposition, in *logical*
+Returns the *local* data dimensions associated to the decomposition, in *logical*
 order.
 
-This is defined as `size_global(p, LogicalOrder())`.
+This is defined as `size_local(p, LogicalOrder())`.
 """
-Base.size(p::Pencil) = size_global(p, LogicalOrder())
+Base.size(p::Pencil) = size_local(p, LogicalOrder())
 
 """
     to_local(p::Pencil, global_inds, [order = LogicalOrder()])
