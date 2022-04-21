@@ -4,6 +4,7 @@
 using MPI
 using PencilArrays
 using OrdinaryDiffEq
+using RecursiveArrayTools: ArrayPartition
 using Test
 
 MPI.Init()
@@ -42,5 +43,17 @@ end
         local dts = MPI.Allgather(integrator.dt, comm)
         @test all(==(dts[1]), dts)  # = allequal(dts) on Julia ≥ 1.8
         step!(integrator)
+    end
+
+    @testset "ArrayPartition" begin
+        v0 = RAT.ArrayPartition(u0)
+        prob = @inferred ODEProblem{true}(rhs!, v0, tspan, params)
+
+        # TODO for now this fails when permutations are enabled due to incompatible
+        # broadcasting.
+        @test_skip integrator = init(
+            prob, Tsit5();
+            adaptive = true, save_everystep = false,
+        )
     end
 end
