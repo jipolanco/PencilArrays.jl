@@ -47,7 +47,7 @@ end
     end
 
     @testset "ArrayPartition" begin
-        v0 = RAT.ArrayPartition(u0)
+        v0 = ArrayPartition(u0)
         prob = @inferred ODEProblem{true}(rhs!, v0, tspan, params)
 
         # TODO for now this fails when permutations are enabled due to incompatible
