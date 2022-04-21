@@ -1,9 +1,21 @@
+"""
+    length_local(x::PencilArray)
+
+Get linear length of the local data held by a `PencilArray`.
+"""
 length_local(x::Union{<:PencilArray, <:GlobalPencilArray}) = length(parent(x))
+
+"""
+    length_global(x::PencilArray)
+
+Get linear length of the global data held by a `PencilArray`.
+"""
+length_global(x::Union{<:PencilArray, <:GlobalPencilArray}) = prod(size_global(x))
 
 """
     size(x::PencilArray)
 
-Return local dimensions of a `PencilArray` in logical order.
+Return the *local* dimensions of a `PencilArray` in logical order.
 
 Defined as `size_local(x, LogicalOrder())`.
 """
@@ -13,9 +25,11 @@ Base.size(x::Union{<:PencilArray, <:GlobalPencilArray}) =
 """
     length(x::PencilArray)
 
-Get the local number of elements stored in the `PencilArray`.
+Get the *local* number of elements stored in the `PencilArray`.
+
+Equivalent to `length_local(x)`.
 """
-Base.length(x::Union{<:PencilArray, <:GlobalPencilArray}) = prod(size(x))
+Base.length(x::Union{<:PencilArray, <:GlobalPencilArray}) = length(parent(x))
 
 """
     size_local(x::PencilArray, [order = LogicalOrder()])

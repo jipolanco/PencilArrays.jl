@@ -192,6 +192,8 @@ range_remote(::Pencil, ::Integer, ::LogicalOrder)
 range_local(::Pencil, ::LogicalOrder)
 size_global(::Pencil, ::LogicalOrder)
 size_local(::Pencil, etc...)
+length_global(::Pencil)
+length_local(::Pencil)
 to_local(::Pencil)
 ```
 

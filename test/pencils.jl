@@ -53,10 +53,16 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     @test eltype(u) === eltype(u.data) === T
     @test length.(axes(u)) === size_local(u)
     @test sizeof_global(u) == sizeof(T) * prod(size_global(u))
+    @test length_global(u) == prod(size_global(u))
     @test sizeof_global((u, u)) == 2 * sizeof_global(u)
     let umat = [u for i = 1:2, j = 1:3]
         @test sizeof_global(umat) == 6 * sizeof_global(u)
     end
+
+    @test length_global(u) == length_global(p)
+    @test size_global(u) == size_global(p)
+    @test length_local(u) == length_local(p)
+    @test size_local(u) == size_local(p)
 
     let
         A = PermutedDimsArray(parent(u), perm)
@@ -69,6 +75,9 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
     @inferred global_view(u)
     ug = global_view(u)
     @test check_iteration_order(ug)
+
+    @test length(u) == length_local(u)
+    @test size(u) == size_local(u)
 
     if BENCHMARK_ARRAYS
         for S in (IndexLinear, IndexCartesian)
@@ -86,6 +95,7 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
         let v = @inferred similar(u)
             @test typeof(v) === typeof(u)
             @test length(v) == length(u)
+            @test length_local(v) == length_local(u)
             @test size(v) == size(u)
             @test size_local(v) == size_local(u)
             @test pencil(v) === pencil(u)

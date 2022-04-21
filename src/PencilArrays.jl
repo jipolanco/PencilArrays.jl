@@ -28,6 +28,7 @@ import .Pencils:
     size_local,
     size_global,
     length_local,
+    length_global,
     topology,
     typeof_array
 
