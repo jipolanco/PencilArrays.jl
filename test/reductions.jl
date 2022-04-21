@@ -41,4 +41,11 @@ fill!(u, 2myid)
 
     @test foldr(min, u) === minimum(u)
     @test mapfoldr(abs2, min, u) === minimum(abs2, u)
+
+    @testset "any / all" begin
+        @test any(==(2), u) === true  # the first process has u[:] = 2myid = 2
+        @test any(==(-2), u) === false
+        @test nprocs == 1 || all(==(2), u) === false
+        @test all(>(0), u) === true
+    end
 end

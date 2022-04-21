@@ -26,3 +26,13 @@ for (func, commutative) in [:mapreduce => true, :mapfoldl => false, :mapfoldr =>
         $func(g, op, z.is...; kws...)
     end
 end
+
+function Base.any(f::F, u::PencilArray) where {F <: Function}
+    xlocal = any(f, parent(u)) :: Bool
+    MPI.Allreduce(xlocal, |, get_comm(u))
+end
+
+function Base.all(f::F, u::PencilArray) where {F <: Function}
+    xlocal = all(f, parent(u)) :: Bool
+    MPI.Allreduce(xlocal, &, get_comm(u))
+end
