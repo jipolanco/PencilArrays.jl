@@ -403,7 +403,7 @@ end
 
 @testset "Pencil" begin
     for p ∈ (pen1, pen2, pen3)
-        @test size(p) === size_global(p, LogicalOrder())
+        @test size(p) === size_local(p, LogicalOrder())
         @test length(p) === prod(size(p))
         @inferred (p -> p.send_buf)(p)
     end
