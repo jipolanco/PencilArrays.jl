@@ -1,6 +1,7 @@
 # Test interaction with DifferentialEquations.jl.
 # We solve a trivial decoupled system of ODEs.
 
+import DiffEqBase
 using MPI
 using PencilArrays
 using OrdinaryDiffEq
@@ -28,6 +29,28 @@ function rhs!(du, u, p, t)
     du
 end
 
+@static if !isdefined(Base, :allequal)
+    allequal(xs) = all(==(first(xs)), xs)
+end
+
+@testset "DiffEqBase" begin
+    unorm = DiffEqBase.ODE_DEFAULT_NORM(u0, 0.0)
+    unorms = MPI.Allgather(unorm, comm)
+    @test allequal(unorms)
+
+    # Note that ODE_DEFAULT_UNSTABLE_CHECK calls NAN_CHECK.
+    w = copy(u0)
+    wcheck = DiffEqBase.ODE_DEFAULT_UNSTABLE_CHECK(nothing, w, nothing, nothing)
+    @test wcheck == false
+
+    # After setting a single value to NaN, all processes should detect it.
+    if rank == 0
+        w[1] = NaN
+    end
+    wcheck = DiffEqBase.ODE_DEFAULT_UNSTABLE_CHECK(nothing, w, nothing, nothing)
+    @test wcheck == true
+end
+
 @testset "OrdinaryDiffEq" begin
     tspan = (0.0, 1000.0)
     params = (;)
@@ -42,7 +65,7 @@ end
     # Check that all timesteps are the same
     for _ = 1:10
         local dts = MPI.Allgather(integrator.dt, comm)
-        @test all(==(dts[1]), dts)  # = allequal(dts) on Julia ≥ 1.8
+        @test allequal(dts)
         step!(integrator)
     end
 
