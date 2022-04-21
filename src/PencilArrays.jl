@@ -5,6 +5,7 @@ using OffsetArrays
 using Reexport
 using StaticPermutations
 using TimerOutputs
+using Requires: @require
 
 import Base: @propagate_inbounds
 import LinearAlgebra
@@ -55,5 +56,14 @@ include("Transpositions/Transpositions.jl")
 export Transpositions
 
 include("PencilIO/PencilIO.jl")
+
+function __init__()
+    @require DiffEqBase="2b5f629d-d688-5b77-993f-72d75c75574e" @eval begin
+        # This is used for adaptive timestepping in DifferentialEquations.jl.
+        # Without this, each MPI process may choose a different dt, leading to
+        # catastrophic consequences!
+        DiffEqBase.recursive_length(u::PencilArray) = length_global(u)
+    end
+end
 
 end
