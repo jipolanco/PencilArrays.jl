@@ -1,6 +1,5 @@
-# Packages must be loaded in this order!
-using MPI
 using HDF5
+using MPI
 using PencilArrays
 using PencilArrays.PencilIO
 
