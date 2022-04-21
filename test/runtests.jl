@@ -18,6 +18,7 @@ test_files = [
     "pencils.jl",
     "array_interface.jl",
     "io.jl",
+    "ode.jl",
 ]
 
 Nproc = let N = get(ENV, "JULIA_MPI_TEST_NPROCS", nothing)
