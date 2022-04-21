@@ -1,7 +1,7 @@
 # Reductions
 
 Reduction over [`PencilArray`](@ref)s using Julia functions such as `minimum`,
-`maximum` or `sum` are performed on the global data.
+`maximum`, `sum`, `any` or `all` are performed on the global data.
 This involves first a local reduction over each process, followed by a global
 reduction of a scalar quantity using
 [`MPI.Allreduce`](https://juliaparallel.github.io/MPI.jl/latest/collective/#MPI.Allreduce).
@@ -28,6 +28,10 @@ maximum(u)  # = 2 * nprocs
 
 minimum(abs2, u)  # = 4
 maximum(abs2, u)  # = (2 * nprocs)^2
+
+all(>(0), u)   # true
+all(==(2), u)  # false if nprocs > 1
+any(==(2), u)  # true
 
 ```
 
