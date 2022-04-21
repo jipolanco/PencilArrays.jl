@@ -11,6 +11,7 @@ MPI.Init()
 
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
+rank == 0 || redirect_stdout(devnull)
 
 dims = (13, 23, 17)  # prime dimensions to test an unbalanced partitioning
 coords_global = map(N -> range(0, 1; length = N), dims)
