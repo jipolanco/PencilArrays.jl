@@ -245,7 +245,20 @@ function Pencil(::Type{A}, args...; kws...) where {A <: AbstractArray}
     Pencil(args...; kws..., send_buf, recv_buf = similar(send_buf))
 end
 
-typeof_array(A::AT) where {AT<:AbstractArray} = typeof(A).name.wrapper
+# Strips array type:
+#   Array{Int, 3} -> Array
+#   Array{Int}    -> Array
+#   Array         -> Array
+@generated function typeof_array(::Type{A′}) where {A′ <: AbstractArray}
+    A = A′
+    while A isa UnionAll
+        A = A.body
+    end
+    T = A.name.wrapper
+    :($T)
+end
+
+typeof_array(A::AbstractArray) = typeof_array(typeof(A))
 typeof_array(p::Pencil) = typeof_array(p.send_buf)
 
 """
