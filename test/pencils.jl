@@ -417,6 +417,31 @@ end
         @test length(p) === prod(size(p))
         @inferred (p -> p.send_buf)(p)
     end
+
+    @testset "similar" begin
+        p = pen2
+        # Case 1a: identical pencil
+        let q = @inferred similar(p)
+            @test q === p
+        end
+        # Case 1b: different dimensions
+        let q = @inferred similar(p, 2 .* size_global(p))
+            @test size_global(q) == 2 .* size_global(p)
+        end
+        # Case 2a: same dimensions but different array type
+        let q = @inferred similar(p, DummyArray)
+            @test q !== p
+            @test q.axes_all === p.axes_all  # array wasn't copied nor recomputed
+            @test size_global(q) == size_global(p)
+            @test Pencils.typeof_array(q) === DummyArray
+        end
+        # Case 2b: different dimensions and array type
+        let q = @inferred similar(p, DummyArray, 2 .* size_global(p))
+            @test q !== p
+            @test size_global(q) == 2 .* size_global(p)
+            @test Pencils.typeof_array(q) === DummyArray
+        end
+    end
 end
 
 @testset "PencilArray" begin
