@@ -137,6 +137,14 @@ function PencilArray{T}(init, pencil::Pencil, extra_dims::Vararg{Integer}) where
     PencilArray(pencil, A{T}(init, dims))
 end
 
+# Treat PencilArray similarly to other wrapper types.
+# https://github.com/JuliaGPU/Adapt.jl/blob/master/src/wrappers.jl
+function Adapt.adapt_structure(to, u::PencilArray)
+    A = typeof_array(to)
+    p = similar(pencil(u), A)  # create Pencil with possibly different array type
+    PencilArray(p, Adapt.adapt(to, parent(u)))
+end
+
 pencil_type(::Type{PencilArray{T,N,A,M,E,P}}) where {T,N,A,M,E,P} = P
 
 # This is called by `summary`.

@@ -17,6 +17,7 @@ test_files = [
     "arrays.jl",
     "pencils.jl",
     "array_interface.jl",
+    "adapt.jl",
     "io.jl",
     "ode.jl",
 ]

@@ -195,6 +195,7 @@ size_local(::Pencil, etc...)
 length_global(::Pencil)
 length_local(::Pencil)
 to_local(::Pencil)
+similar(::Pencil)
 ```
 
 ## Index

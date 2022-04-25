@@ -49,6 +49,8 @@ function main()
     deploydocs(;
         repo = "github.com/jipolanco/PencilArrays.jl",
         forcepush = true,
+        # PRs deploy at https://jipolanco.github.io/PencilArrays.jl/previews/PR**
+        push_preview = true,
     )
 
     nothing

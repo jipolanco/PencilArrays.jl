@@ -181,6 +181,23 @@ struct Pencil{
     # Timing information.
     timer :: TimerOutput
 
+    # This constructor is left undocumented and should never be called directly.
+    function Pencil(
+            topology::MPITopology{M}, size_global::Dims{N},
+            decomp_dims::Dims{M}, axes_all, perm::P,
+            send_buf::BufVector, recv_buf::BufVector, timer::TimerOutput,
+        ) where {M, N, P, BufVector}
+        @assert issorted(decomp_dims)
+        check_permutation(perm)
+        axes_local = axes_all[coords_local(topology)...]
+        axes_local_perm = perm * axes_local
+        new{N, M, P, BufVector}(
+            topology, size_global, decomp_dims,
+            axes_all, axes_local, axes_local_perm,
+            perm, send_buf, recv_buf, timer,
+        )
+    end
+
     function Pencil(
             topology::MPITopology{M}, size_global::Dims{N},
             decomp_dims::Dims{M} = default_decomposition(N, Val(M));
@@ -188,25 +205,23 @@ struct Pencil{
             send_buf = UInt8[], recv_buf = UInt8[],
             timer = TimerOutput(),
         ) where {N, M}
-        check_permutation(permute)
         _check_selected_dimensions(N, decomp_dims)
         decomp_dims = _sort_dimensions(decomp_dims)
         axes_all = get_axes_matrix(decomp_dims, topology.dims, size_global)
-        axes_local = axes_all[coords_local(topology)...]
-        axes_local_perm = permute * axes_local
-        P = typeof(permute)
-        BV = typeof(send_buf)
-        new{N,M,P,BV}(topology, size_global, decomp_dims, axes_all, axes_local,
-                      axes_local_perm, permute, send_buf, recv_buf, timer)
+        Pencil(
+            topology, size_global, decomp_dims, axes_all, permute,
+            send_buf, recv_buf, timer,
+        )
     end
 
-    function Pencil(p::Pencil{N,M};
-                    decomp_dims::Dims{M} = decomposition(p),
-                    size_global::Dims{N} = size_global(p),
-                    permute = permutation(p),
-                    timer::TimerOutput = timer(p),
-                    etc...,
-                   ) where {N, M}
+    function Pencil(
+            p::Pencil{N,M};
+            decomp_dims::Dims{M} = decomposition(p),
+            size_global::Dims{N} = size_global(p),
+            permute = permutation(p),
+            timer::TimerOutput = timer(p),
+            etc...,
+    ) where {N, M}
         Pencil(p.topology, size_global, decomp_dims;
                permute=permute, timer=timer,
                send_buf=p.send_buf, recv_buf=p.recv_buf,
@@ -230,8 +245,78 @@ function Pencil(::Type{A}, args...; kws...) where {A <: AbstractArray}
     Pencil(args...; kws..., send_buf, recv_buf = similar(send_buf))
 end
 
-typeof_array(A::AT) where {AT<:AbstractArray} = typeof(A).name.wrapper
+# Strips array type:
+#   Array{Int, 3} -> Array
+#   Array{Int}    -> Array
+#   Array         -> Array
+@generated function typeof_array(::Type{A′}) where {A′ <: AbstractArray}
+    A = A′
+    while A isa UnionAll
+        A = A.body
+    end
+    T = A.name.wrapper
+    :($T)
+end
+
+typeof_array(A::AbstractArray) = typeof_array(typeof(A))
 typeof_array(p::Pencil) = typeof_array(p.send_buf)
+
+"""
+    similar(p::Pencil, [A = typeof_array(p)], [dims = size_global(p)])
+
+Returns a [`Pencil`](@ref) decomposition with global dimensions `dims` and with
+underlying array type `A`.
+
+Typically, `A` should be something like `Array` or `CuArray` (see
+[`Pencil`](@ref) for details).
+"""
+function Base.similar(
+        p::Pencil{N}, ::Type{A}, dims::Dims{N} = size_global(p),
+    ) where {A <: AbstractArray, N}
+    _similar(A, typeof_array(p), p, dims)
+end
+
+Base.similar(p::Pencil{N}, dims::Dims{N} = size_global(p)) where {N} =
+    similar(p, typeof_array(p), dims)
+
+# Case A === A′
+function _similar(
+        ::Type{A}, ::Type{A}, p::Pencil{N}, dims::Dims{N},
+    ) where {N, A <: AbstractArray}
+    @assert typeof_array(p) === A
+    if dims == size_global(p)
+        p  # avoid all copies
+    else
+        Pencil(p; size_global = dims)
+    end
+end
+
+# Case A !== A′ (→ change of array type)
+function _similar(
+        ::Type{A′}, ::Type{A}, p::Pencil{N}, dims::Dims{N},
+    ) where {N, A <: AbstractArray, A′ <: AbstractArray}
+    @assert typeof_array(p) === A
+
+    # We initialise the array with a single element to work around problem
+    # with CuArrays: if its length is zero, then the CuArray doesn't have a
+    # valid pointer.
+    send_buf = A′{UInt8}(undef, 1)
+    recv_buf = similar(send_buf)
+
+    if dims == size_global(p)
+        # Avoid recomputing (and allocating a new) `axes_all`, since it doesn't
+        # change in the new decomposition.
+        Pencil(
+            p.topology, dims, p.decomp_dims, p.axes_all,
+            p.perm, send_buf, recv_buf, p.timer,
+        )
+    else
+        Pencil(
+            p.topology, dims, p.decomp_dims;
+            permute = p.perm, send_buf, recv_buf, timer = p.timer,
+        )
+    end
+end
 
 function check_permutation(perm)
     isperm(perm) && return
