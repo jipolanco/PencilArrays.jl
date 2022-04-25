@@ -7,7 +7,8 @@ using StaticPermutations
 using TimerOutputs
 using Requires: @require
 
-import Base: @propagate_inbounds
+using Base: @propagate_inbounds
+import Adapt
 import LinearAlgebra
 
 include("Permutations.jl")
