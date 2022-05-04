@@ -48,19 +48,46 @@ pencil.
 
 ---
 
-    PencilArray{T}(undef, pencil::Pencil, [extra_dims...])
+    PencilArray{T}(undef, pencil::Pencil, [extra_dims...]; singleton = ())
 
 Allocate an uninitialised `PencilArray` that can hold data in the local pencil.
 
-Extra dimensions, for instance representing vector components, can be specified.
-These dimensions are added to the rightmost (slowest) indices of the resulting
-array.
+By default, the array has the same dimensions as the local part of the pencil.
 
-# Example
+See also [`partition`](@ref) for an alternative way of constructing `PencilArray`s.
+
+# Optional arguments
+
+## Extra dimensions
+
+Extra dimensions can be specified, which will be added to the rightmost
+(slowest) indices of the resulting arrays.
+These dimensions might represent things like different vector components in
+physical applications.
+
+## Singleton dimensions
+
+It is possible to specify that some of the dimensions should have size 1 --
+instead of having the same size as the pencil.
+This can be convenient for the purposes of describing physical fields that are
+constant along one of the dimensions.
+The resulting array can be naturally broadcasted with other `PencilArray`s that
+hold data in the same pencil.
+
+To specify one or more singleton dimensions, set the optional `singleton`
+keyword argument to a dimension (e.g. `singleton = 2`) or a list of dimensions
+(e.g. `singleton = (1, 3)`).
+See below for more examples.
+
+# Examples
+
 Suppose `pencil` has local dimensions `(20, 10, 30)`. Then:
+
 ```julia
-PencilArray{Float64}(undef, pencil)        # array dimensions are (20, 10, 30)
+PencilArray{Float64}(undef, pencil)                 # array dimensions are (20, 10, 30)
+PencilArray{Float64}(undef, pencil; singleton = 1)  # array dimensions are ( 1, 10, 30)
 PencilArray{Float64}(undef, pencil, 4, 3)  # array dimensions are (20, 10, 30, 4, 3)
+PencilArray{Float64}(undef, pencil, 4, 3; singleton = (1, 3))  # array dimensions are (1, 10, 1, 4, 3)
 ```
 
 More examples:
@@ -70,12 +97,22 @@ julia> pen = Pencil((20, 10, 12), MPI.COMM_WORLD);
 
 julia> u = PencilArray{Float64}(undef, pen);
 
+julia> v = PencilArray{Int}(undef, pen; singleton = 3);
+
 julia> summary(u)
 "20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation, Array})"
 
+julia> summary(v)
+"20×10×1 PencilArray{Int64, 3}(::Pencil{3, 2, NoPermutation, Array})"
+
+julia> u .= 2.1; v .= 42; w = u .+ v; summary(w)
+"20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation, Array})"
+
+julia> extrema(w)
+(44.1, 44.1)
+
 julia> PencilArray{Float64}(undef, pen, 4, 3) |> summary
 "20×10×12×4×3 PencilArray{Float64, 5}(::Pencil{3, 2, NoPermutation, Array})"
-
 ```
 """
 struct PencilArray{
@@ -106,8 +143,13 @@ struct PencilArray{
         extra_dims = ntuple(n -> size_data[Np + n], E)  # = size_data[Np+1:N]
 
         dims_local = size_local(pencil, MemoryOrder())
+        dims_are_ok = all(zip(geom_dims, dims_local)) do (x, y)
+            # A dimension size is "correct" if it's either equal to the local
+            # pencil size, or equal to 1 (for singleton array dimensions).
+            x == y || x == 1
+        end
 
-        if geom_dims !== dims_local
+        if !dims_are_ok
             throw(DimensionMismatch(
                 "array has incorrect dimensions: $(size_data). " *
                 "Local dimensions of pencil: $(dims_local)."))
@@ -122,6 +164,7 @@ struct PencilArray{
 end
 
 @inline _check_compatible(p::Pencil, u) = _check_compatible(typeof_array(p), u)
+
 @inline function _check_compatible(::Type{A}, u, ubase = u) where {A}
     typeof(u) <: A && return nothing
     up = parent(u)
@@ -131,8 +174,17 @@ end
     _check_compatible(A, up, ubase)
 end
 
-function PencilArray{T}(init, pencil::Pencil, extra_dims::Vararg{Integer}) where {T}
-    dims = (size_local(pencil, MemoryOrder())..., extra_dims...)
+function PencilArray{T}(
+        init, pencil::Pencil, extra_dims::Vararg{Integer};
+        singleton = (),
+    ) where {T}
+    dims_log = size_local(pencil, LogicalOrder())
+    for i ∈ singleton
+        dims_log = Base.setindex(dims_log, 1, i)
+    end
+    perm = permutation(pencil)
+    dims_mem = perm * dims_log
+    dims = (dims_mem..., extra_dims...)
     A = typeof_array(pencil)
     PencilArray(pencil, A{T}(init, dims))
 end
