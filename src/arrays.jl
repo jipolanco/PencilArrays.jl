@@ -174,14 +174,21 @@ end
     _check_compatible(A, up, ubase)
 end
 
+_apply_singleton(dims, ::Nothing) = dims
+
+function _apply_singleton(dims, singleton)
+    for i ∈ singleton
+        dims = Base.setindex(dims, 1, i)
+    end
+    dims
+end
+
 function PencilArray{T}(
         init, pencil::Pencil, extra_dims::Vararg{Integer};
-        singleton = (),
+        singleton = nothing,
     ) where {T}
     dims_log = size_local(pencil, LogicalOrder())
-    for i ∈ singleton
-        dims_log = Base.setindex(dims_log, 1, i)
-    end
+    dims_log = _apply_singleton(dims_log, singleton)
     perm = permutation(pencil)
     dims_mem = perm * dims_log
     dims = (dims_mem..., extra_dims...)
@@ -257,17 +264,20 @@ end
 Base.axes(x::PencilArray) = permutation(x) \ axes(parent(x))
 
 """
-    similar(x::PencilArray, [element_type=eltype(x)], [dims])
+    similar(x::PencilArray, [element_type=eltype(x)], [dims]; [singleton = ()])
 
 Returns an array similar to `x`.
 
 The actual type of the returned array depends on whether `dims` is passed:
 
-- if `dims` is *not* passed, then a `PencilArray` of same dimensions of `x` is
-  returned.
+1. if `dims` is *not* passed, then a `PencilArray` of same dimensions of `x` is
+   returned.
 
-- otherwise, an array similar to that wrapped by `x` (typically a regular
-  `Array`) is returned, with the chosen dimensions.
+2. otherwise, an array similar to that wrapped by `x` (typically a regular
+   `Array`) is returned, with the chosen dimensions.
+
+The optional `singleton` argument is only allowed in case 1.
+See the [`PencilArray`](@ref) constructor for its meaning.
 
 # Examples
 
@@ -281,6 +291,9 @@ julia> similar(u) |> summary
 
 julia> similar(u, ComplexF32) |> summary
 "20×10×12 PencilArray{ComplexF32, 3}(::Pencil{3, 2, NoPermutation, Array})"
+
+julia> similar(u, ComplexF32; singleton = (1, 2)) |> summary
+"1×1×12 PencilArray{ComplexF32, 3}(::Pencil{3, 2, NoPermutation, Array})"
 
 julia> similar(u, (4, 3, 8)) |> summary
 "4×3×8 Array{Float64, 3}"
@@ -297,7 +310,7 @@ julia> similar(u, ComplexF32, (4, 3)) |> summary
 
 ---
 
-    similar(x::PencilArray, [element_type = eltype(x)], p::Pencil)
+    similar(x::PencilArray, [element_type = eltype(x)], p::Pencil; [singleton = ()])
 
 Create a `PencilArray` with the decomposition described by the given `Pencil`.
 
@@ -334,22 +347,29 @@ julia> summary(vint)
 julia> pencil(vint) === pen_v
 true
 
+julia> similar(u, Int, pen_v; singleton = 1) |> summary
+"1×10×12 PencilArray{Int64, 3}(::Pencil{3, 2, Permutation{(2, 3, 1), 3}, Array})"
+
 ```
 """
-function Base.similar(x::PencilArray, ::Type{S}) where {S}
-    dims_perm = permutation(x) * size_local(x)
-    PencilArray(x.pencil, similar(parent(x), S, dims_perm))
+function Base.similar(x::PencilArray, ::Type{S}; singleton = nothing) where {S}
+    dims_log = _apply_singleton(size_local(x, LogicalOrder()), singleton)
+    dims_mem = permutation(x) * dims_log
+    data = similar(parent(x), S, dims_mem)
+    PencilArray(pencil(x), data)
 end
 
 Base.similar(x::PencilArray, ::Type{S}, dims::Dims) where {S} =
     similar(parent(x), S, dims)
 
-function Base.similar(x::PencilArray, ::Type{S}, p::Pencil) where {S}
-    dims_mem = (size_local(p, MemoryOrder())..., extra_dims(x)...)
-    PencilArray(p, similar(parent(x), S, dims_mem))
+function Base.similar(x::PencilArray, ::Type{S}, p::Pencil; singleton = nothing) where {S}
+    dims_log = _apply_singleton(size_local(p, LogicalOrder()), singleton)
+    dims_mem = permutation(p) * dims_log
+    dims_data = (dims_mem..., extra_dims(x)...)
+    PencilArray(p, similar(parent(x), S, dims_data))
 end
 
-Base.similar(x::PencilArray, p::Pencil) = similar(x, eltype(x), p)
+Base.similar(x::PencilArray, p::Pencil; kws...) = similar(x, eltype(x), p; kws...)
 
 # Use same index style as the parent array.
 Base.IndexStyle(::Type{<:PencilArray{T,N,A}} where {T,N}) where {A} =
