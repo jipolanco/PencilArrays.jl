@@ -122,44 +122,62 @@ struct PencilArray{
         Np,  # number of "spatial" dimensions (i.e. dimensions of the Pencil)
         E,   # number of "extra" dimensions (= N - Np)
         P <: Pencil,
+        Singleton <: SingletonDims,
     } <: AbstractArray{T,N}
     pencil   :: P
     data     :: A
-    space_dims :: Dims{Np}  # spatial dimensions in *logical* order
+    space_dims :: Dims{Np}   # spatial dimensions in *logical* order
     extra_dims :: Dims{E}
+
+    # List of singleton dimensions, e.g. singleton = (1, 3).
+    # These dimensions correspond to *logical* order.
+    # Note that we need to keep track of which dimensions are logically
+    # considered as singleton dimensions, to distinguish them from dimensions
+    # which just happen to have a local size = 1 (which can actually happen
+    # when the global data has been distributed among MPI processes).
+    # For instance, the result of `size_global(::PencilArray)` is generally
+    # different for both cases, since a singleton dimension also has global size 1.
+    singleton :: Singleton
 
     # This constructor is not to be used directly!
     # It exists just to enforce that the type of data array is consistent with
     # typeof_array(pencil).
-    function PencilArray(pencil::Pencil, data::AbstractArray)
+    function PencilArray(pencil::Pencil, data::AbstractArray, singleton_in = ())
+        singleton = SingletonDims(singleton_in)
         _check_compatible(pencil, data)
+        perm = permutation(pencil)
 
         N = ndims(data)
         Np = ndims(pencil)
         E = N - Np
-        size_data = size(data)
+        datadims = size(data)
 
-        geom_dims = ntuple(n -> size_data[n], Np)  # = size_data[1:Np]
-        extra_dims = ntuple(n -> size_data[Np + n], E)  # = size_data[Np+1:N]
+        dims_mem = ntuple(n -> datadims[n], Np)        # = datadims[1:Np]
+        extra_dims = ntuple(n -> datadims[Np + n], E)  # = datadims[Np+1:N]
 
-        dims_local = size_local(pencil, MemoryOrder())
-        dims_are_ok = all(zip(geom_dims, dims_local)) do (x, y)
-            # A dimension size is "correct" if it's either equal to the local
-            # pencil size, or equal to 1 (for singleton array dimensions).
-            x == y || x == 1
-        end
+        dims_log_expected = singletons_to_one(
+            size_local(pencil, LogicalOrder()),
+            singleton,
+        )
+        dims_mem_expected = perm * dims_log_expected
 
-        if !dims_are_ok
+        if dims_mem_expected != dims_mem
+            datadims_expected = (dims_mem_expected..., extra_dims...)
             throw(DimensionMismatch(
-                "array has incorrect dimensions: $(size_data). " *
-                "Local dimensions of pencil: $(dims_local)."))
+                "array has incorrect dimensions: $(datadims). " *
+                "Expected dimensions: $(datadims_expected)."
+            ))
         end
 
-        space_dims = permutation(pencil) \ geom_dims  # undo permutation
+        dims_log = perm \ dims_mem  # dimensions in logical order
 
         T = eltype(data)
         P = typeof(pencil)
-        new{T, N, typeof(data), Np, E, P}(pencil, data, space_dims, extra_dims)
+        S = typeof(singleton)
+
+        new{T, N, typeof(data), Np, E, P, S}(
+            pencil, data, dims_log, extra_dims, singleton,
+        )
     end
 end
 
@@ -174,26 +192,19 @@ end
     _check_compatible(A, up, ubase)
 end
 
-_apply_singleton(dims, ::Nothing) = dims
-
-function _apply_singleton(dims, singleton)
-    for i ∈ singleton
-        dims = Base.setindex(dims, 1, i)
-    end
-    dims
-end
+singleton_dims(u::PencilArray) = u.singleton
 
 function PencilArray{T}(
         init, pencil::Pencil, extra_dims::Vararg{Integer};
-        singleton = nothing,
+        singleton = (),
     ) where {T}
     dims_log = size_local(pencil, LogicalOrder())
-    dims_log = _apply_singleton(dims_log, singleton)
+    dims_log = singletons_to_one(dims_log, singleton)
     perm = permutation(pencil)
     dims_mem = perm * dims_log
     dims = (dims_mem..., extra_dims...)
     A = typeof_array(pencil)
-    PencilArray(pencil, A{T}(init, dims))
+    PencilArray(pencil, A{T}(init, dims), singleton)
 end
 
 # Treat PencilArray similarly to other wrapper types.
@@ -201,10 +212,10 @@ end
 function Adapt.adapt_structure(to, u::PencilArray)
     A = typeof_array(to)
     p = similar(pencil(u), A)  # create Pencil with possibly different array type
-    PencilArray(p, Adapt.adapt(to, parent(u)))
+    PencilArray(p, Adapt.adapt(to, parent(u)), singleton_dims(u))
 end
 
-pencil_type(::Type{PencilArray{T,N,A,M,E,P}}) where {T,N,A,M,E,P} = P
+pencil_type(::Type{<:PencilArray{T,N,A,M,E,P}}) where {T,N,A,M,E,P} = P
 
 # This is called by `summary`.
 function Base.showarg(io::IO, u::PencilArray, toplevel)
@@ -253,7 +264,7 @@ collection(x::PencilArray) = (x, )
 
 const MaybePencilArrayCollection = Union{PencilArray, PencilArrayCollection}
 
-function _apply(f::Function, x::PencilArrayCollection, args...; kwargs...)
+function _apply(f::F, x::PencilArrayCollection, args...; kwargs...) where {F}
     a = first(x)
     if !all(b -> pencil(a) === pencil(b), x)
         throw(ArgumentError("PencilArrayCollection is not homogeneous"))
@@ -352,21 +363,24 @@ julia> similar(u, Int, pen_v; singleton = 1) |> summary
 
 ```
 """
-function Base.similar(x::PencilArray, ::Type{S}; singleton = nothing) where {S}
-    dims_log = _apply_singleton(size_local(x, LogicalOrder()), singleton)
+function Base.similar(x::PencilArray, ::Type{S}; singleton = ()) where {S}
+    dims_log = singletons_to_one(size_local(x, LogicalOrder()), singleton)
     dims_mem = permutation(x) * dims_log
     data = similar(parent(x), S, dims_mem)
-    PencilArray(pencil(x), data)
+    PencilArray(pencil(x), data, singleton)
 end
+
+# We need this to allow `similar(x; singleton)`.
+Base.similar(x::PencilArray; kws...) = similar(x, eltype(x); kws...)
 
 Base.similar(x::PencilArray, ::Type{S}, dims::Dims) where {S} =
     similar(parent(x), S, dims)
 
-function Base.similar(x::PencilArray, ::Type{S}, p::Pencil; singleton = nothing) where {S}
-    dims_log = _apply_singleton(size_local(p, LogicalOrder()), singleton)
+function Base.similar(x::PencilArray, ::Type{S}, p::Pencil; singleton = ()) where {S}
+    dims_log = singletons_to_one(size_local(p, LogicalOrder()), singleton)
     dims_mem = permutation(p) * dims_log
     dims_data = (dims_mem..., extra_dims(x)...)
-    PencilArray(p, similar(parent(x), S, dims_data))
+    PencilArray(p, similar(parent(x), S, dims_data), singleton)
 end
 
 Base.similar(x::PencilArray, p::Pencil; kws...) = similar(x, eltype(x), p; kws...)

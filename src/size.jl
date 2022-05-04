@@ -39,11 +39,12 @@ Local dimensions of the data held by the `PencilArray`.
 
 See also [`size_local(::Pencil)`](@ref).
 """
-size_local(x::MaybePencilArrayCollection, args...; kwargs...) =
-    (size_local(pencil(x), args...; kwargs...)..., extra_dims(x)...)
+size_local(x::PencilArray, ::MemoryOrder) = size(parent(x))
+size_local(x::PencilArray, ::LogicalOrder = LogicalOrder()) =
+    permutation(x) \ size_local(x, MemoryOrder())
 
-size_local(x::GlobalPencilArray, args...; kwargs...) =
-    size_local(parent(x), args...; kwargs...)
+size_local(xs::PencilArrayCollection, args...) = size_local(first(xs), args...)
+size_local(x::GlobalPencilArray, args...) = size_local(parent(x), args...)
 
 """
     size_global(x::PencilArray, [order = LogicalOrder()])
@@ -53,12 +54,18 @@ Global dimensions associated to the given array.
 
 By default, the logical dimensions of the dataset are returned.
 
-If `order = LogicalOrder()`, this is the same as `size(x)`.
-
 See also [`size_global(::Pencil)`](@ref).
 """
-size_global(x::MaybePencilArrayCollection, args...; kw...) =
-    (size_global(pencil(x), args...; kw...)..., extra_dims(x)...)
+size_global(x::PencilArray, ::LogicalOrder = LogicalOrder()) =
+    _size_global(x, NoPermutation())
+size_global(x::PencilArray, ::MemoryOrder) =
+    _size_global(x, permutation(x))
 
-size_global(x::GlobalPencilArray, args...; kwargs...) =
-    size_global(parent(x), args...; kwargs...)
+function _size_global(x::PencilArray, perm)
+    dims_base = size_global(pencil(x), LogicalOrder())
+    dims = perm * singletons_to_one(dims_base, singleton_dims(x))
+    (dims..., extra_dims(x)...)
+end
+
+size_global(xs::PencilArrayCollection, args...) = size_global(first(xs), args...)
+size_global(x::GlobalPencilArray, args...) = size_global(parent(x), args...)

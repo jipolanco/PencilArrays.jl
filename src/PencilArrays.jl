@@ -41,6 +41,7 @@ export global_view
 export ndims_extra, ndims_space, extra_dims, sizeof_global
 
 # Type definitions
+include("singleton_dims.jl")
 include("arrays.jl")       # PencilArray
 include("multiarrays.jl")  # ManyPencilArray
 include("global_view.jl")  # GlobalPencilArray
