@@ -185,7 +185,7 @@ end
     _check_compatible(A, up, ubase)
 end
 
-_apply_singleton(dims, ::Tuple{}) = dims
+_apply_singleton(dims::NTuple, ::Tuple{}) = dims
 
 function _apply_singleton(dims::NTuple, singleton)
     T = eltype(dims)

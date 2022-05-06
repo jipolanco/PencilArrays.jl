@@ -3,11 +3,12 @@ using PencilArrays
 using Random
 using Test
 
-MPI.Initialized() || MPI.Init()
+MPI.Init()
 
 dims = (8, 12, 9)
 comm = MPI.COMM_WORLD
-pen = Pencil(dims, comm; permute = Permutation(2, 3, 1))
+perm = Permutation(2, 3, 1)
+pen = Pencil(dims, comm; permute = perm)
 
 MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
@@ -29,4 +30,23 @@ ug = global_view(u)
             A[I] === v
         end
     end
+end
+
+@testset "Singleton" begin
+    Nxg, Nyg, Nzg = size_global(pen, LogicalOrder())
+    Nxl, Nyl, Nzl = size_local(pen, LogicalOrder())
+
+    # Two different ways of doing the same thing.
+    ux = @inferred PencilArray{Int}(undef, pen; singleton = 1)
+    uy = @inferred similar(ux, Int; singleton = 1)
+    @test typeof(ux) === typeof(uy)
+    @test size(ux) === size(uy)
+    @test size(ux) === size_local(ux, LogicalOrder())
+    @test size(ux, 1) == 1  # singleton dimension
+    @test length(ux) == Nyl * Nzl
+    @test length_global(ux) == Nyg * Nzg
+    @test size_local(ux, LogicalOrder()) == (1, Nyl, Nzl)
+    @test size_global(ux, LogicalOrder()) == (1, Nyg, Nzg)
+    @test size_local(ux, MemoryOrder()) == perm * (1, Nyl, Nzl)
+    @test size_global(ux, MemoryOrder()) == perm * (1, Nyg, Nzg)
 end
