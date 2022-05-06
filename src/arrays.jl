@@ -136,8 +136,8 @@ struct PencilArray{
 
     # NOTE: this constructor is not to be used directly!!!
     function PencilArray(
-            pencil::Pencil{Np}, data::AbstractArray{T,N},
-            dims_global::Dims{Np},
+            pencil::Pencil{Np}, data::AbstractArray{T, N},
+            dims_global::Dims{Np} = size_global(pencil, LogicalOrder()),
         ) where {T, Np, N}
         _check_compatible(pencil, data)
 
