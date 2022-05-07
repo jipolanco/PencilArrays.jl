@@ -206,7 +206,7 @@ function PencilArray{T}(
     dims_mem = perm * dims_log
     dims = (dims_mem..., extra_dims...)
     dims_global = let dims = size_global(pencil, LogicalOrder())
-        (_apply_singleton(dims, singleton)..., extra_dims...)
+        _apply_singleton(dims, singleton)
     end
     A = typeof_array(pencil)
     PencilArray(pencil, A{T}(init, dims), dims_global)
@@ -383,9 +383,8 @@ function Base.similar(x::PencilArray, ::Type{S}, p::Pencil; singleton = ()) wher
     dims_mem = permutation(p) * dims_loc
     dims_ext = extra_dims(x)
     dims_data = (dims_mem..., dims_ext...)
-    dims_global = (dims_glb..., dims_ext...)
     data = similar(parent(x), S, dims_data)
-    PencilArray(p, data, dims_global)
+    PencilArray(p, data, dims_glb)
 end
 
 Base.similar(x::PencilArray, p::Pencil; kws...) = similar(x, eltype(x), p; kws...)
