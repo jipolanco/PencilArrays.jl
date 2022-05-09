@@ -182,7 +182,7 @@ struct Pencil{
     timer :: TimerOutput
 
     # This constructor is left undocumented and should never be called directly.
-    function Pencil(
+    global function _Pencil(
             topology::MPITopology{M}, size_global::Dims{N},
             decomp_dims::Dims{M}, axes_all, perm::P,
             send_buf::BufVector, recv_buf::BufVector, timer::TimerOutput,
@@ -208,7 +208,7 @@ struct Pencil{
         _check_selected_dimensions(N, decomp_dims)
         decomp_dims = _sort_dimensions(decomp_dims)
         axes_all = get_axes_matrix(decomp_dims, topology.dims, size_global)
-        Pencil(
+        _Pencil(
             topology, size_global, decomp_dims, axes_all, permute,
             send_buf, recv_buf, timer,
         )
@@ -222,10 +222,12 @@ struct Pencil{
             timer::TimerOutput = timer(p),
             etc...,
     ) where {N, M}
-        Pencil(p.topology, size_global, decomp_dims;
-               permute=permute, timer=timer,
-               send_buf=p.send_buf, recv_buf=p.recv_buf,
-               etc...)
+        Pencil(
+            p.topology, size_global, decomp_dims;
+            permute=permute, timer=timer,
+            send_buf=p.send_buf, recv_buf=p.recv_buf,
+            etc...,
+        )
     end
 end
 
@@ -306,7 +308,7 @@ function _similar(
     if dims == size_global(p)
         # Avoid recomputing (and allocating a new) `axes_all`, since it doesn't
         # change in the new decomposition.
-        Pencil(
+        _Pencil(
             p.topology, dims, p.decomp_dims, p.axes_all,
             p.perm, send_buf, recv_buf, p.timer,
         )
