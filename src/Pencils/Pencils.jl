@@ -181,6 +181,27 @@ struct Pencil{
     # Timing information.
     timer :: TimerOutput
 
+    function check_empty_dimension(topology, axes_local, size_global, decomp_dims)
+        dims_topology = size(topology)
+        for ax ∈ axes_local
+            isempty(ax) || continue
+            rank = MPI.Comm_rank(get_comm(topology))
+            size_local = length.(axes_local)
+            @warn(
+                """
+                MPI rank $rank has no data.
+                This is likely caused by a dimension that is being distributed across more
+                processes than the available amount of data.
+                This not only means that some processes will do no work, but can also result
+                in broadcasting errors!
+                """,
+                size_global, size_local, axes_local, decomp_dims, dims_topology,
+            )
+            return
+        end
+        nothing
+    end
+
     # This constructor is left undocumented and should never be called directly.
     global function _Pencil(
             topology::MPITopology{M}, size_global::Dims{N},
@@ -191,6 +212,7 @@ struct Pencil{
         check_permutation(perm)
         axes_local = axes_all[coords_local(topology)...]
         axes_local_perm = perm * axes_local
+        check_empty_dimension(topology, axes_local, size_global, decomp_dims)
         new{N, M, P, BufVector}(
             topology, size_global, decomp_dims,
             axes_all, axes_local, axes_local_perm,
