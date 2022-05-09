@@ -193,7 +193,7 @@ struct Pencil{
                 This is likely caused by a dimension that is being distributed across more
                 processes than the available amount of data.
                 This not only means that some processes will do no work, but can also result
-                in broadcasting errors!
+                in broadcasting errors and other surprises!
                 """,
                 size_global, size_local, axes_local, decomp_dims, dims_topology,
             )
