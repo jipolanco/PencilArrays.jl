@@ -409,6 +409,12 @@ end
 
     @test Pencils.complete_dims(Val(5), (2, 3), (42, 12)) ===
         (1, 42, 12, 1, 1)
+
+    # Try to divide dimension of size = Nproc - 1 among Nproc processes.
+    # => One or more processes will have no data.
+    global_dims = (12, Nproc - 1)
+    decomp_dims = (2,)
+    @test_warn "has no data" Pencil(global_dims, decomp_dims, comm)
 end
 
 @testset "Pencil" begin

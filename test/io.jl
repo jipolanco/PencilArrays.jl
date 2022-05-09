@@ -198,5 +198,5 @@ perms = (NoPermutation(), Permutation(2, 3, 1))
     end
 end
 
-HDF5.API.h5_close()
-MPI.Finalize()
+# HDF5.API.h5_close()
+# MPI.Finalize()
