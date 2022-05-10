@@ -501,6 +501,12 @@ transpose_methods = (Transpositions.PointToPoint(),
         @test compare_distributed_arrays(u1, u2)
     end
 
+    # Test transpositions with unsorted decomp_dims
+    let pen_alt = @inferred Pencil(pen1, decomp_dims = (2, 1))
+        ualt = PencilArray{T}(undef, pen_alt)
+        transpose!(ualt, u1, method=method)
+        @test compare_distributed_arrays(u1, ualt)
+    end
 end
 
 # Test arrays with extra dimensions.
