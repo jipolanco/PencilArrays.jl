@@ -190,16 +190,18 @@ struct Pencil{
             nproc ≤ N && continue
             @warn(
                 """
-                Dimension `i = $i` has global size `Nᵢ = $N` but is being decomposed across `Pᵢ = $nproc` processes, with `Pᵢ > Nᵢ`.
+                Dimension `i = $i` has global size `Nᵢ = $N` but is being decomposed across `Pᵢ = $nproc`
+                processes.
 
-                This means that some processes will have no data, and therefore will do no work.
+                Since `Pᵢ > Nᵢ`, some processes will have no data, and therefore will do no work. This can
+                result in broadcasting errors and other unsupported behaviour!
 
-                This can also result in broadcasting errors and other unsupported behaviour!
+                To fix this, consider choosing a different configuration of processes (e.g. via the
+                `proc_dims` argument), or use a lower number of processes. See below for the current
+                values of some of these parameters.
 
                 """,
-                i, global_dims = size_global,
-                decomposed_dims = decomp_dims,
-                proc_dims,
+                i, size_global, decomp_dims, proc_dims,
             )
             return
         end
