@@ -159,11 +159,11 @@ struct Pencil{
 
     # Decomposition directions.
     # Example: for x-pencils, this is typically (2, 3, ..., N).
-    # Note that don't need to be sorted.
-    # The order matters when determining over how many processes a given
-    # dimension is distributed.
-    # This is in particular important for determining whether two Pencil's are
-    # compatible for transposing between them.
+    # Note that the directions don't need to be sorted.
+    # The order matters when determining over how many processes a given dimension is
+    # distributed.
+    # This is in particular important for determining whether two Pencil's are compatible
+    # for transposing between them.
     decomp_dims :: Dims{M}
 
     # Part of the array held by every process.
@@ -246,10 +246,9 @@ struct Pencil{
     end
 
     # TODO
-    # - automatically reorder decomp_dims to make sure that both pencils are
-    #   compatible for transpositions
-    # - throw error if it's not possible to make both pencils compatible for
-    #   transpositions?
+    # - automatically reorder decomp_dims to make sure that both pencils are compatible for
+    #   transpositions
+    # - throw error if it's not possible to make both pencils compatible for transpositions?
     function Pencil(
             p::Pencil{N,M};
             decomp_dims::Dims{M} = decomposition(p),
