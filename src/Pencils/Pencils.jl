@@ -181,14 +181,42 @@ struct Pencil{
     # Timing information.
     timer :: TimerOutput
 
+    function check_empty_dimension(topology, size_global, decomp_dims)
+        proc_dims = size(topology)
+        for (i, nproc) ∈ zip(decomp_dims, proc_dims)
+            # Check that dimension `i` (which has size `N = size_global[i]`) is
+            # being decomposed over a number of processes ≤ N.
+            N = size_global[i]
+            nproc ≤ N && continue
+            @warn(
+                """
+                Dimension `i = $i` has global size `Nᵢ = $N` but is being decomposed across `Pᵢ = $nproc`
+                processes.
+
+                Since `Pᵢ > Nᵢ`, some processes will have no data, and therefore will do no work. This can
+                result in broadcasting errors and other unsupported behaviour!
+
+                To fix this, consider choosing a different configuration of processes (e.g. via the
+                `proc_dims` argument), or use a lower number of processes. See below for the current
+                values of some of these parameters.
+
+                """,
+                i, size_global, decomp_dims, proc_dims,
+            )
+            return
+        end
+        nothing
+    end
+
     # This constructor is left undocumented and should never be called directly.
-    function Pencil(
+    global function _Pencil(
             topology::MPITopology{M}, size_global::Dims{N},
             decomp_dims::Dims{M}, axes_all, perm::P,
             send_buf::BufVector, recv_buf::BufVector, timer::TimerOutput,
         ) where {M, N, P, BufVector}
         @assert issorted(decomp_dims)
         check_permutation(perm)
+        check_empty_dimension(topology, size_global, decomp_dims)
         axes_local = axes_all[coords_local(topology)...]
         axes_local_perm = perm * axes_local
         new{N, M, P, BufVector}(
@@ -208,7 +236,7 @@ struct Pencil{
         _check_selected_dimensions(N, decomp_dims)
         decomp_dims = _sort_dimensions(decomp_dims)
         axes_all = get_axes_matrix(decomp_dims, topology.dims, size_global)
-        Pencil(
+        _Pencil(
             topology, size_global, decomp_dims, axes_all, permute,
             send_buf, recv_buf, timer,
         )
@@ -222,10 +250,12 @@ struct Pencil{
             timer::TimerOutput = timer(p),
             etc...,
     ) where {N, M}
-        Pencil(p.topology, size_global, decomp_dims;
-               permute=permute, timer=timer,
-               send_buf=p.send_buf, recv_buf=p.recv_buf,
-               etc...)
+        Pencil(
+            p.topology, size_global, decomp_dims;
+            permute=permute, timer=timer,
+            send_buf=p.send_buf, recv_buf=p.recv_buf,
+            etc...,
+        )
     end
 end
 
@@ -306,7 +336,7 @@ function _similar(
     if dims == size_global(p)
         # Avoid recomputing (and allocating a new) `axes_all`, since it doesn't
         # change in the new decomposition.
-        Pencil(
+        _Pencil(
             p.topology, dims, p.decomp_dims, p.axes_all,
             p.perm, send_buf, recv_buf, p.timer,
         )

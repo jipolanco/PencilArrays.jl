@@ -409,6 +409,18 @@ end
 
     @test Pencils.complete_dims(Val(5), (2, 3), (42, 12)) ===
         (1, 42, 12, 1, 1)
+
+    # Divide dimension of size = Nproc - 1 among Nproc processes.
+    # => One process will have no data!
+    global_dims = (12, Nproc - 1)
+    decomp_dims = (2,)
+
+    # This test fails on Julia 1.6 for some reason.
+    # The warning is shown, but @test_warn apparently fails to capture the
+    # output.
+    @static if VERSION ≥ v"1.7"
+        @test_warn "have no data" Pencil(global_dims, decomp_dims, comm)
+    end
 end
 
 @testset "Pencil" begin
