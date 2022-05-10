@@ -157,8 +157,13 @@ struct Pencil{
     # These dimensions are *before* permutation by perm.
     size_global :: Dims{N}
 
-    # Decomposition directions (sorted in increasing order).
-    # Example: for x-pencils, this is (2, 3, ..., N).
+    # Decomposition directions.
+    # Example: for x-pencils, this is typically (2, 3, ..., N).
+    # Note that the directions don't need to be sorted.
+    # The order matters when determining over how many processes a given dimension is
+    # distributed.
+    # This is in particular important for determining whether two Pencil's are compatible
+    # for transposing between them.
     decomp_dims :: Dims{M}
 
     # Part of the array held by every process.
@@ -214,7 +219,6 @@ struct Pencil{
             decomp_dims::Dims{M}, axes_all, perm::P,
             send_buf::BufVector, recv_buf::BufVector, timer::TimerOutput,
         ) where {M, N, P, BufVector}
-        @assert issorted(decomp_dims)
         check_permutation(perm)
         check_empty_dimension(topology, size_global, decomp_dims)
         axes_local = axes_all[coords_local(topology)...]
@@ -234,14 +238,17 @@ struct Pencil{
             timer = TimerOutput(),
         ) where {N, M}
         _check_selected_dimensions(N, decomp_dims)
-        decomp_dims = _sort_dimensions(decomp_dims)
-        axes_all = get_axes_matrix(decomp_dims, topology.dims, size_global)
+        axes_all = generate_axes_matrix(decomp_dims, topology.dims, size_global)
         _Pencil(
             topology, size_global, decomp_dims, axes_all, permute,
             send_buf, recv_buf, timer,
         )
     end
 
+    # TODO
+    # - automatically reorder decomp_dims to make sure that both pencils are compatible for
+    #   transpositions
+    # - throw error if it's not possible to make both pencils compatible for transpositions?
     function Pencil(
             p::Pencil{N,M};
             decomp_dims::Dims{M} = decomposition(p),
@@ -373,9 +380,6 @@ function _check_selected_dimensions(N, dims::Dims{M}) where M
     end
     nothing
 end
-
-# Use the `sort` method from StaticArrays and convert back to tuple.
-_sort_dimensions(dims::Dims{N}) where {N} = Tuple(sort(SVector(dims)))
 
 Base.summary(io::IO, p::Pencil) = Base.showarg(io, p, true)
 

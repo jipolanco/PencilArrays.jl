@@ -39,11 +39,14 @@ The two pencil configurations must be compatible for transposition:
 
 - they must have the same global data size,
 
-- when written as a sorted tuple, the decomposed dimensions must be almost the
-  same, with at most one difference. For instance, if the input of a 3D dataset
-  is decomposed in `(2, 3)`, then the output may be decomposed in `(1, 3)`, but
-  not in `(1, 2)`. If the decomposed dimensions are the same, then no
-  transposition is performed, and data is just copied if needed.
+- the decomposed dimensions must be almost the same, with at most one
+  difference.
+  For instance, if the input of a 3D dataset is decomposed in `(2, 3)`, then the
+  output may be decomposed in `(1, 3)` or in `(2, 1)`, but not in `(1, 2)`.
+  **Note that the order of the decomposed dimensions (as passed to the `Pencil`
+  constructor) matters.**
+  If the decomposed dimensions are the same, then no transposition is performed,
+  and data is just copied if needed.
 
 The `src` and `dest` arrays may be aliased (they can share memory space).
 
@@ -163,9 +166,7 @@ function assert_compatible(p::Pencil, q::Pencil)
             " configurations. Got $(p.size_global) ≠ $(q.size_global)."))
     end
     # Check that decomp_dims differ on at most one value.
-    # Both are expected to be sorted.
     dp, dq = map(decomposition, (p, q))
-    @assert all(map(issorted, (dp, dq)))
     if sum(dp .!= dq) > 1
         throw(ArgumentError(
             "pencil decompositions must differ in at most one dimension. " *
