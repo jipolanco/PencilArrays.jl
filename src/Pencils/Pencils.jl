@@ -238,7 +238,7 @@ struct Pencil{
             timer = TimerOutput(),
         ) where {N, M}
         _check_selected_dimensions(N, decomp_dims)
-        axes_all = get_axes_matrix(decomp_dims, topology.dims, size_global)
+        axes_all = generate_axes_matrix(decomp_dims, topology.dims, size_global)
         _Pencil(
             topology, size_global, decomp_dims, axes_all, permute,
             send_buf, recv_buf, timer,
