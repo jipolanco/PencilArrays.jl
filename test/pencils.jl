@@ -414,12 +414,7 @@ end
     # => One process will have no data!
     global_dims = (12, Nproc - 1)
     decomp_dims = (2,)
-    proc = MPI.Comm_rank(comm) + 1
-    js_local = Pencils.local_data_range(proc, Nproc, global_dims[2])
-    @test MPI.Allreduce(length(js_local), +, comm) == global_dims[2]
-    if isempty(js_local)  # if this process has no data
-        @test_warn "has no data" Pencil(global_dims, decomp_dims, comm)
-    end
+    @test_warn "have no data" Pencil(global_dims, decomp_dims, comm)
 end
 
 @testset "Pencil" begin

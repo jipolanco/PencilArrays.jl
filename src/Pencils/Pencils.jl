@@ -181,21 +181,25 @@ struct Pencil{
     # Timing information.
     timer :: TimerOutput
 
-    function check_empty_dimension(topology, axes_local, size_global, decomp_dims)
-        dims_topology = size(topology)
-        for ax ∈ axes_local
-            isempty(ax) || continue
-            rank = MPI.Comm_rank(get_comm(topology))
-            size_local = length.(axes_local)
+    function check_empty_dimension(topology, size_global, decomp_dims)
+        proc_dims = size(topology)
+        for (i, nproc) ∈ zip(decomp_dims, proc_dims)
+            # Check that dimension `i` (which has size `N = size_global[i]`) is
+            # being decomposed over a number of processes ≤ N.
+            N = size_global[i]
+            nproc ≤ N && continue
             @warn(
                 """
-                MPI rank $rank has no data.
-                This is likely caused by a dimension that is being distributed across more
-                processes than the available amount of data.
-                This not only means that some processes will do no work, but can also result
-                in broadcasting errors and other surprises!
+                Dimension `i = $i` has global size `Nᵢ = $N` but is being decomposed across `Pᵢ = $nproc` processes, with `Pᵢ > Nᵢ`.
+
+                This means that some processes will have no data, and therefore will do no work.
+
+                This can also result in broadcasting errors and other unsupported behaviour!
+
                 """,
-                size_global, size_local, axes_local, decomp_dims, dims_topology,
+                i, global_dims = size_global,
+                decomposed_dims = decomp_dims,
+                proc_dims,
             )
             return
         end
@@ -210,9 +214,9 @@ struct Pencil{
         ) where {M, N, P, BufVector}
         @assert issorted(decomp_dims)
         check_permutation(perm)
+        check_empty_dimension(topology, size_global, decomp_dims)
         axes_local = axes_all[coords_local(topology)...]
         axes_local_perm = perm * axes_local
-        check_empty_dimension(topology, axes_local, size_global, decomp_dims)
         new{N, M, P, BufVector}(
             topology, size_global, decomp_dims,
             axes_all, axes_local, axes_local_perm,
