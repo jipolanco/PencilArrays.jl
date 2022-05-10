@@ -245,6 +245,11 @@ struct Pencil{
         )
     end
 
+    # TODO
+    # - automatically reorder decomp_dims to make sure that both pencils are
+    #   compatible for transpositions
+    # - throw error if it's not possible to make both pencils compatible for
+    #   transpositions?
     function Pencil(
             p::Pencil{N,M};
             decomp_dims::Dims{M} = decomposition(p),
