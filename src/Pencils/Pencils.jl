@@ -223,6 +223,7 @@ struct Pencil{
         check_empty_dimension(topology, size_global, decomp_dims)
         axes_local = axes_all[coords_local(topology)...]
         axes_local_perm = perm * axes_local
+        check_local_data_dims(axes_local)
         new{N, M, P, BufVector}(
             topology, size_global, decomp_dims,
             axes_all, axes_local, axes_local_perm,
@@ -353,6 +354,25 @@ function _similar(
             permute = p.perm, send_buf, recv_buf, timer = p.timer,
         )
     end
+end
+
+function check_local_data_dims(axes_local)
+    # Show warning if the amount of local data is larger than typemax(Cint).
+    # This may cause problems with MPI, where lengths and offsets are given as Cint.
+    ndata = prod(length, axes_local)
+    if ndata > typemax(Cint)
+        @warn(
+            """
+            size of local data is too large compared to typemax(Cint).
+            This may cause problems when calling MPI functions.
+            If that's the case, try increasing the number of MPI processes.
+            """,
+            ndata,
+            typemax(Cint),
+            ndata / (typemax(Cint) + 1),
+        )
+    end
+    nothing
 end
 
 function check_permutation(perm)

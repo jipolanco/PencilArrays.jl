@@ -415,11 +415,22 @@ end
     global_dims = (12, Nproc - 1)
     decomp_dims = (2,)
 
-    # This test fails on Julia 1.6 for some reason.
+    # These warning tests fail on Julia 1.6 for some reason.
     # The warning is shown, but @test_warn apparently fails to capture the
     # output.
     @static if VERSION ≥ v"1.7"
         @test_warn "have no data" Pencil(global_dims, decomp_dims, comm)
+
+        # Throw warning if amount of local data is larger than typemax(Cint) (#58).
+        if sizeof(Cint) == 4  # just in case Cint == Int64, if that can ever happen...
+            let Nlocal = Int64(2) * (Int64(typemax(Cint)) + 1)
+                local Nglobal = Int64(Nproc) * Nlocal
+                local Nx = Int64(64)
+                local Ny = Nglobal ÷ Nx
+                @assert Nx * Ny == Nglobal
+                @test_warn "size of local data is too large" Pencil((Nx, Ny), comm)
+            end
+        end
     end
 end
 
