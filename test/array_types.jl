@@ -98,6 +98,7 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
             uxp = parent(parent(parent(ux)))
             @test uxp === parent(parent(parent(uy)))
             @test typeof(uxp) <: A{Float32}
+            @test @inferred(Tuple(M)) === (ux, uy)
         end
     end  # permutation
 end

@@ -122,6 +122,7 @@ first(::ManyPencilArray)
 getindex(::ManyPencilArray)
 last(::ManyPencilArray)
 length(::ManyPencilArray)
+Tuple(::ManyPencilArray)
 ```
 
 ## Index
