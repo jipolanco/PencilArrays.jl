@@ -37,7 +37,6 @@ struct ManyPencilArray{
         data_length = max(length.(pencils)...) * prod(extra_dims)
         data = BufType{T}(init, data_length)
         arrays = _make_arrays(data, extra_dims, pencils...)
-        A = typeof(arrays)
         N = Np + length(extra_dims)
         M = length(pencils)
         new{T, N, M, typeof(arrays), typeof(data)}(data, arrays)
@@ -57,15 +56,24 @@ end
 
 _make_arrays(::DenseVector, ::Dims) = ()
 
-Base.eltype(A::ManyPencilArray{T}) where {T} = T
-Base.ndims(A::ManyPencilArray{T,N}) where {T,N} = N
+Base.eltype(::ManyPencilArray{T}) where {T} = T
+Base.ndims(::ManyPencilArray{T,N}) where {T,N} = N
+
+"""
+    Tuple(A::ManyPencilArray) -> (u1, u2, …)
+
+Returns the [`PencilArray`](@ref)s wrapped by `A`.
+
+This can be useful for iterating over all the wrapped arrays.
+"""
+@inline Base.Tuple(A::ManyPencilArray) = A.arrays
 
 """
     length(A::ManyPencilArray)
 
 Returns the number of [`PencilArray`](@ref)s wrapped by `A`.
 """
-Base.length(A::ManyPencilArray{T,N,M}) where {T,N,M} = M
+Base.length(::ManyPencilArray{T,N,M}) where {T,N,M} = M
 
 """
     first(A::ManyPencilArray)
@@ -87,8 +95,8 @@ Base.last(A::ManyPencilArray) = last(A.arrays)
 
 Returns the i-th [`PencilArray`](@ref) wrapped by `A`.
 
-If possible, the `Val{i}` form should be preferred, as it is more efficient and
-it allows the compiler to know the return type.
+If possible, the `Val{i}` form should be preferred, as it ensures that the full
+type of the returned `PencilArray` is known by the compiler.
 
 See also [`first(::ManyPencilArray)`](@ref), [`last(::ManyPencilArray)`](@ref).
 
@@ -98,8 +106,8 @@ See also [`first(::ManyPencilArray)`](@ref), [`last(::ManyPencilArray)`](@ref).
 A = ManyPencilArray(pencil1, pencil2, pencil3)
 
 # Get the PencilArray associated to `pencil2`.
-# u2 = A[2]
-u2 = A[Val(2)]  # faster!
+u2 = A[2]
+u2 = A[Val(2)]
 ```
 """
 Base.getindex(A::ManyPencilArray, ::Val{i}) where {i} =
