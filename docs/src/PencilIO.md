@@ -48,6 +48,8 @@ chosen driver to [`open`](@ref).
 For instance, the following opens an MPI-IO file in write mode:
 
 ```julia
+using PencilArrays.PencilIO  # needed for accessing parallel I/O functionality
+
 ff = open(MPIIODriver(), "filename.bin", MPI.COMM_WORLD; write=true)
 ```
 
