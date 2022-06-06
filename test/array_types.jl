@@ -5,7 +5,6 @@
 using MPI
 using PencilArrays
 using PencilArrays: typeof_array
-using LinearAlgebra: transpose!
 using Random
 using Test
 

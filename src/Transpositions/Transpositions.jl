@@ -1,6 +1,7 @@
 module Transpositions
 
 import LinearAlgebra: transpose!
+export transpose!  # to avoid needing to import LinearAlgebra in user code
 
 using TimerOutputs
 import MPI

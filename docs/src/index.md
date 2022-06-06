@@ -65,7 +65,6 @@ PencilArrays can be installed using the Julia package manager:
 ```julia
 using MPI
 using PencilArrays
-using LinearAlgebra: transpose!
 
 MPI.Init()
 comm = MPI.COMM_WORLD       # MPI communicator

@@ -4,7 +4,6 @@ using PencilArrays.MPITopologies
 using MPI
 
 using BenchmarkTools
-using LinearAlgebra: transpose!
 using Random
 using Test
 
