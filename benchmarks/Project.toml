@@ -1,6 +1,5 @@
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 PencilArrays = "0e08944d-e94e-41b1-9406-dcf66b6a9d2e"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"

@@ -9,7 +9,6 @@ using Requires: @require
 
 using Base: @propagate_inbounds
 import Adapt
-import LinearAlgebra
 
 include("Permutations.jl")
 import .Permutations: permutation
@@ -54,7 +53,7 @@ include("reductions.jl")
 include("gather.jl")
 
 include("Transpositions/Transpositions.jl")
-export Transpositions
+@reexport using .Transpositions
 
 include("PencilIO/PencilIO.jl")
 
