@@ -37,7 +37,7 @@ provides efficient and highly scalable distributed FFTs.
 
 - distribution of ``N``-dimensional arrays among MPI processes;
 
-- decomposition of arrays along an arbitrary subset of dimensions;
+- decomposition of arrays along all or a subset of dimensions;
 
 - tools for conveniently and efficiently iterating over the [coordinates of
   distributed multidimensional geometries](@ref Working-with-grids);

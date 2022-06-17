@@ -51,12 +51,16 @@ The dimensions of the geometry are given by `size_global = (N1, N2, ...)`. The
 `Pencil` describes the decomposition of an array of dimensions `size_global`
 across a group of MPI processes.
 
-Data is distributed over the given `M`-dimensional MPI topology (with `M < N`).
+Data is distributed over the given `M`-dimensional MPI topology (with `M ≤ N`).
 
 The decomposed dimensions may optionally be provided via the `decomp_dims`
 argument. By default, the `M` rightmost dimensions are decomposed. For instance,
 for a 2D decomposition of 5D data (`M = 2` and `N = 5`), the dimensions `(4, 5)`
 are decomposed by default.
+
+It is also possible to distribute over all dimensions (`M = N`).
+Note that, in this specific case, [transpositions](@ref
+Global-MPI-operations) are currently not possible.
 
 The optional argument `A` allows to work with arrays other than the base `Array`
 type. In particular, this should be useful for working with GPU array types such
@@ -387,9 +391,9 @@ end
 
 # Verify that `dims` is a subselection of dimensions in 1:N.
 function _check_selected_dimensions(N, dims::Dims{M}) where M
-    if M >= N
+    if M > N
         throw(ArgumentError(
-            "number of decomposed dimensions `M` must be less than the " *
+            "number of decomposed dimensions `M` cannot be larger than the " *
             "total number of dimensions N = $N (got M = $M)"))
     end
     if !allunique(dims)

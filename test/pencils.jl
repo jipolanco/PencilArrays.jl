@@ -389,10 +389,6 @@ end
 @assert permutation(pen2) != inv(permutation(pen2))
 
 @testset "Pencil constructor checks" begin
-    # Too many decomposed directions
-    @test_throws ArgumentError Pencil(
-        MPITopology(comm, (Nproc, 1, 1)), Nxyz, (1, 2, 3))
-
     # Invalid permutations
     @test_throws TypeError Pencil(
         topo, Nxyz, (1, 2), permute=(2, 3, 1))
@@ -580,6 +576,28 @@ end
     end
 
     test_multiarrays(pen1, pen2, pen3)
+end
+
+# Test decomposition along all dimensions.
+@testset "3D decomposition" begin
+    T = ComplexF32
+    topo = @inferred MPITopology(comm, Val(3))
+    @test ndims(topo) == 3
+
+    # Note that we can't really change the decomposition if we're decomposing
+    # all dimensions, but we can at least change the permutation.
+    pen1 = @inferred Pencil(topo, Nxyz)
+    pen2 = @inferred Pencil(pen1; permute = Permutation(2, 3, 1))
+
+    u1 = @inferred PencilArray{T}(undef, pen1)
+    u2 = @inferred similar(u1, pen2)
+
+    @test permutation(u1) == Permutation(1, 2, 3) == NoPermutation()
+    @test permutation(u2) == Permutation(2, 3, 1)
+
+    randn!(rng, u1)
+    transpose!(u2, u1)
+    @test compare_distributed_arrays(u1, u2)
 end
 
 @testset "Inference" begin
