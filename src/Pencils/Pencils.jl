@@ -387,9 +387,9 @@ end
 
 # Verify that `dims` is a subselection of dimensions in 1:N.
 function _check_selected_dimensions(N, dims::Dims{M}) where M
-    if M >= N
+    if M > N
         throw(ArgumentError(
-            "number of decomposed dimensions `M` must be less than the " *
+            "number of decomposed dimensions `M` cannot be larger than the " *
             "total number of dimensions N = $N (got M = $M)"))
     end
     if !allunique(dims)
