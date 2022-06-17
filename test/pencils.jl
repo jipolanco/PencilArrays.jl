@@ -580,7 +580,7 @@ end
 
 # Test decomposition along all dimensions.
 @testset "3D decomposition" begin
-    T = Int32
+    T = ComplexF32
     topo = @inferred MPITopology(comm, Val(3))
     @test ndims(topo) == 3
 
