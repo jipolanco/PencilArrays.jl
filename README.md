@@ -23,7 +23,7 @@ Each coloured block is managed by a different MPI process.
 </p>
 
 More generally, PencilArrays can decompose arrays of arbitrary dimension `N`,
-along an arbitrary number of subdimensions `M < N`.
+along an arbitrary number of subdimensions `M ≤ N`.
 (In the image above, `N = 3` and `M = 2`.)
 
 PencilArrays is the basis for the
@@ -34,7 +34,7 @@ provides efficient and highly scalable distributed FFTs.
 
 - distribution of `N`-dimensional arrays among MPI processes;
 
-- decomposition of arrays along an arbitrary subset of dimensions;
+- decomposition of arrays along all or a subset of dimensions;
 
 - tools for conveniently and efficiently iterating over the coordinates of distributed multidimensional geometries;
 
