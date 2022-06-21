@@ -28,7 +28,10 @@ Base.pointer(u::TestArray) = pointer(u.data)
 Base.pointer(u::TestArray, n::Integer) = pointer(u.data, n)  # needed to avoid ambiguity
 Base.unsafe_wrap(::Type{TestArray}, p::Ptr, dims::Union{Integer, Dims}; kws...) =
     TestArray(unsafe_wrap(Array, p, dims; kws...))
+
 MPI.Buffer(u::TestArray) = MPI.Buffer(u.data)  # for `gather`
+Base.cconvert(::Type{MPI.MPIPtr}, u::TestArray{T}) where {T} =
+    reinterpret(MPI.MPIPtr, pointer(u))
 
 # A bit of type piracy to help tests pass.
 # Note that MPI.Buffer is defined for CuArray.
@@ -66,9 +69,14 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
         @test_nowarn randn!(u)
     end
 
-    px = @inferred Pencil(A, (20, 16), (1, ), comm)
+    px = @inferred Pencil(A, (20, 16, 4), (1, ), comm)
 
-    @testset "Permutation: $perm" for perm ∈ (NoPermutation(), Permutation(2, 1))
+    @testset "Permutation: $perm" for perm ∈ (NoPermutation(), Permutation(2, 3, 1))
+        if perm != NoPermutation()
+            # Make sure we're testing the more "interesting" case in which the
+            # permutation is not its own inverse.
+            @assert inv(perm) != perm
+        end
         py = @inferred Pencil(px; decomp_dims = (2, ), permute = perm)
         @test permutation(py) == perm
         @test @inferred(typeof_array(px)) === A
