@@ -39,12 +39,16 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
         end
     end
 
+    # The output is a regular CPU array.
+    DestArray = Array{T}
+
+    # For GPU arrays, this transfers data to the CPU (allocating a new Array).
+    # If `data` is already an Array{T}, this is non-allocating.
+    data_cpu = convert(DestArray, data)
+
     if rank != root
         # Wait for data to be sent, then return.
-        # NOTE: When `data` is a ReshapedArray, I can't pass it directly to
-        # MPI.Isend, because Base.cconvert(MPIPtr, ::ReshapedArray) is not
-        # defined.
-        buf = MPI.Buffer(data isa Base.ReshapedArray ? parent(data) : data)
+        buf = MPI.Buffer(data_cpu)
         send_req = MPI.Isend(buf, root, mpi_tag, comm)
         MPI.Wait!(send_req)
         return nothing
@@ -75,11 +79,7 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
     end
 
     # Unpack data.
-    dest = Array{T,N}(undef, size_global(x))
-
-    # For GPU arrays, this transfers data to the CPU (allocating a new Array).
-    # If `data` is already an Array{T}, this is non-allocating.
-    data_cpu = oftype(dest, data)
+    dest = DestArray(undef, size_global(x))
 
     # Copy local data.
     colons_extra_dims = ntuple(n -> Colon(), Val(length(extra_dims)))
