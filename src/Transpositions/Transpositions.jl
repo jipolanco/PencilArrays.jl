@@ -627,14 +627,14 @@ function _permutedims!(::Type{<:AbstractArray}, v::SubArray, src, perm)
         copyto!(v, src)
     else
         E = ndims(v) - length(perm)  # number of "extra dims"
-        iperm = inv(append(perm, Val(E)))
+        pperm = append(perm, Val(E))
         # On GPUs, if `src` is an AbstractGPUArray, then there is a `permutedims!`
         # implementation for GPUs (in GPUArrays.jl) if the destination is also
         # an AbstractGPUArray.
         # Note that AbstractGPUArray <: DenseArray, and `v` is generally not
         # dense, so we need an intermediate array for the destination.
-        tmp = similar(src, iperm * size(src))  # TODO avoid allocation!
-        permutedims!(tmp, src, Tuple(iperm))
+        tmp = similar(src, pperm * size(src))  # TODO avoid allocation!
+        permutedims!(tmp, src, Tuple(pperm))
         copyto!(v, tmp)
     end
     v

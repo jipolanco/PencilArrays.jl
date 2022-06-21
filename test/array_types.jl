@@ -66,9 +66,14 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
         @test_nowarn randn!(u)
     end
 
-    px = @inferred Pencil(A, (20, 16), (1, ), comm)
+    px = @inferred Pencil(A, (20, 16, 4), (1, ), comm)
 
-    @testset "Permutation: $perm" for perm ∈ (NoPermutation(), Permutation(2, 1))
+    @testset "Permutation: $perm" for perm ∈ (NoPermutation(), Permutation(2, 3, 1))
+        if perm != NoPermutation()
+            # Make sure we're testing the more "interesting" case in which the
+            # permutation is not its own inverse.
+            @assert inv(perm) != perm
+        end
         py = @inferred Pencil(px; decomp_dims = (2, ), permute = perm)
         @test permutation(py) == perm
         @test @inferred(typeof_array(px)) === A
