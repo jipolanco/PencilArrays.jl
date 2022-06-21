@@ -248,8 +248,11 @@ function permute_local!(Ao::PencilArray{T,N},
     Ao
 end
 
-mpi_buffer(p::Ptr{T}, count) where {T} =
-    MPI.Buffer(p, Cint(count), MPI.Datatype(T))
+function mpi_buffer(buf::AbstractArray{T}, off, length) where {T}
+    inds = (off + 1):(off + length)
+    v = view(buf, inds)
+    MPI.Buffer(v)
+end
 
 # Transposition among MPI processes in a subcommunicator.
 # R: index of MPI subgroup (dimension of MPI Cartesian topology) along which the
@@ -407,8 +410,10 @@ end
 
 function make_buffer_info(::PointToPoint, (send_buf, recv_buf), Nproc)
     (
-        send_ptr = Ref(pointer(send_buf)),
-        recv_ptr = Ref(pointer(recv_buf)),
+        send_buf = send_buf,
+        recv_buf = recv_buf,
+        send_offset = Ref(0),
+        recv_offset = Ref(0),
     )
 end
 
@@ -432,22 +437,22 @@ function transpose_send_self!(::Alltoallv, n, reqs, buf_info)
 end
 
 function transpose_send_other!(
-        ::PointToPoint, buf_info, (length_send_n, length_recv_n),
+        ::PointToPoint, info, (length_send_n, length_recv_n),
         n, (send_req, recv_req), (rank, comm), ::Type{T}
     ) where {T}
     # Exchange data with the other process (non-blocking operations).
     # Note: data is sent and received with the permutation associated to Pi.
     tag = 42
     send_req[n] = MPI.Isend(
-        mpi_buffer(buf_info.send_ptr[], length_send_n),
+        mpi_buffer(info.send_buf, info.send_offset[], length_send_n),
         rank, tag, comm
     )
     recv_req[n] = MPI.Irecv!(
-        mpi_buffer(buf_info.recv_ptr[], length_recv_n),
+        mpi_buffer(info.recv_buf, info.recv_offset[], length_recv_n),
         rank, tag, comm
     )
-    buf_info.send_ptr[] += length_send_n * sizeof(T)
-    buf_info.recv_ptr[] += length_recv_n * sizeof(T)
+    info.send_offset[] += length_send_n
+    info.recv_offset[] += length_recv_n
     nothing
 end
 

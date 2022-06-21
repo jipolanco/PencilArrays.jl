@@ -28,7 +28,10 @@ Base.pointer(u::TestArray) = pointer(u.data)
 Base.pointer(u::TestArray, n::Integer) = pointer(u.data, n)  # needed to avoid ambiguity
 Base.unsafe_wrap(::Type{TestArray}, p::Ptr, dims::Union{Integer, Dims}; kws...) =
     TestArray(unsafe_wrap(Array, p, dims; kws...))
+
 MPI.Buffer(u::TestArray) = MPI.Buffer(u.data)  # for `gather`
+Base.cconvert(::Type{MPI.MPIPtr}, u::TestArray{T}) where {T} =
+    reinterpret(MPI.MPIPtr, pointer(u))
 
 # A bit of type piracy to help tests pass.
 # Note that MPI.Buffer is defined for CuArray.
