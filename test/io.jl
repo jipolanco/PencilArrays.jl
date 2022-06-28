@@ -90,6 +90,24 @@ function test_write_mpiio(filename, u::PencilArray)
         @test y == X[5]
     end
 
+    # File without metadata
+    filename_nometa = filename * "_nometa"
+    rank == root && symlink(filename, filename_nometa)
+    MPI.Barrier(comm)
+    fill!(y, 0)
+    @test_nowarn open(
+            MPIIODriver(), filename_nometa, comm; read = true,
+        ) do ff
+        # We can't pass a name, since metadata is not available.
+        @test_throws ArgumentError read!(ff, y, "name_doesnt_matter")
+
+        # This should read the first written dataset (offset = 0).
+        @test_nowarn read!(ff, y)
+
+        # This will only be true if X[1] was written with chunks = false.
+        @test y == X[1]
+    end
+
     nothing
 end
 
@@ -169,7 +187,7 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
 @show HDF5.API.libhdf5
 
-@testset "HDF5" begin
+@testset "HDF5 properties" begin
     let fapl = HDF5.FileAccessProperties()
         @test PencilIO._is_set(fapl, Val(:fclose_degree)) === false
         fapl.fclose_degree = :strong
