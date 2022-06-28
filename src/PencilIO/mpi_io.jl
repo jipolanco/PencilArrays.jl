@@ -54,7 +54,14 @@ function MPIFile(comm::MPI.Comm, filename; kws...)
     meta = if flags.write && !flags.append
         mpiio_init_metadata()
     else
-        mpiio_load_metadata(filename_meta(filename))
+        metafile = filename_meta(filename)
+        if isfile(metafile)
+            mpiio_load_metadata(metafile)
+        else
+            # Metadata file not found.
+            # Assuming file contains a single dataset.
+            MetadataDict()  # empty dict
+        end
     end
     file = MPIFile(
         MPI.File.open(comm, filename; kws...),
@@ -138,10 +145,11 @@ Base.open(D::MPIIODriver, filename::AbstractString, comm::MPI.Comm; keywords...)
     )
 
 """
-    setindex!(file::MPIFile, x::MaybePencilArrayCollection,
-              name::AbstractString; chunks = false, collective = true, infokws...)
+    setindex!(file::MPIFile, x, name; chunks = false, collective = true, infokws...)
 
 Write [`PencilArray`](@ref) to binary file using MPI-IO.
+
+The input `x` can be a `PencilArray` or a tuple of `PencilArray`s.
 
 # Optional arguments
 
@@ -160,7 +168,7 @@ Write [`PencilArray`](@ref) to binary file using MPI-IO.
 
 """
 function Base.setindex!(
-        ff::MPIFile, x::MaybePencilArrayCollection, name::AbstractString;
+        ff::MPIFile, x::MaybePencilArrayCollection, name;
         collective=true, chunks=false, kw...,
     )
     file = parent(ff)
@@ -203,23 +211,74 @@ function add_metadata(file::MPIFile, x, name, chunks::Bool)
 end
 
 """
-    read!(file::MPIFile, x::PencilArray, name::AbstractString;
-          collective = true, infokws...)
+    read!(file::MPIFile, x, name; collective = true, infokws...)
 
 Read binary data from an MPI-IO stream, filling in [`PencilArray`](@ref).
 
+The output `x` can be a `PencilArray` or a tuple of `PencilArray`s.
+
 See [`setindex!`](@ref setindex!(::MPIFile)) for details on keyword arguments.
+
+## Reading files without JSON metadata
+
+It is also possible to read datasets from binary files in the absence of JSON metadata.
+This will be typically the case of binary files created by a separate application.
+
+In that case, the `name` argument must *not* be passed.
+If the file contains more than one dataset, one can optionally pass an `offset`
+keyword argument to manually select the offset of the dataset (in bytes) from the
+beginning of the file.
+
+The signature of this metadata-less variant looks like:
+
+    read!(file::MPIFile, x; offset = 0, collective = true, infokws...)
+
+Note that, since there is no metadata, this variant blindly assumes that the
+dimensions and element type of `x` correspond to those existent in the file.
 """
-function Base.read!(ff::MPIFile, x::MaybePencilArrayCollection, name::AbstractString;
-                    collective=true, kw...)
-    meta = get(metadata(ff)[:datasets], DatasetKey(name), nothing)
-    meta === nothing && error("dataset '$name' not found")
-    version = mpiio_version(ff)
-    check_metadata(x, meta, version)
+function Base.read!(
+        ff::MPIFile, x::MaybePencilArrayCollection, name;
+        kws...,
+    )
+    if isempty(metadata(ff))  # metadata file wasn't found
+        metafile = filename_meta(ff)
+        throw(ArgumentError(
+            """
+            metadata file not found: $metafile.
+            Try calling the `read!(ff, x)` variant (without the third argument)
+            to attempt reading the first dataset of the file.
+            """
+        ))
+    else
+        # Get metadata associated to dataset.
+        meta = get(metadata(ff)[:datasets], DatasetKey(name), nothing)
+        meta === nothing && error("dataset '$name' not found")
+        version = mpiio_version(ff)
+        check_metadata(x, meta, version)
+        offset = meta.offset_bytes :: Int
+        chunks = meta.chunks :: Bool
+        chunks && check_read_chunks(x, meta.process_dims, name)
+    end
+    _read_mpiio!(ff, x, offset, chunks; kws...)
+end
+
+function Base.read!(ff::MPIFile, x::MaybePencilArrayCollection; offset = 0)
+    # This variant should be called when metadata file is absent.
+    # This assumes that the file has a single contiguous dataset with the same
+    # dimensions and type of `x`.
+    # It is also assumed that the endianness is the same that of the system.
+    filename = get_filename(ff)
+    ndata = sizeof_global(x)
+    nfile = filesize(filename)
+    if ndata > nfile
+        error("attempt to read file without JSON metadata failed: the file size ($nfile) is inferior to the expected dataset size ($ndata). Filename: $filename")
+    end
+    chunks = false
+    _read_mpiio!(ff, x, offset, chunks)
+end
+
+function _read_mpiio!(ff, x, offset, chunks; collective = true, kw...)
     file = parent(ff)
-    offset = meta.offset_bytes :: Int
-    chunks = meta.chunks :: Bool
-    chunks && check_read_chunks(x, meta.process_dims, name)
     for u in collection(x)
         if chunks
             read_contiguous!(file, u; offset=offset, collective=collective, kw...)
