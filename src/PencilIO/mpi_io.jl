@@ -218,6 +218,23 @@ Read binary data from an MPI-IO stream, filling in [`PencilArray`](@ref).
 The output `x` can be a `PencilArray` or a tuple of `PencilArray`s.
 
 See [`setindex!`](@ref setindex!(::MPIFile)) for details on keyword arguments.
+
+## Reading files without JSON metadata
+
+It is also possible to read datasets from binary files in the absence of JSON metadata.
+This will be typically the case of binary files created by a separate application.
+
+In that case, the `name` argument must *not* be passed.
+If the file contains more than one dataset, one can optionally pass an `offset`
+keyword argument to manually select the offset of the dataset (in bytes) from the
+beginning of the file.
+
+The signature of this metadata-less variant looks like:
+
+    read!(file::MPIFile, x; offset = 0, collective = true, infokws...)
+
+Note that, since there is no metadata, this variant blindly assumes that the
+dimensions and element type of `x` correspond to those existent in the file.
 """
 function Base.read!(
         ff::MPIFile, x::MaybePencilArrayCollection, name;
@@ -245,7 +262,7 @@ function Base.read!(
     _read_mpiio!(ff, x, offset, chunks; kws...)
 end
 
-function Base.read!(ff::MPIFile, x::MaybePencilArrayCollection)
+function Base.read!(ff::MPIFile, x::MaybePencilArrayCollection; offset = 0)
     # This variant should be called when metadata file is absent.
     # This assumes that the file has a single contiguous dataset with the same
     # dimensions and type of `x`.
@@ -256,7 +273,6 @@ function Base.read!(ff::MPIFile, x::MaybePencilArrayCollection)
     if ndata > nfile
         error("attempt to read file without JSON metadata failed: the file size ($nfile) is inferior to the expected dataset size ($ndata). Filename: $filename")
     end
-    offset = 0
     chunks = false
     _read_mpiio!(ff, x, offset, chunks)
 end
