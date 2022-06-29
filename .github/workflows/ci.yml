@@ -24,7 +24,6 @@ jobs:
       matrix:
         experimental: [false]
         version:
-          - '1.6'
           - '1.7'
         os:
           - ubuntu-latest
