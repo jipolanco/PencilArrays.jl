@@ -94,6 +94,16 @@ end
     PermutedCartesianIndices(inds, perm)
 end
 
+# This is similar to definition of pairs(::IndexCartesian, ::AbstractArray)
+# TODO do the same for IndexLinear?
+# (not that obvious, because getindex(g, ::Int) already has a different meaning...)
+Base.pairs(::IndexCartesian, g::LocalRectilinearGrid) =
+    Base.Pairs(g, CartesianIndices(g))
+
+# This is to avoid default definition in base/abstractdict.jl, which uses
+# generators and can be much slower.
+Base.pairs(g::LocalRectilinearGrid) = pairs(IndexCartesian(), g)
+
 # This is used by eachindex(::LocalRectilinearGrid)
 @inline Base.keys(g::LocalRectilinearGrid) = CartesianIndices(g)
 
