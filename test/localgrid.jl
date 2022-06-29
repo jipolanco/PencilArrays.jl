@@ -69,6 +69,12 @@ pen = Pencil(dims, comm; permute = perm)
         x, y, z = xyz
         u[i] ≈ x * y + z
     end
+
+    @test all(pairs(grid)) do (I, xyz)
+        x, y, z = xyz
+        u[I] ≈ x * y + z
+    end
+
     coords_col = @inferred collect(grid)
     @test coords_col isa Vector
     @test eltype(coords_col) === eltype(grid) ===
