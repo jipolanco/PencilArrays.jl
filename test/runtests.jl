@@ -2,9 +2,6 @@
 
 using MPIPreferences
 
-# Can we remove this and move it somewhere else?
-# MPIPreferences.use_system_binary()
-
 using InteractiveUtils
 using MPI: MPI, mpiexec
 
@@ -12,7 +9,9 @@ using MPI: MPI, mpiexec
 using PencilArrays
 
 # These tests can be run in serial mode
-include("permutations.jl")
+test_files_serial = [
+    "permutations.jl",
+]
 
 test_files = [
     "io.jl",
@@ -34,7 +33,11 @@ end
 println()
 versioninfo()
 println("\n", MPI.MPI_LIBRARY_VERSION_STRING, "\n")
-@show MPIPreferences.binary()
+@show MPIPreferences.binary
+
+for fname in test_files_serial
+    include(fname)
+end
 
 for fname in test_files
     @info "Running $fname with $Nproc processes..."
