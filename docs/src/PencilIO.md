@@ -129,14 +129,9 @@ parallel-enabled HDF5 libraries linked to an existent MPI installation.
 
 ### 1. Using system-provided MPI libraries
 
-Set the environment variable `JULIA_MPI_BINARY=system` and then run
-`]build MPI` from Julia.
-For more control, one can also set the `JULIA_MPI_PATH` environment variable to
-the top-level installation directory of the MPI library.
-
-See the [MPI.jl
-docs](https://juliaparallel.github.io/MPI.jl/stable/configuration/#Using-a-system-provided-MPI-1)
-for details.
+Select the system-provided MPI backend linked to the parallel HDF5 installation
+following the instructions in the [MPI.jl
+docs](https://juliaparallel.org/MPI.jl/v0.20/configuration/#Using-a-system-provided-MPI-backend).
 
 ### 2. Using parallel HDF5 libraries
 
