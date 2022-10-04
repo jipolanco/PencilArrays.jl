@@ -1,5 +1,10 @@
 # This is based on the runtests.jl file of MPI.jl.
 
+using MPIPreferences
+
+# Can we remove this and move it somewhere else?
+# MPIPreferences.use_system_binary()
+
 using InteractiveUtils
 using MPI: MPI, mpiexec
 
@@ -10,6 +15,7 @@ using PencilArrays
 include("permutations.jl")
 
 test_files = [
+    "io.jl",
     "localgrid.jl",
     "reductions.jl",
     "broadcast.jl",
@@ -18,7 +24,6 @@ test_files = [
     "pencils.jl",
     "array_interface.jl",
     "adapt.jl",
-    "io.jl",
     "ode.jl",
 ]
 
@@ -29,6 +34,7 @@ end
 println()
 versioninfo()
 println("\n", MPI.MPI_LIBRARY_VERSION_STRING, "\n")
+@show MPIPreferences.binary()
 
 for fname in test_files
     @info "Running $fname with $Nproc processes..."
