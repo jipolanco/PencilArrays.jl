@@ -33,7 +33,15 @@ end
 println()
 versioninfo()
 println("\n", MPI.MPI_LIBRARY_VERSION_STRING, "\n")
+
 @show MPIPreferences.binary
+
+if MPIPreferences.binary != "system"
+    error("""
+        tests should be run with system MPI binaries for testing parallel HDF5
+        (found MPIPreferences.binary = $(MPIPreferences.binary))
+        """)
+end
 
 for fname in test_files_serial
     include(fname)
