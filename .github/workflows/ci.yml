@@ -69,6 +69,17 @@ jobs:
           using MPIPreferences
           MPIPreferences.use_system_binary()
 
+      # This might be needed on Julia 1.7.
+      # Doesn't seem to be needed on 1.8+.
+      - name: Rebuild packages
+        shell: julia --color=yes --project=test {0}
+        run: |
+          using Pkg
+          using MPIPreferences
+          @show MPIPreferences.binary
+          Pkg.build("MPI")
+          Pkg.build("HDF5")
+
       - uses: julia-actions/julia-runtest@v1
 
       - uses: julia-actions/julia-processcoverage@v1
