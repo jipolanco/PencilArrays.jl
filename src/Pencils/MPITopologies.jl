@@ -54,7 +54,7 @@ topology = MPITopology(comm, Val(2))
     MPITopology{N}(comm_cart::MPI.Comm)
 
 Create topology information from MPI communicator with Cartesian topology
-(typically constructed using `MPI.Cart_create`).
+(typically constructed using [`MPI.Cart_create`](https://juliaparallel.org/MPI.jl/stable/reference/topology/#MPI.Cart_create)).
 The topology must have dimension `N`.
 
 # Example
@@ -64,10 +64,8 @@ Divide 2D topology into 4×2 blocks:
 ```julia
 comm = MPI.COMM_WORLD
 @assert MPI.Comm_size(comm) == 8
-dims = [4, 2]
-periods = [0, 0]
-reorder = false
-comm_cart = MPI.Cart_create(comm, pdims, periods, reorder)
+pdims = (4, 2)
+comm_cart = MPI.Cart_create(comm, pdims)
 topology = MPITopology{2}(comm_cart)
 ```
 """
@@ -124,14 +122,11 @@ function Base.:(==)(A::MPITopology, B::MPITopology)
     MPI.Comm_compare(get_comm(A), get_comm(B)) ∈ (MPI.IDENT, MPI.CONGRUENT)
 end
 
-function MPITopology(comm::MPI.Comm, pdims::Dims{N}) where {N}
-    check_topology(comm, pdims)
+function MPITopology(comm::MPI.Comm, dims::Dims{N}) where {N}
+    check_topology(comm, dims)
     # Create Cartesian communicator.
-    comm_cart = let dims = collect(pdims) :: Vector{Int}
-        periods = zeros(Int, N)  # this is not very important...
-        reorder = false
-        MPI.Cart_create(comm, dims, periods, reorder)
-    end
+    periodic = map(_ -> false, dims)  # this is the default
+    comm_cart = MPI.Cart_create(comm, dims; periodic, reorder = false)
     MPITopology{N}(comm_cart)
 end
 
