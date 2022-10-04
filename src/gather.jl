@@ -58,7 +58,7 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
     topo = pen.topology
     Nproc = length(topo)
     recv = Vector{Array{T,N}}(undef, Nproc)
-    recv_req = Vector{MPI.Request}(undef, Nproc)
+    recv_req = MPI.RequestSet([MPI.Request() for i = 1:Nproc])
 
     root_index = -1
 
