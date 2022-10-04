@@ -62,7 +62,12 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
 
       - name: Use system MPI
-        run: julia --color=yes --project=test test/use_system_mpi.jl
+        shell: julia --color=yes --project=test {0}
+        run: |
+          using Pkg
+          Pkg.instantiate()
+          using MPIPreferences
+          MPIPreferences.use_system_binary()
 
       - uses: julia-actions/julia-runtest@v1
 
@@ -85,15 +90,18 @@ jobs:
         with:
           version: '1.8'
 
-      - name: Use system MPI
-        run: julia --color=yes --project=test test/use_system_mpi.jl
-
       - name: Install dependencies
         run: |
           julia --project=docs -e '
             using Pkg
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
+
+      - name: Use system MPI
+        shell: julia --color=yes --project=docs {0}
+        run: |
+          using MPIPreferences
+          MPIPreferences.use_system_binary()
 
       - name: Build and deploy
         run: julia --project=docs docs/make.jl
