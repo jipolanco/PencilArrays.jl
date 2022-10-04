@@ -38,7 +38,7 @@ Convenient `MPITopology` constructor defining an `N`-dimensional decomposition
 of data among all MPI processes in communicator.
 
 The number of divisions along each of the `N` dimensions is automatically
-determined by a call to [`MPI.Dims_create!`](https://juliaparallel.github.io/MPI.jl/stable/topology/#MPI.Dims_create!).
+determined by a call to [`MPI.Dims_create`](https://juliaparallel.org/MPI.jl/stable/reference/topology/#MPI.Dims_create).
 
 # Example
 
@@ -143,8 +143,8 @@ end
 dims_create(comm::MPI.Comm, n) = dims_create(MPI.Comm_size(comm), n)
 
 function dims_create(Nproc::Integer, ::Val{N}) where {N}
-    pdims = zeros(Cint, N)
-    MPI.Dims_create!(Nproc, N, pdims)  # call lower-level MPI wrapper
+    pdims_in = ntuple(_ -> zero(Cint), Val(N))
+    pdims = MPI.Dims_create(Nproc, pdims_in)  # call lower-level MPI wrapper
     ntuple(d -> Int(pdims[d]), Val(N)) :: Dims{N}
 end
 
