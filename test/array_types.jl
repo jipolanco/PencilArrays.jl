@@ -88,6 +88,7 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
             @test pencil(uy) === py
             tr = @inferred Transpositions.Transposition(uy, ux)
             transpose!(tr)
+            @test_logs (:warn, r"is deprecated") MPI.Waitall!(tr)
 
             # Verify transposition
             gx = @inferred Nothing gather(ux)
