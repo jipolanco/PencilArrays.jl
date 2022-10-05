@@ -22,6 +22,8 @@ function Base.show(io::IO, ::T) where {T<:AbstractTransposeMethod}
     print(io, nameof(T))
 end
 
+_init_request_set(n) = MPI.RequestSet([MPI.Request() for _ = 1:n])
+
 """
     Transposition
 
@@ -79,7 +81,7 @@ struct Transposition{T, N,
     Ao :: ArrayOut
     method :: M
     dim :: Union{Nothing,Int}  # dimension along which transposition is performed
-    send_requests :: Vector{MPI.Request}
+    send_requests :: MPI.RequestSet
 
     function Transposition(Ao::PencilArray{T,N}, Ai::PencilArray{T,N};
                            method = PointToPoint()) where {T,N}
@@ -100,7 +102,7 @@ struct Transposition{T, N,
         # is performed along the dimension R where that difference happens.
         dim = findfirst(decomposition(Pi) .!= decomposition(Po))
 
-        reqs = MPI.Request[]
+        reqs = MPI.RequestSet()
 
         new{T, N, typeof(Pi), typeof(Po), typeof(Ai), typeof(Ao),
             typeof(method)}(Pi, Po, Ai, Ao, method, dim, reqs)
@@ -108,13 +110,15 @@ struct Transposition{T, N,
 end
 
 """
-    MPI.Waitall!(t::Transposition)
+    MPI.Waitall(t::Transposition)
 
 Wait for completion of all unfinished MPI communications related to the
 transposition.
 """
-MPI.Waitall!(t::Transposition) =
-    isempty(t.send_requests) || MPI.Waitall!(t.send_requests)
+function MPI.Waitall(t::Transposition)
+    isempty(t.send_requests) || MPI.Waitall(t.send_requests)
+    nothing
+end
 
 """
     transpose!(t::Transposition; waitall=true)
@@ -126,8 +130,8 @@ Transpose data from one pencil configuration to the other.
 The first variant allows to optionally delay the wait for MPI send operations to
 complete.
 This is useful if the caller wants to perform other operations with the already received data.
-To do this, the caller should pass `waitall=false`, and manually invoke
-[`MPI.Waitall!`](@ref) on the `Transposition` object once the operations are
+To do this, the caller should pass `waitall = false`, and manually invoke
+[`MPI.Waitall`](@ref) on the `Transposition` object once the operations are
 done.
 Note that this option only has an effect when the transposition method is
 `PointToPoint`.
@@ -151,7 +155,7 @@ function transpose!(t::Transposition; waitall=true)
     @timeit_debug timer "transpose!" begin
         transpose_impl!(t.dim, t)
         if waitall
-            @timeit_debug timer "wait send" MPI.Waitall!(t)
+            @timeit_debug timer "wait send" MPI.Waitall(t)
         end
     end
     t
@@ -297,11 +301,16 @@ function transpose_impl!(R::Int, t::Transposition{T}) where {T}
     recv_offsets = Vector{Int}(undef, Nproc)  # all offsets in recv_buf
 
     req_length = method === Alltoallv() ? 0 : Nproc
-    send_req = t.send_requests
-    resize!(send_req, req_length)
-    recv_req = similar(send_req)
+    send_req = t.send_requests :: MPI.RequestSet
+    while length(send_req) < req_length
+        push!(send_req, MPI.Request())
+    end
+    recv_req = _init_request_set(req_length) :: MPI.RequestSet
+    @assert length(send_req) == length(recv_req) == req_length
 
     buffers = (send_buf, recv_buf)
+
+    # We use RequestSet to avoid some allocations
     requests = (send_req, recv_req)
 
     # 1. Pack and send data.
@@ -491,15 +500,14 @@ function transpose_recv!(
         elseif m == 1
             n = index_local_req  # copy local data first
         else
-            @timeit_debug timer "wait receive" n, status =
-                MPI.Waitany!(recv_req)
+            @timeit_debug timer "wait receive" n = MPI.Waitany(recv_req)
         end
 
         # Non-permuted global indices of received data.
         ind = remote_inds[n]
         g_range = map(intersect, odims_local, idims[ind])
 
-        length_recv_n = prod(map(length, g_range)) * prod_extra_dims
+        # length_recv_n = prod(map(length, g_range)) * prod_extra_dims
         off = recv_offsets[n]
 
         # Local output data range in the **input** permutation.

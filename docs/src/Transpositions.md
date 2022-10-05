@@ -28,7 +28,7 @@ easily fit the locally available memory.
 ```@docs
 Transpositions.Transposition
 Transpositions.transpose!
-MPI.Waitall!
+MPI.Waitall
 gather
 ```
 

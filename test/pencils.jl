@@ -602,7 +602,7 @@ end
 
 @testset "Inference" begin
     periods = zeros(Int, length(proc_dims))
-    comm_cart = MPI.Cart_create(comm, collect(proc_dims), periods, false)
+    comm_cart = MPI.Cart_create(comm, proc_dims; reorder = false)
     @inferred MPITopologies.create_subcomms(Val(2), comm_cart)
     @test_throws ArgumentError MPITopology{3}(comm_cart)  # wrong dimensionality
     @inferred MPITopology{2}(comm_cart)

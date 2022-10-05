@@ -36,12 +36,11 @@ At the lower level, [`MPITopology`](@ref) uses
 [`MPI_Cart_create`](https://www.open-mpi.org/doc/current/man3/MPI_Cart_create.3.php)
 to define a Cartesian MPI communicator.
 For more control, one can also create a Cartesian communicator using
-`MPI.Cart_create`, and pass that to `MPITopology`:
+[`MPI.Cart_create`](https://juliaparallel.org/MPI.jl/stable/reference/topology/#MPI.Cart_create),
+and pass that to `MPITopology`:
 ```julia
-dims = [3, 4]  # note: array, not tuple!
-periods = zeros(Int, N)
-reorder = false
-comm_cart = MPI.Cart_create(comm, dims, periods, reorder)
+dims = (3, 4)
+comm_cart = MPI.Cart_create(comm, dims)
 topology = MPITopology(comm_cart)
 ```
 
