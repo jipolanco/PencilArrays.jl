@@ -61,24 +61,17 @@ jobs:
 
       - uses: julia-actions/julia-buildpkg@v1
 
-      - name: Use system MPI
-        shell: julia --color=yes --project=test {0}
+      - name: Add MPIPreferences
+        shell: julia --color=yes --project=. {0}
         run: |
           using Pkg
-          Pkg.instantiate()
+          Pkg.add("MPIPreferences")
+
+      - name: Use system MPI
+        shell: julia --color=yes --project=. {0}
+        run: |
           using MPIPreferences
           MPIPreferences.use_system_binary()
-
-      # This might be needed on Julia 1.7.
-      # Doesn't seem to be needed on 1.8+.
-      - name: Rebuild packages
-        shell: julia --color=yes --project=test {0}
-        run: |
-          using Pkg
-          using MPIPreferences
-          @show MPIPreferences.binary
-          Pkg.build("MPI")
-          Pkg.build("HDF5")
 
       - uses: julia-actions/julia-runtest@v1
 
@@ -101,18 +94,24 @@ jobs:
         with:
           version: '1.8'
 
-      - name: Install dependencies
+      - name: Add MPIPreferences
+        shell: julia --color=yes --project=. {0}
+        run: |
+          using Pkg
+          Pkg.add("MPIPreferences")
+
+      - name: Use system MPI
+        shell: julia --color=yes --project=. {0}
+        run: |
+          using MPIPreferences
+          MPIPreferences.use_system_binary()
+
+      - name: Install docs dependencies
         run: |
           julia --project=docs -e '
             using Pkg
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
-
-      - name: Use system MPI
-        shell: julia --color=yes --project=docs {0}
-        run: |
-          using MPIPreferences
-          MPIPreferences.use_system_binary()
 
       - name: Build and deploy
         run: julia --project=docs docs/make.jl

@@ -1,6 +1,5 @@
-# This is based on the runtests.jl file of MPI.jl.
-
 using MPIPreferences
+@show MPIPreferences.binary
 
 using InteractiveUtils
 using MPI: MPI, mpiexec
@@ -33,8 +32,6 @@ end
 println()
 versioninfo()
 println("\n", MPI.MPI_LIBRARY_VERSION_STRING, "\n")
-
-@show MPIPreferences.binary
 
 if MPIPreferences.binary != "system"
     error("""
