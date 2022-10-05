@@ -120,6 +120,14 @@ function MPI.Waitall(t::Transposition)
     nothing
 end
 
+function MPI.Waitall!(t::Transposition)
+    @warn """
+    MPI.Waitall!(t::Transposition) is deprecated and will be soon removed.
+    Use MPI.Waitall(t) instead (without the `!`).
+    """
+    MPI.Waitall(t)
+end
+
 """
     transpose!(t::Transposition; waitall=true)
     transpose!(dest::PencilArray{T,N}, src::PencilArray{T,N};
