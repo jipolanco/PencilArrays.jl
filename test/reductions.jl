@@ -1,6 +1,7 @@
 using MPI
 using PencilArrays
 using Test
+using Compat: Splat
 
 MPI.Init()
 
@@ -29,7 +30,7 @@ fill!(u, 2myid)
         a = @inferred sum(abs2, û; init = zero(eltype(û)))  # `init` needed for inference when eltype(û) = Complex{Int32}...
         # These should all be equivalent:
         b = @inferred mapreduce((x, y) -> real(x * conj(y)), +, û, v̂)
-        c = @inferred sum(Base.splat((x, y) -> real(x * conj(y))), zip(û, v̂))
+        c = @inferred sum(Splat((x, y) -> real(x * conj(y))), zip(û, v̂))
         d = @inferred sum(xs -> real(xs[1] * conj(xs[2])), zip(û, v̂))
         @test a == b == c == d
     end
