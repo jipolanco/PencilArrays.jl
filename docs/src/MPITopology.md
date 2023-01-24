@@ -41,8 +41,10 @@ and pass that to `MPITopology`:
 ```julia
 dims = (3, 4)
 comm_cart = MPI.Cart_create(comm, dims)
-topology = MPITopology(comm_cart)
+topology = MPITopology{2}(comm_cart)  # note the "{2}"!!
 ```
+Note that in this case, one needs to indicate the number of dimensions `M` of
+the decomposition (here `M = 2`).
 
 ## Types
 
