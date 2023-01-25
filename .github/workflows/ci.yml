@@ -12,6 +12,7 @@ on:
 
 env:
   JULIA_HDF5_PATH: /usr/lib/x86_64-linux-gnu/hdf5/mpich
+  JULIA_NUM_PRECOMPILE_TASKS: 1  # try to fix precompilation step
   LD_PRELOAD: /usr/lib/x86_64-linux-gnu/libstdc++.so.6:/usr/lib/x86_64-linux-gnu/libcurl.so.4  # workaround for libhdf5
 
 jobs:
