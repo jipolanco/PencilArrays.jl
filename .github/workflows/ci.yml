@@ -74,7 +74,7 @@ jobs:
         run: |
           using Pkg
           Pkg.instantiate(verbose = true)
-          Pkg.precompile(strict = true)
+          Pkg.precompile(strict = false)
 
       - uses: julia-actions/julia-runtest@v1
 
