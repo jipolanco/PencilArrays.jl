@@ -41,7 +41,7 @@ function non_contiguous_array(::Type{T}, dims) where {T}
     up = view(Array{T}(undef, dims_parent), 1, ntuple(d -> Colon(), Val(N))...)
     @assert contiguous_axis(up) === StaticInt(-1)
     @assert size(up) == dims
-    @assert StaticArrayInterface.size(up) == dims
+    @assert StaticArrayInterface.static_size(up) == dims
     up
 end
 
@@ -82,7 +82,8 @@ function test_array_interface(pen_in::Pencil)
         functions = (
             contiguous_axis, contiguous_axis_indicator,
             contiguous_batch_size, stride_rank, dense_dims,
-            StaticArrayInterface.size, StaticArrayInterface.strides, StaticArrayInterface.offsets,
+            StaticArrayInterface.static_size,
+            StaticArrayInterface.static_strides, StaticArrayInterface.offsets,
         )
 
         for f in functions
