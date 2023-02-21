@@ -5,8 +5,8 @@ using PencilArrays
 using Random
 using Test
 
-import ArrayInterface:
-    ArrayInterface,
+import StaticArrayInterface:
+    StaticArrayInterface,
     StaticInt,
     StaticBool,
     contiguous_axis,
@@ -41,7 +41,7 @@ function non_contiguous_array(::Type{T}, dims) where {T}
     up = view(Array{T}(undef, dims_parent), 1, ntuple(d -> Colon(), Val(N))...)
     @assert contiguous_axis(up) === StaticInt(-1)
     @assert size(up) == dims
-    @assert ArrayInterface.size(up) == dims
+    @assert StaticArrayInterface.static_size(up) == dims
     up
 end
 
@@ -66,14 +66,14 @@ function test_array_interface(pen_in::Pencil)
     @testset "Parent $(typeof(up))" for (up, p) in parents
         u = PencilArray(p, up)
 
-        @test ArrayInterface.parent_type(u) === typeof(up)
-        @test ArrayInterface.known_length(u) === nothing
-        @test !ArrayInterface.can_change_size(u)
-        @test ArrayInterface.ismutable(u)
-        @test ArrayInterface.can_setindex(u)
-        @test ArrayInterface.aos_to_soa(u) === u
-        @test ArrayInterface.fast_scalar_indexing(u)
-        @test !ArrayInterface.isstructured(u)
+        @test StaticArrayInterface.parent_type(u) === typeof(up)
+        @test StaticArrayInterface.known_length(u) === nothing
+        @test !StaticArrayInterface.can_change_size(u)
+        @test StaticArrayInterface.ismutable(u)
+        @test StaticArrayInterface.can_setindex(u)
+        @test StaticArrayInterface.aos_to_soa(u) === u
+        @test StaticArrayInterface.fast_scalar_indexing(u)
+        @test !StaticArrayInterface.isstructured(u)
 
         # Compare outputs with equivalent PermutedDimsArray
         iperm = inv(permutation(u))
@@ -82,7 +82,8 @@ function test_array_interface(pen_in::Pencil)
         functions = (
             contiguous_axis, contiguous_axis_indicator,
             contiguous_batch_size, stride_rank, dense_dims,
-            ArrayInterface.size, ArrayInterface.strides, ArrayInterface.offsets,
+            StaticArrayInterface.static_size,
+            StaticArrayInterface.static_strides, StaticArrayInterface.offsets,
         )
 
         for f in functions
@@ -113,6 +114,6 @@ pen2 = Pencil(pen1, decomp_dims=(1, 3), permute=Permutation(2, 1, 3))
 pen3 = Pencil(pen2, decomp_dims=(1, 2), permute=Permutation(3, 2, 1))
 pens = (pen1, pen2, pen3)
 
-@testset "ArrayInterface -- Pencil$(decomposition(p))" for p in pens
+@testset "StaticArrayInterface -- Pencil$(decomposition(p))" for p in pens
     test_array_interface(p)
 end

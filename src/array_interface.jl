@@ -1,5 +1,5 @@
-import ArrayInterface:
-    ArrayInterface,
+import StaticArrayInterface:
+    StaticArrayInterface,
     StaticInt,
     contiguous_axis,
     contiguous_batch_size,
@@ -30,7 +30,7 @@ function stride_rank(::Type{A}) where {A <: PencilArray}
     rank === nothing && return nothing
     iperm = Tuple(inv(permutation(A)))
     iperm === nothing && return rank
-    ArrayInterface.permute(rank, Val(iperm))
+    StaticArrayInterface.permute(rank, Val(iperm))
 end
 
 function dense_dims(::Type{A}) where {A <: PencilArray}
@@ -38,11 +38,11 @@ function dense_dims(::Type{A}) where {A <: PencilArray}
     dense === nothing && return nothing
     perm = Tuple(inv(permutation(A)))
     perm === nothing && return dense
-    ArrayInterface.permute(dense, Val(perm))
+    StaticArrayInterface.permute(dense, Val(perm))
 end
 
-ArrayInterface.size(A::PencilArray) =
-    permutation(A) * ArrayInterface.size(parent(A))
+StaticArrayInterface.static_size(A::PencilArray) =
+    permutation(A) * StaticArrayInterface.static_size(parent(A))
 
-ArrayInterface.strides(A::PencilArray) =
-    permutation(A) * ArrayInterface.strides(parent(A))
+StaticArrayInterface.static_strides(A::PencilArray) =
+    permutation(A) * StaticArrayInterface.static_strides(parent(A))
