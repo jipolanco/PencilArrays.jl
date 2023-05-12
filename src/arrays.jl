@@ -330,14 +330,7 @@ end
     parent(x)[_genperm(x, I)...] = v
 
 @inline function _genperm(x::PencilArray{T,N}, I::NTuple{N,Int}) where {T,N}
-    # Split "spatial" and "extra" indices.
-    M = ndims_space(x)
-    E = ndims_extra(x)
-    @assert M + E === N
-    J = ntuple(n -> @inbounds(I[n]), Val(M))
-    K = ntuple(n -> @inbounds(I[M + n]), Val(E))
-    perm = permutation(x)
-    ((perm * J)..., K...)
+    permutation(x) * I
 end
 
 @inline _genperm(x::PencilArray, I::CartesianIndex) =
