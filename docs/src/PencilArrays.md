@@ -83,6 +83,7 @@ in the PencilFFTs docs.
 PencilArray
 GlobalPencilArray
 PencilArrayCollection
+AbstractManyPencilArray
 ManyPencilArray
 ```
 
