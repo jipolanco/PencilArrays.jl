@@ -1,7 +1,7 @@
 name = "PencilArrays"
 uuid = "0e08944d-e94e-41b1-9406-dcf66b6a9d2e"
 authors = ["Juan Ignacio Polanco <jipolanc@gmail.com> and contributors"]
-version = "0.17.12"
+version = "0.18.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -29,7 +29,7 @@ Requires = "1"
 StaticArrayInterface = "1"
 StaticArrays = "1"
 StaticPermutations = "0.3"
-Strided = "1.1, 2"
+Strided = "2"
 TimerOutputs = "0.5"
 VersionParsing = "1"
 julia = "1.7"
