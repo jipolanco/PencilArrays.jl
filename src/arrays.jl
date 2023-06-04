@@ -48,19 +48,46 @@ pencil.
 
 ---
 
-    PencilArray{T}(undef, pencil::Pencil, [extra_dims...])
+    PencilArray{T}(undef, pencil::Pencil, [extra_dims...]; singleton = ())
 
 Allocate an uninitialised `PencilArray` that can hold data in the local pencil.
 
-Extra dimensions, for instance representing vector components, can be specified.
-These dimensions are added to the rightmost (slowest) indices of the resulting
-array.
+By default, the array has the same dimensions as the local part of the pencil.
 
-# Example
+See also [`partition`](@ref) for an alternative way of constructing `PencilArray`s.
+
+# Optional arguments
+
+## Extra dimensions
+
+Extra dimensions can be specified, which will be added to the rightmost
+(slowest) indices of the resulting arrays.
+These dimensions might represent things like different vector components in
+physical applications.
+
+## Constant (or singleton) dimensions
+
+It is possible to specify that some of the dimensions should have size 1 --
+instead of having the same size as the pencil.
+This can be convenient for the purposes of describing physical fields that are
+constant along one of the dimensions.
+The resulting array can be naturally broadcasted with other `PencilArray`s that
+hold data in the same pencil.
+
+To specify one or more singleton dimensions, set the optional `singleton`
+keyword argument to a dimension (e.g. `singleton = 2`) or a list of dimensions
+(e.g. `singleton = (1, 3)`).
+See below for more examples.
+
+# Examples
+
 Suppose `pencil` has local dimensions `(20, 10, 30)`. Then:
+
 ```julia
-PencilArray{Float64}(undef, pencil)        # array dimensions are (20, 10, 30)
-PencilArray{Float64}(undef, pencil, 4, 3)  # array dimensions are (20, 10, 30, 4, 3)
+PencilArray{Float64}(undef, pencil)                 # array dimensions are (20, 10, 30)
+PencilArray{Float64}(undef, pencil; singleton = 1)  # array dimensions are ( 1, 10, 30)
+PencilArray{Float64}(undef, pencil, 4, 3)           # array dimensions are (20, 10, 30, 4, 3)
+PencilArray{Float64}(undef, pencil, 4, 3; singleton = (1, 3))  # array dimensions are (1, 10, 1, 4, 3)
 ```
 
 More examples:
@@ -70,12 +97,22 @@ julia> pen = Pencil((20, 10, 12), MPI.COMM_WORLD);
 
 julia> u = PencilArray{Float64}(undef, pen);
 
+julia> v = PencilArray{Int}(undef, pen; singleton = 3);
+
 julia> summary(u)
 "20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation, Array})"
 
+julia> summary(v)
+"20×10×1 PencilArray{Int64, 3}(::Pencil{3, 2, NoPermutation, Array})"
+
+julia> u .= 2.1; v .= 42; w = u .+ v; summary(w)
+"20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation, Array})"
+
+julia> extrema(w)
+(44.1, 44.1)
+
 julia> PencilArray{Float64}(undef, pen, 4, 3) |> summary
 "20×10×12×4×3 PencilArray{Float64, 5}(::Pencil{3, 2, NoPermutation, Array})"
-
 ```
 """
 struct PencilArray{
@@ -88,40 +125,57 @@ struct PencilArray{
     } <: AbstractArray{T,N}
     pencil   :: P
     data     :: A
-    space_dims :: Dims{Np}  # spatial dimensions in *logical* order
-    extra_dims :: Dims{E}
+    dims_extra  :: Dims{E}   # optional rightmost dimensions, which are never distributed
 
-    # This constructor is not to be used directly!
-    # It exists just to enforce that the type of data array is consistent with
-    # typeof_array(pencil).
-    function PencilArray(pencil::Pencil, data::AbstractArray)
+    # Dimensions of global array (in logical order).
+    # Note that this only includes the first Np dimensions, i.e. the "physical"
+    # dimensions that can be distributed.
+    # These are generally the same as size_global(pencil), except for singleton
+    # dimensions, in which case they are 1.
+    dims_global :: Dims{Np}
+
+    # NOTE: this constructor is not to be used directly!!!
+    function PencilArray(
+            pencil::Pencil{Np}, data::AbstractArray{T, N},
+            dims_global::Dims{Np} = size_global(pencil, LogicalOrder()),
+        ) where {T, Np, N}
         _check_compatible(pencil, data)
 
-        N = ndims(data)
-        Np = ndims(pencil)
         E = N - Np
-        size_data = size(data)
+        dims_data = size(data)
 
-        geom_dims = ntuple(n -> size_data[n], Np)  # = size_data[1:Np]
-        extra_dims = ntuple(n -> size_data[Np + n], E)  # = size_data[Np+1:N]
+        perm = permutation(pencil)
+        dims_space_mem = ntuple(n -> dims_data[n], Np)  # = dims_data[1:Np]
+        dims_pencil_mem = size_local(pencil, MemoryOrder())
+        dims_glob_mem = perm * dims_global
 
-        dims_local = size_local(pencil, MemoryOrder())
-
-        if geom_dims !== dims_local
-            throw(DimensionMismatch(
-                "array has incorrect dimensions: $(size_data). " *
-                "Local dimensions of pencil: $(dims_local)."))
+        # We compare dimensions in memory order (as they are stored in `data`)
+        dims_are_ok = all(
+                zip(dims_space_mem, dims_pencil_mem, dims_glob_mem)
+            ) do (ndata, nl, ng)
+            # A dimension size is "correct" if it's either equal to the local
+            # pencil size, or equal to 1 (for singleton array dimensions).
+            # We expect a singleton dimension if the given *global* size is 1.
+            expect_singleton = ng == 1
+            expect_singleton ? (ndata == 1) : (ndata == nl && ndata ≤ ng)
         end
 
-        space_dims = permutation(pencil) \ geom_dims  # undo permutation
+        if !dims_are_ok
+            throw(DimensionMismatch(
+                "array has incorrect dimensions: $(dims_data). " *
+                "Local dimensions of pencil (in memory order): $(dims_pencil_mem)."
+            ))
+        end
 
-        T = eltype(data)
+        dims_extra = ntuple(n -> dims_data[Np + n], E)  # = dims_data[Np+1:N]
         P = typeof(pencil)
-        new{T, N, typeof(data), Np, E, P}(pencil, data, space_dims, extra_dims)
+
+        new{T, N, typeof(data), Np, E, P}(pencil, data, dims_extra, dims_global)
     end
 end
 
 @inline _check_compatible(p::Pencil, u) = _check_compatible(typeof_array(p), u)
+
 @inline function _check_compatible(::Type{A}, u, ubase = u) where {A}
     typeof(u) <: A && return nothing
     up = parent(u)
@@ -131,10 +185,31 @@ end
     _check_compatible(A, up, ubase)
 end
 
-function PencilArray{T}(init, pencil::Pencil, extra_dims::Vararg{Integer}) where {T}
-    dims = (size_local(pencil, MemoryOrder())..., extra_dims...)
+_apply_singleton(dims::NTuple, ::Tuple{}) = dims
+
+function _apply_singleton(dims::NTuple, singleton)
+    T = eltype(dims)
+    for i ∈ singleton
+        dims = Base.setindex(dims, one(T), i)
+    end
+    dims
+end
+
+function PencilArray{T}(
+        init, pencil::Pencil, extra_dims::Vararg{Integer};
+        singleton = (),
+    ) where {T}
+    dims_log = let dims = size_local(pencil, LogicalOrder())
+        _apply_singleton(dims, singleton)
+    end
+    perm = permutation(pencil)
+    dims_mem = perm * dims_log
+    dims = (dims_mem..., extra_dims...)
+    dims_global = let dims = size_global(pencil, LogicalOrder())
+        _apply_singleton(dims, singleton)
+    end
     A = typeof_array(pencil)
-    PencilArray(pencil, A{T}(init, dims))
+    PencilArray(pencil, A{T}(init, dims), dims_global)
 end
 
 # Treat PencilArray similarly to other wrapper types.
@@ -194,7 +269,7 @@ collection(x::PencilArray) = (x, )
 
 const MaybePencilArrayCollection = Union{PencilArray, PencilArrayCollection}
 
-function _apply(f::Function, x::PencilArrayCollection, args...; kwargs...)
+function _only(f::F, x::PencilArrayCollection, args...; kwargs...) where {F}
     a = first(x)
     if !all(b -> pencil(a) === pencil(b), x)
         throw(ArgumentError("PencilArrayCollection is not homogeneous"))
@@ -205,17 +280,20 @@ end
 Base.axes(x::PencilArray) = permutation(x) \ axes(parent(x))
 
 """
-    similar(x::PencilArray, [element_type=eltype(x)], [dims])
+    similar(x::PencilArray, [element_type=eltype(x)], [dims]; [singleton = ()])
 
 Returns an array similar to `x`.
 
 The actual type of the returned array depends on whether `dims` is passed:
 
-- if `dims` is *not* passed, then a `PencilArray` of same dimensions of `x` is
-  returned.
+1. if `dims` is *not* passed, then a `PencilArray` of same dimensions of `x` is
+   returned.
 
-- otherwise, an array similar to that wrapped by `x` (typically a regular
-  `Array`) is returned, with the chosen dimensions.
+2. otherwise, an array similar to that wrapped by `x` (typically a regular
+   `Array`) is returned, with the chosen dimensions.
+
+The optional `singleton` argument is only allowed in case 1.
+See the [`PencilArray`](@ref) constructor for its meaning.
 
 # Examples
 
@@ -229,6 +307,9 @@ julia> similar(u) |> summary
 
 julia> similar(u, ComplexF32) |> summary
 "20×10×12 PencilArray{ComplexF32, 3}(::Pencil{3, 2, NoPermutation, Array})"
+
+julia> similar(u, ComplexF32; singleton = (1, 2)) |> summary
+"1×1×12 PencilArray{ComplexF32, 3}(::Pencil{3, 2, NoPermutation, Array})"
 
 julia> similar(u, (4, 3, 8)) |> summary
 "4×3×8 Array{Float64, 3}"
@@ -245,7 +326,7 @@ julia> similar(u, ComplexF32, (4, 3)) |> summary
 
 ---
 
-    similar(x::PencilArray, [element_type = eltype(x)], p::Pencil)
+    similar(x::PencilArray, [element_type = eltype(x)], p::Pencil; [singleton = ()])
 
 Create a `PencilArray` with the decomposition described by the given `Pencil`.
 
@@ -282,22 +363,31 @@ julia> summary(vint)
 julia> pencil(vint) === pen_v
 true
 
+julia> similar(u, Int, pen_v; singleton = 1) |> summary
+"1×10×12 PencilArray{Int64, 3}(::Pencil{3, 2, Permutation{(2, 3, 1), 3}, Array})"
+
 ```
 """
-function Base.similar(x::PencilArray, ::Type{S}) where {S}
-    dims_perm = permutation(x) * size_local(x)
-    PencilArray(x.pencil, similar(parent(x), S, dims_perm))
+function Base.similar(x::PencilArray, ::Type{S}; singleton = ()) where {S}
+    similar(x, S, pencil(x); singleton)
 end
 
+# If `dims` is passed, return a regular (non-distributed) array.
 Base.similar(x::PencilArray, ::Type{S}, dims::Dims) where {S} =
     similar(parent(x), S, dims)
 
-function Base.similar(x::PencilArray, ::Type{S}, p::Pencil) where {S}
-    dims_mem = (size_local(p, MemoryOrder())..., extra_dims(x)...)
-    PencilArray(p, similar(parent(x), S, dims_mem))
+# Create PencilArray with possibly different Pencil configuration
+function Base.similar(x::PencilArray, ::Type{S}, p::Pencil; singleton = ()) where {S}
+    dims_loc = _apply_singleton(size_local(p, LogicalOrder()), singleton)
+    dims_glb = _apply_singleton(size_global(p, LogicalOrder()), singleton)
+    dims_mem = permutation(p) * dims_loc
+    dims_ext = extra_dims(x)
+    dims_data = (dims_mem..., dims_ext...)
+    data = similar(parent(x), S, dims_data)
+    PencilArray(p, data, dims_glb)
 end
 
-Base.similar(x::PencilArray, p::Pencil) = similar(x, eltype(x), p)
+Base.similar(x::PencilArray, p::Pencil; kws...) = similar(x, eltype(x), p; kws...)
 
 # Use same index style as the parent array.
 Base.IndexStyle(::Type{<:PencilArray{T,N,A}} where {T,N}) where {A} =
@@ -342,7 +432,7 @@ end
 Return decomposition configuration associated to a `PencilArray`.
 """
 pencil(x::PencilArray) = x.pencil
-pencil(x::PencilArrayCollection) = _apply(pencil, x)
+pencil(x::PencilArrayCollection) = _only(pencil, x)
 
 """
     parent(x::PencilArray)
@@ -405,7 +495,7 @@ The total number of dimensions of a `PencilArray` is given by:
 
 """
 ndims_space(x::PencilArray) = ndims(x) - ndims_extra(x)
-ndims_space(x::PencilArrayCollection) = _apply(ndims_space, x)
+ndims_space(x::PencilArrayCollection) = _only(ndims_space, x)
 
 """
     extra_dims(x::PencilArray)
@@ -413,8 +503,8 @@ ndims_space(x::PencilArrayCollection) = _apply(ndims_space, x)
 
 Return tuple with size of "extra" dimensions of `PencilArray`.
 """
-extra_dims(x::PencilArray) = x.extra_dims
-extra_dims(x::PencilArrayCollection) = _apply(extra_dims, x)
+extra_dims(x::PencilArray) = x.dims_extra
+extra_dims(x::PencilArrayCollection) = _only(extra_dims, x)
 
 """
     sizeof_global(x::PencilArray)
@@ -433,8 +523,15 @@ Local data range held by the `PencilArray`.
 
 By default the dimensions are returned in logical order.
 """
-range_local(x::MaybePencilArrayCollection, args...; kw...) =
-    (range_local(pencil(x), args...; kw...)..., map(Base.OneTo, extra_dims(x))...)
+function range_local(x::PencilArray, args...; kws...)
+    # TODO should we consider singleton dimensions here?
+    range_phys = range_local(pencil(x), args...; kws...)
+    N = length(range_phys)
+    range_extr = ntuple(i -> axes(x, N + i), Val(ndims_extra(x)))
+    (range_phys..., range_extr...)
+end
+
+range_local(x::PencilArrayCollection, args...) = _only(range_local, x, args...)
 
 """
     range_remote(x::PencilArray, coords, [order = LogicalOrder()])
@@ -478,7 +575,7 @@ function permutation(::Type{A}) where {A <: PencilArray}
 end
 
 permutation(x::PencilArray) = permutation(typeof(x))
-permutation(x::PencilArrayCollection) = _apply(permutation, x)
+permutation(x::PencilArrayCollection) = _only(permutation, x)
 
 """
     topology(x::PencilArray)

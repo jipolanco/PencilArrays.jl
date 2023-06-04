@@ -174,10 +174,10 @@ struct Pencil{
     # These dimensions are *before* permutation by `perm`.
     axes_all :: Array{ArrayRegion{N}, M}
 
-    # Part of the array held by the local process (before permutation).
+    # Part of the array held by the local process (before permutation, i.e. in logical order).
     axes_local :: ArrayRegion{N}
 
-    # Part of the array held by the local process (after permutation).
+    # Part of the array held by the local process (after permutation, i.e. in memory order).
     axes_local_perm :: ArrayRegion{N}
 
     # Optional axes permutation.
