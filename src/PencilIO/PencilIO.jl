@@ -4,7 +4,6 @@ using ..PencilArrays
 import ..PencilArrays: MaybePencilArrayCollection, collection_size, collection
 
 using MPI
-using Requires: @require
 using StaticArrays: SVector
 using TimerOutputs
 
@@ -73,9 +72,6 @@ function keywords_to_open(; read=nothing, write=nothing, create=nothing,
 end
 
 include("mpi_io.jl")
-
-function __init__()
-    @require HDF5="f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f" include("hdf5.jl")
-end
+include("hdf5.jl")  # actual implementation is in ../../ext/PencilArraysHDF5Ext.jl
 
 end

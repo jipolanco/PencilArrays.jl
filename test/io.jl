@@ -13,6 +13,18 @@ end
 using Random
 using Test
 
+# Copied from PencilArraysHDF5Ext.jl
+function _is_set(fapl::HDF5.FileAccessProperties, ::Val{:fclose_degree})
+    id = fapl.id
+    degree = Ref{Cint}()
+    status = ccall(
+        (:H5Pget_fclose_degree, HDF5.API.libhdf5), HDF5.API.herr_t,
+        (HDF5.API.hid_t, Ref{Cint}), id, degree)
+    # A negative value means failure, which we interpret here as meaning that
+    # "fclose_degree" has not been set.
+    status ≥ 0
+end
+
 function test_write_mpiio(filename, u::PencilArray)
     comm = get_comm(u)
     root = 0
@@ -189,9 +201,9 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
 @testset "HDF5 properties" begin
     let fapl = HDF5.FileAccessProperties()
-        @test PencilIO._is_set(fapl, Val(:fclose_degree)) === false
+        @test _is_set(fapl, Val(:fclose_degree)) === false
         fapl.fclose_degree = :strong
-        @test PencilIO._is_set(fapl, Val(:fclose_degree)) === true
+        @test _is_set(fapl, Val(:fclose_degree)) === true
         @test fapl.fclose_degree === :strong
     end
 end
