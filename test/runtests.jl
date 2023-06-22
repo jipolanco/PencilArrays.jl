@@ -1,17 +1,3 @@
-# Work around https://github.com/JuliaLang/Pkg.jl/issues/2500 for CI on Julia ≤ 1.7.
-# (Adapted from https://github.com/JuliaParallel/MPI.jl/pull/564, which was not merged.)
-if VERSION ≤ v"1.8-"
-    test_project = first(Base.load_path())
-    # @__DIR__ is something like "~/.julia/dev/PencilArrays/test"
-    # We look for LocalPreferences.toml in the PencilArrays directory.
-    preferences_file = joinpath(@__DIR__, "..", "LocalPreferences.toml")
-    # This is something like "/tmp/jl_NcTbc4/LocalPreferences.toml"
-    test_preferences_file = joinpath(dirname(test_project), "LocalPreferences.toml")
-    if isfile(preferences_file) && !isfile(test_preferences_file)
-        cp(preferences_file, test_preferences_file)
-    end
-end
-
 using MPIPreferences
 @show MPIPreferences.binary
 

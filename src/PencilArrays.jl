@@ -5,7 +5,6 @@ using OffsetArrays
 using Reexport
 using StaticPermutations
 using TimerOutputs
-using Requires: @require
 
 using Base: @propagate_inbounds
 import Adapt
