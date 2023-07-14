@@ -107,17 +107,13 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
             @test pencil(v) === pencil(u)
         end
 
-        let v = @inferred similar(u, (3, 4))
-            @test v isa Matrix
-            @test size(v) == (3, 4)
-            @test eltype(v) === eltype(u)
-        end
+        @test (@inferred similar(u, size(u))) isa PencilArray{T}
+        @test (@inferred similar(u, Int, size(u))) isa PencilArray{Int}
 
-        let v = @inferred similar(u, Int, (3, 4))
-            @test v isa Matrix
-            @test size(v) == (3, 4)
-            @test eltype(v) === Int
-        end
+        @test_throws DimensionMismatch similar(u, 12)
+        @test_throws DimensionMismatch similar(u, Int, 12)
+        @test_throws DimensionMismatch similar(u, size(u) .+ 1)
+        @test_throws DimensionMismatch similar(u, Int, size(u) .+ 1)
 
         let A = DummyArray{Int}(undef, size_local(p, MemoryOrder()))
             pdummy = Pencil(DummyArray, p)
@@ -127,14 +123,6 @@ function test_array_wrappers(p::Pencil, ::Type{T} = Float64) where {T}
             v = @inferred similar(u)
             @test typeof(v) === typeof(u)
             @test size(v) == size(u)
-
-            w = @inferred similar(u, (4, 2))
-            @test w isa DummyArray{Int,2}
-            @test size(w) == (4, 2)
-
-            z = @inferred similar(u, Float32, (3, 4, 2))
-            @test z isa DummyArray{Float32,3}
-            @test size(z) == (3, 4, 2)
         end
 
         # Test similar(u, [T], q::Pencil)
