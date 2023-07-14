@@ -6,7 +6,15 @@ using MPI
 using PencilArrays
 using OrdinaryDiffEq
 using RecursiveArrayTools: ArrayPartition
+using StructArrays: StructArray
+using StaticArrays: SVector
 using Test
+
+function to_structarray(us::NTuple{N, A}) where {N, A <: AbstractArray}
+    T = eltype(A)
+    Vec = SVector{N, T}
+    StructArray{Vec}(us)
+end
 
 MPI.Init()
 
@@ -25,12 +33,8 @@ u0 = PencilArray{Float64}(undef, pen)
 @. u0 = grid.x * grid.y + grid.z
 
 function rhs!(du, u, p, t)
-    @. du = 0.1 * u
+    @. du = -0.1 * u
     du
-end
-
-@static if !isdefined(Base, :allequal)
-    allequal(xs) = all(==(first(xs)), xs)
 end
 
 @testset "DiffEqBase" begin
@@ -79,5 +83,22 @@ end
             prob, Tsit5();
             adaptive = true, save_everystep = false,
         )
+    end
+
+    # Solve the equation for a 2D vector field represented by a StructArray.
+    @testset "StructArray" begin
+        v0 = to_structarray((u0, 2u0))
+        @assert eltype(v0) <: SVector{2}
+        tspan = (0.0, 1.0)
+        prob = @inferred ODEProblem{true}(rhs!, v0, tspan, params)
+        integrator = init(
+            prob, Tsit5();
+            adaptive = true, save_everystep = false,
+        )
+        @test integrator.u == v0
+        for _ ∈ 1:10
+            step!(integrator)
+        end
+        @test integrator.u ≠ v0
     end
 end
