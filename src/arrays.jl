@@ -205,17 +205,14 @@ end
 Base.axes(x::PencilArray) = permutation(x) \ axes(parent(x))
 
 """
-    similar(x::PencilArray, [element_type=eltype(x)], [dims])
+    similar(x::PencilArray, [element_type=eltype(x)], [dims]) -> PencilArray
 
-Returns an array similar to `x`.
+Returns a `PencilArray` similar to `x`.
 
-The actual type of the returned array depends on whether `dims` is passed:
-
-- if `dims` is *not* passed, then a `PencilArray` of same dimensions of `x` is
-  returned.
-
-- otherwise, an array similar to that wrapped by `x` (typically a regular
-  `Array`) is returned, with the chosen dimensions.
+In particular, the new array shares the same parallel decomposition (the same `Pencil`) than
+`x`. This means that the dimensions of the new array must be the same as those of `x`. Note
+that the optional `dims` argument is allowed for the sole reason of making things work
+nicely with other packages (such as StructArrays.jl), but things will fail if `dims ≠ size(x)`.
 
 # Examples
 
@@ -227,20 +224,23 @@ julia> u = PencilArray{Float64}(undef, pen);
 julia> similar(u) |> summary
 "20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation, Array})"
 
+julia> similar(u, size(u)) |> summary
+"20×10×12 PencilArray{Float64, 3}(::Pencil{3, 2, NoPermutation, Array})"
+
 julia> similar(u, ComplexF32) |> summary
 "20×10×12 PencilArray{ComplexF32, 3}(::Pencil{3, 2, NoPermutation, Array})"
 
-julia> similar(u, (4, 3, 8)) |> summary
-"4×3×8 Array{Float64, 3}"
+julia> similar(u, (4, 3, 8))
+ERROR: DimensionMismatch: cannot construct a similar PencilArray with different size
 
 julia> similar(u, (4, 3)) |> summary
-"4×3 Matrix{Float64}"
+ERROR: DimensionMismatch: cannot construct a similar PencilArray with different size
 
 julia> similar(u, ComplexF32) |> summary
 "20×10×12 PencilArray{ComplexF32, 3}(::Pencil{3, 2, NoPermutation, Array})"
 
-julia> similar(u, ComplexF32, (4, 3)) |> summary
-"4×3 Matrix{ComplexF32}"
+julia> similar(u, ComplexF32, (4, 3))
+ERROR: DimensionMismatch: cannot construct a similar PencilArray with different size
 ```
 
 ---
@@ -289,8 +289,11 @@ function Base.similar(x::PencilArray, ::Type{S}) where {S}
     PencilArray(x.pencil, similar(parent(x), S, dims_perm))
 end
 
-Base.similar(x::PencilArray, ::Type{S}, dims::Dims) where {S} =
-    similar(parent(x), S, dims)
+function Base.similar(x::PencilArray, ::Type{S}, dims::Dims) where {S}
+    dims == size(x) ||
+        throw(DimensionMismatch("cannot construct a similar PencilArray with different size"))
+    similar(x, S)
+end
 
 function Base.similar(x::PencilArray, ::Type{S}, p::Pencil) where {S}
     dims_mem = (size_local(p, MemoryOrder())..., extra_dims(x)...)

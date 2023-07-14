@@ -17,7 +17,7 @@ doctest(PencilArrays; fix = false)
 function main()
     makedocs(;
         modules = [PencilArrays],
-        authors = "Juan Ignacio Polanco <jipolanc@gmail.com> and contributors",
+        authors = "Juan Ignacio Polanco <juan-ignacio.polanco@cnrs.fr>",
         repo = "https://github.com/jipolanco/PencilArrays.jl/blob/{commit}{path}#L{line}",
         sitename = "PencilArrays.jl",
         format = Documenter.HTML(;
