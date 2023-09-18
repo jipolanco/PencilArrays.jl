@@ -11,7 +11,7 @@ on:
     tags: '*'
 
 env:
-  LD_PRELOAD: /usr/lib/x86_64-linux-gnu/libstdc++.so.6:/usr/lib/x86_64-linux-gnu/libcurl.so.4  # workaround for libhdf5
+  LD_PRELOAD: /usr/lib/x86_64-linux-gnu/libcurl.so.4  # workaround for system HDF5 issue
 
 jobs:
   test:
