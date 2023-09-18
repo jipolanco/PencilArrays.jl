@@ -10,9 +10,6 @@ on:
       - master
     tags: '*'
 
-env:
-  LD_PRELOAD: /usr/lib/x86_64-linux-gnu/libcurl.so.4  # workaround for system HDF5 issue
-
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -80,6 +77,12 @@ jobs:
           using Pkg
           Pkg.instantiate(verbose = true)
           Pkg.precompile(strict = false)
+
+      # This is to fix issue when loading system HDF5. We need to use the system libcurl instead of Julia's.
+      # Note: LD_PRELOAD needs to be set here *and not before*, otherwise precompilation fails.
+      - name: Update LD_PRELOAD for system HDF5
+        # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
+        run: echo "LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libcurl.so.4" >> "$GITHUB_ENV"
 
       - uses: julia-actions/julia-runtest@v1
 
