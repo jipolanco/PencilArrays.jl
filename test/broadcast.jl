@@ -4,8 +4,7 @@ using Random
 using Test
 
 using GPUArrays
-include("include/jlarray.jl")
-using .JLArrays
+using JLArrays
 
 MPI.Init()
 
