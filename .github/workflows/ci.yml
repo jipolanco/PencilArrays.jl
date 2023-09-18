@@ -10,9 +10,6 @@ on:
       - master
     tags: '*'
 
-env:
-  LD_PRELOAD: /usr/lib/x86_64-linux-gnu/libstdc++.so.6:/usr/lib/x86_64-linux-gnu/libcurl.so.4  # workaround for libhdf5
-
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -38,7 +35,7 @@ jobs:
       - name: Install libraries
         run: |
           sudo apt-get update
-          sudo apt-get install mpich libmpich-dev libhdf5-mpich-dev
+          sudo apt-get install mpich libmpich-dev libhdf5-mpich-dev libcurl4-openssl-dev
 
       - uses: actions/checkout@v4
 
@@ -95,7 +92,7 @@ jobs:
       - name: Install libraries
         run: |
           sudo apt-get update
-          sudo apt-get install mpich libmpich-dev libhdf5-mpich-dev
+          sudo apt-get install mpich libmpich-dev libhdf5-mpich-dev libcurl4-openssl-dev
 
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@latest
