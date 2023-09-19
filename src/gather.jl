@@ -58,7 +58,7 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
     topo = pen.topology
     Nproc = length(topo)
     recv = Vector{Array{T,N}}(undef, Nproc)
-    recv_req = MPI.RequestSet([MPI.Request() for i = 1:Nproc])
+    recv_req = MPI.MultiRequest(Nproc)
 
     root_index = -1
 
@@ -70,11 +70,10 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
         src_rank = topo.ranks[n]  # actual rank of sending process
         if src_rank == root
             root_index = n
-            recv_req[n] = MPI.REQUEST_NULL
         else
             # TODO avoid allocation?
             recv[n] = Array{T,N}(undef, rdims..., extra_dims...)
-            recv_req[n] = MPI.Irecv!(recv[n], src_rank, mpi_tag, comm)
+            MPI.Irecv!(recv[n], comm, recv_req[n]; source = src_rank, tag = mpi_tag)
         end
     end
 
