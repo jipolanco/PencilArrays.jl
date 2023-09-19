@@ -1,6 +1,6 @@
-using HDF5  # to load HDF5 code via Requires
 using PencilArrays
 using Documenter
+using Documenter.Remotes: GitHub
 
 DocMeta.setdocmeta!(
     PencilArrays, :DocTestSetup,
@@ -18,7 +18,7 @@ function main()
     makedocs(;
         modules = [PencilArrays],
         authors = "Juan Ignacio Polanco <juan-ignacio.polanco@cnrs.fr>",
-        repo = "https://github.com/jipolanco/PencilArrays.jl/blob/{commit}{path}#L{line}",
+        repo = GitHub("jipolanco", "PencilArrays.jl"),
         sitename = "PencilArrays.jl",
         format = Documenter.HTML(;
             prettyurls = true,
