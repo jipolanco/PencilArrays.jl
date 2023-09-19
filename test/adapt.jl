@@ -1,10 +1,8 @@
 using Adapt
 using MPI
 using PencilArrays
+using JLArrays
 using Test
-
-include("include/jlarray.jl")
-using .JLArrays
 
 MPI.Init()
 comm = MPI.COMM_WORLD

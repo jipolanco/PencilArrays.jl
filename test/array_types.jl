@@ -8,8 +8,18 @@ using PencilArrays: typeof_array
 using Random
 using Test
 
-include("include/jlarray.jl")
-using .JLArrays
+## ================================================================================ ##
+
+using JLArrays: JLArray, DenseJLVector
+
+# A bit of type piracy to help tests pass (the following functions seem to be defined for
+# CuArray).
+Base.resize!(u::DenseJLVector, n) = (resize!(u.data, n); u)
+Base.unsafe_wrap(::Type{JLArray}, p::Ptr, dims::Union{Integer, Dims}; kws...) =
+    JLArray(unsafe_wrap(Array, p, dims; kws...))
+Random.rand!(rng::AbstractRNG, u::JLArray, ::Type{X}) where {X} = (rand!(rng, u.data, X); u)
+
+## ================================================================================ ##
 
 # Define simple array wrapper type for tests.
 struct TestArray{T, N} <: DenseArray{T, N}

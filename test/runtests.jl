@@ -31,11 +31,7 @@ end
 
 println()
 versioninfo()
-if isdefined(MPI, :versioninfo)
-    MPI.versioninfo()
-else
-    println("\n", MPI.MPI_LIBRARY_VERSION_STRING, "\n")
-end
+MPI.versioninfo()
 
 if MPIPreferences.binary != "system"
     error("""

@@ -171,8 +171,8 @@ end
 function check_phdf5_file(g, x)
     fapl = HDF5.get_access_properties(HDF5.file(g))
     driver = HDF5.Drivers.get_driver(fapl)
-    if driver isa HDF5.Drivers.MPIO
-        comm = driver.comm
+    if hasfield(typeof(driver), :comm)
+        comm = driver.comm :: MPI.Comm
         if MPI.Comm_compare(comm, get_comm(x)) ∉ (MPI.IDENT, MPI.CONGRUENT)
             throw(ArgumentError(
                 "incompatible MPI communicators of HDF5 file and PencilArray"
