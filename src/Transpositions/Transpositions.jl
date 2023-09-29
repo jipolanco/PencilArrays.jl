@@ -79,7 +79,16 @@ struct Transposition{T, N,
     Ao :: ArrayOut
     method :: M
     dim :: Union{Nothing,Int}  # dimension along which transposition is performed
-    send_requests :: MPI.MultiRequest
+
+    # Note: we can use UnsafeMultiRequest as long as the send and receive buffers stay alive
+    # during the whole communication time, i.e. after all calls to Waitany / Waitall.
+    # This is the case because the buffers live in the `Pencil`s (`Pi` and `Pi`), which are
+    # themselves included in the `Transposition` object.
+    # So we're fine as long as the `Transposition` stays alive.
+    # If the `Transposition` is no longer alive, we can't do wait operations anyways, so
+    # everything is fine!
+    send_requests :: MPI.UnsafeMultiRequest
+    recv_requests :: MPI.UnsafeMultiRequest
 
     function Transposition(Ao::PencilArray{T,N}, Ai::PencilArray{T,N};
                            method = PointToPoint()) where {T,N}
@@ -100,10 +109,12 @@ struct Transposition{T, N,
         # is performed along the dimension R where that difference happens.
         dim = findfirst(decomposition(Pi) .!= decomposition(Po))
 
-        reqs = MPI.MultiRequest()
+        send_requests = MPI.UnsafeMultiRequest()
+        recv_requests = MPI.UnsafeMultiRequest()
 
-        new{T, N, typeof(Pi), typeof(Po), typeof(Ai), typeof(Ao),
-            typeof(method)}(Pi, Po, Ai, Ao, method, dim, reqs)
+        new{T, N, typeof(Pi), typeof(Po), typeof(Ai), typeof(Ao), typeof(method)}(
+            Pi, Po, Ai, Ao, method, dim, send_requests, recv_requests,
+        )
     end
 end
 
@@ -258,7 +269,7 @@ function permute_local!(Ao::PencilArray{T,N},
     Ao
 end
 
-function mpi_buffer(buf::AbstractArray{T}, off, length) where {T}
+function mpi_buffer(buf::AbstractArray, off, length)
     inds = (off + 1):(off + length)
     v = view(buf, inds)
     MPI.Buffer(v)
@@ -307,24 +318,23 @@ function transpose_impl!(R::Int, t::Transposition{T}) where {T}
     recv_offsets = Vector{Int}(undef, Nproc)  # all offsets in recv_buf
 
     req_length = method === Alltoallv() ? 0 : Nproc
-    send_req = t.send_requests
-    resize!(send_req, req_length)
-    recv_req = MPI.MultiRequest(req_length)
-    @assert length(send_req) == length(recv_req) == req_length
-
-    buffers = (send_buf, recv_buf)
-    requests = (send_req, recv_req)
+    (; send_requests, recv_requests,) = t
+    resize!(send_requests, req_length)
+    resize!(recv_requests, req_length)
 
     # 1. Pack and send data.
     @timeit_debug timer "pack data" index_local_req = transpose_send!(
-        buffers, recv_offsets, requests, length_self, remote_inds,
+        (send_buf, recv_buf),
+        recv_offsets,
+        (send_requests, recv_requests),
+        length_self, remote_inds,
         (comm, subcomm_ranks, myrank),
         Ao, Ai, method, timer,
     )
 
     # 2. Unpack data and perform local transposition.
     @timeit_debug timer "unpack data" transpose_recv!(
-        recv_buf, recv_offsets, recv_req,
+        recv_buf, recv_offsets, recv_requests,
         remote_inds, index_local_req,
         Ao, Ai, method, timer,
     )
@@ -436,10 +446,10 @@ function make_buffer_info(::Alltoallv, bufs, Nproc)
     )
 end
 
-function transpose_send_self!(::PointToPoint, n, (send_req, recv_req), etc...)
-    # Do nothing. The request send_req[n] and recv_req[n] should already be null.
-    @assert send_req.vals[n] == MPI.REQUEST_NULL.val
-    @assert recv_req.vals[n] == MPI.REQUEST_NULL.val
+function transpose_send_self!(::PointToPoint, n, (send_requests, recv_requests), etc...)
+    # Do nothing. The request send_requests[n] and recv_requests[n] should already be null.
+    @assert send_requests.vals[n] == MPI.REQUEST_NULL.val
+    @assert recv_requests.vals[n] == MPI.REQUEST_NULL.val
     nothing
 end
 
@@ -451,15 +461,15 @@ end
 
 function transpose_send_other!(
         ::PointToPoint, info, (length_send_n, length_recv_n),
-        n, (send_req, recv_req), (rank, comm), ::Type{T}
+        n, (send_requests, recv_requests), (rank, comm), ::Type{T},
     ) where {T}
     # Exchange data with the other process (non-blocking operations).
     # Note: data is sent and received with the permutation associated to Pi.
     tag = 42
     data_send = mpi_buffer(info.send_buf, info.send_offset[], length_send_n)
     data_recv = mpi_buffer(info.recv_buf, info.recv_offset[], length_recv_n)
-    MPI.Isend(data_send, comm, send_req[n]; dest = rank, tag)
-    MPI.Irecv!(data_recv, comm, recv_req[n]; source = rank, tag)
+    MPI.Isend(data_send, comm, send_requests[n]; dest = rank, tag)
+    MPI.Irecv!(data_recv, comm, recv_requests[n]; source = rank, tag)
     info.send_offset[] += length_send_n
     info.recv_offset[] += length_recv_n
     nothing
@@ -474,7 +484,7 @@ function transpose_send_other!(
 end
 
 function transpose_recv!(
-        recv_buf, recv_offsets, recv_req,
+        recv_buf, recv_offsets, recv_requests,
         remote_inds, index_local_req,
         Ao::PencilArray, Ai::PencilArray,
         method::AbstractTransposeMethod,
@@ -500,7 +510,7 @@ function transpose_recv!(
         elseif m == 1
             n = index_local_req  # copy local data first
         else
-            @timeit_debug timer "wait receive" n = MPI.Waitany(recv_req)
+            @timeit_debug timer "wait receive" n = MPI.Waitany(recv_requests)
         end
 
         # Non-permuted global indices of received data.
