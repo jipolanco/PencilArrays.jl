@@ -43,7 +43,7 @@ function main()
                 "notes/reductions.md",
             ],
         ],
-        linkcheck = false,
+        warnonly = [:missing_docs],  # TODO can we remove this?
     )
 
     deploydocs(;
