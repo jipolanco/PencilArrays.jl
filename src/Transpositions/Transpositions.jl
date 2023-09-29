@@ -22,8 +22,6 @@ function Base.show(io::IO, ::T) where {T<:AbstractTransposeMethod}
     print(io, nameof(T))
 end
 
-_init_request_set(n) = MPI.RequestSet([MPI.Request() for _ = 1:n])
-
 """
     Transposition
 
@@ -81,7 +79,7 @@ struct Transposition{T, N,
     Ao :: ArrayOut
     method :: M
     dim :: Union{Nothing,Int}  # dimension along which transposition is performed
-    send_requests :: MPI.RequestSet
+    send_requests :: MPI.MultiRequest
 
     function Transposition(Ao::PencilArray{T,N}, Ai::PencilArray{T,N};
                            method = PointToPoint()) where {T,N}
@@ -102,7 +100,7 @@ struct Transposition{T, N,
         # is performed along the dimension R where that difference happens.
         dim = findfirst(decomposition(Pi) .!= decomposition(Po))
 
-        reqs = MPI.RequestSet()
+        reqs = MPI.MultiRequest()
 
         new{T, N, typeof(Pi), typeof(Po), typeof(Ai), typeof(Ao),
             typeof(method)}(Pi, Po, Ai, Ao, method, dim, reqs)
@@ -309,16 +307,12 @@ function transpose_impl!(R::Int, t::Transposition{T}) where {T}
     recv_offsets = Vector{Int}(undef, Nproc)  # all offsets in recv_buf
 
     req_length = method === Alltoallv() ? 0 : Nproc
-    send_req = t.send_requests :: MPI.RequestSet
-    while length(send_req) < req_length
-        push!(send_req, MPI.Request())
-    end
-    recv_req = _init_request_set(req_length) :: MPI.RequestSet
+    send_req = t.send_requests
+    resize!(send_req, req_length)
+    recv_req = MPI.MultiRequest(req_length)
     @assert length(send_req) == length(recv_req) == req_length
 
     buffers = (send_buf, recv_buf)
-
-    # We use RequestSet to avoid some allocations
     requests = (send_req, recv_req)
 
     # 1. Pack and send data.
@@ -443,7 +437,9 @@ function make_buffer_info(::Alltoallv, bufs, Nproc)
 end
 
 function transpose_send_self!(::PointToPoint, n, (send_req, recv_req), etc...)
-    send_req[n] = recv_req[n] = MPI.REQUEST_NULL
+    # Do nothing. The request send_req[n] and recv_req[n] should already be null.
+    @assert send_req.vals[n] == MPI.REQUEST_NULL.val
+    @assert recv_req.vals[n] == MPI.REQUEST_NULL.val
     nothing
 end
 
@@ -460,14 +456,10 @@ function transpose_send_other!(
     # Exchange data with the other process (non-blocking operations).
     # Note: data is sent and received with the permutation associated to Pi.
     tag = 42
-    send_req[n] = MPI.Isend(
-        mpi_buffer(info.send_buf, info.send_offset[], length_send_n),
-        rank, tag, comm
-    )
-    recv_req[n] = MPI.Irecv!(
-        mpi_buffer(info.recv_buf, info.recv_offset[], length_recv_n),
-        rank, tag, comm
-    )
+    data_send = mpi_buffer(info.send_buf, info.send_offset[], length_send_n)
+    data_recv = mpi_buffer(info.recv_buf, info.recv_offset[], length_recv_n)
+    MPI.Isend(data_send, comm, send_req[n]; dest = rank, tag)
+    MPI.Irecv!(data_recv, comm, recv_req[n]; source = rank, tag)
     info.send_offset[] += length_send_n
     info.recv_offset[] += length_recv_n
     nothing
