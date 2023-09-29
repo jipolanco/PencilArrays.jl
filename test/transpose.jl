@@ -42,36 +42,38 @@ function test_transpose(method)
     u1_orig = copy(u1)
 
     # Direct u1 -> u3 transposition is not possible!
-    @test_throws ArgumentError transpose!(u3, u1, method=method)
+    @test_throws ArgumentError transpose!(u3, u1; method)
 
     # Transpose back and forth between different pencil configurations
-    transpose!(u2, u1, method=method)
+    transpose!(u2, u1; method)
     @test compare_distributed_arrays(u1, u2)
 
-    transpose!(u3, u2, method=method)
+    transpose!(u3, u2; method)
     @test compare_distributed_arrays(u2, u3)
 
-    transpose!(u2, u3, method=method)
+    transpose!(u2, u3; method)
     @test compare_distributed_arrays(u2, u3)
 
-    transpose!(u1, u2, method=method)
+    transpose!(u1, u2; method)
     @test compare_distributed_arrays(u1, u2)
 
     @test u1_orig == u1
 
     # Test transpositions without permutations.
-    let pen2 = Pencil(pen1, decomp_dims=(1, 3))
+    let pen2 = Pencil(pen1; decomp_dims = (1, 3))
         u2 = PencilArray{T}(undef, pen2)
-        transpose!(u2, u1, method=method)
+        transpose!(u2, u1; method)
         @test compare_distributed_arrays(u1, u2)
     end
 
     # Test transpositions with unsorted decomp_dims (#57).
-    let pen_alt = @inferred Pencil(pen1, decomp_dims = (2, 1))
+    let pen_alt = @inferred Pencil(pen1; decomp_dims = (2, 1))
         ualt = PencilArray{T}(undef, pen_alt)
-        transpose!(ualt, u1, method=method)
+        transpose!(ualt, u1; method)
         @test compare_distributed_arrays(u1, ualt)
     end
+
+    nothing
 end
 
 MPI.Init()

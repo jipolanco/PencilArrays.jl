@@ -302,7 +302,7 @@ comm = MPI.COMM_WORLD
 Nproc = MPI.Comm_size(comm)
 myrank = MPI.Comm_rank(comm)
 
-MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
+myrank == 0 || redirect_stdout(devnull)
 
 rng = MersenneTwister(42 + myrank)
 
@@ -454,53 +454,6 @@ end
     test_array_wrappers(pen1)
     test_array_wrappers(pen2)
     test_array_wrappers(pen3)
-end
-
-transpose_methods = (Transpositions.PointToPoint(),
-                     Transpositions.Alltoallv())
-
-@testset "transpose! $method" for method in transpose_methods
-    T = Float64
-    u1 = PencilArray{T}(undef, pen1)
-    u2 = PencilArray{T}(undef, pen2)
-    u3 = PencilArray{T}(undef, pen3)
-
-    # Set initial random data.
-    randn!(rng, u1)
-    u1 .+= 10 * myrank
-    u1_orig = copy(u1)
-
-    # Direct u1 -> u3 transposition is not possible!
-    @test_throws ArgumentError transpose!(u3, u1, method=method)
-
-    # Transpose back and forth between different pencil configurations
-    transpose!(u2, u1, method=method)
-    @test compare_distributed_arrays(u1, u2)
-
-    transpose!(u3, u2, method=method)
-    @test compare_distributed_arrays(u2, u3)
-
-    transpose!(u2, u3, method=method)
-    @test compare_distributed_arrays(u2, u3)
-
-    transpose!(u1, u2, method=method)
-    @test compare_distributed_arrays(u1, u2)
-
-    @test u1_orig == u1
-
-    # Test transpositions without permutations.
-    let pen2 = Pencil(pen1, decomp_dims=(1, 3))
-        u2 = PencilArray{T}(undef, pen2)
-        transpose!(u2, u1, method=method)
-        @test compare_distributed_arrays(u1, u2)
-    end
-
-    # Test transpositions with unsorted decomp_dims (#57).
-    let pen_alt = @inferred Pencil(pen1, decomp_dims = (2, 1))
-        ualt = PencilArray{T}(undef, pen_alt)
-        transpose!(ualt, u1, method=method)
-        @test compare_distributed_arrays(u1, ualt)
-    end
 end
 
 # Test arrays with extra dimensions.
