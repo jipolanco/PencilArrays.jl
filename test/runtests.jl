@@ -20,6 +20,7 @@ test_files = [
     "array_types.jl",
     "arrays.jl",
     "pencils.jl",
+    "transpose.jl",
     "array_interface.jl",
     "adapt.jl",
     "ode.jl",
