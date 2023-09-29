@@ -49,8 +49,10 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
     if rank != root
         # Wait for data to be sent, then return.
         buf = MPI.Buffer(data_cpu)
-        send_req = MPI.Isend(buf, root, mpi_tag, comm)
-        MPI.Wait(send_req)
+        GC.@preserve buf begin
+            send_req = MPI.Isend(buf, comm, MPI.UnsafeRequest(); dest = root, tag = mpi_tag)
+            MPI.Wait(send_req)
+        end
         return nothing
     end
 
@@ -58,41 +60,41 @@ function gather(x::PencilArray{T,N}, root::Integer=0) where {T, N}
     topo = pen.topology
     Nproc = length(topo)
     recv = Vector{Array{T,N}}(undef, Nproc)
-    recv_req = MPI.MultiRequest(Nproc)
+    recv_req = MPI.UnsafeMultiRequest(Nproc)
+    dest = DestArray(undef, size_global(x))  # output array
 
     root_index = -1
 
-    for n = 1:Nproc
-        # Global data range that I will receive from process n.
-        rrange = pen.axes_all[n]
-        rdims = length.(rrange)
+    GC.@preserve recv begin
+        for n = 1:Nproc
+            # Global data range that I will receive from process n.
+            rrange = pen.axes_all[n]
+            rdims = length.(rrange)
 
-        src_rank = topo.ranks[n]  # actual rank of sending process
-        if src_rank == root
-            root_index = n
-        else
-            # TODO avoid allocation?
-            recv[n] = Array{T,N}(undef, rdims..., extra_dims...)
-            MPI.Irecv!(recv[n], comm, recv_req[n]; source = src_rank, tag = mpi_tag)
+            src_rank = topo.ranks[n]  # actual rank of sending process
+            if src_rank == root
+                root_index = n
+            else
+                # TODO avoid allocation?
+                recv[n] = Array{T,N}(undef, rdims..., extra_dims...)
+                MPI.Irecv!(recv[n], comm, recv_req[n]; source = src_rank, tag = mpi_tag)
+            end
         end
-    end
 
-    # Unpack data.
-    dest = DestArray(undef, size_global(x))
+        # Unpack data.
+        # 1. Copy local data.
+        colons_extra_dims = ntuple(n -> Colon(), Val(length(extra_dims)))
+        dest[pen.axes_local..., colons_extra_dims...] .= data_cpu
 
-    # Copy local data.
-    colons_extra_dims = ntuple(n -> Colon(), Val(length(extra_dims)))
-    dest[pen.axes_local..., colons_extra_dims...] .= data_cpu
-
-    # Copy remote data.
-    for m = 2:Nproc
-        n = MPI.Waitany(recv_req)
-        rrange = pen.axes_all[n]
-        dest[rrange..., colons_extra_dims...] .= recv[n]
-    end
+        # 2. Copy remote data.
+        for m = 2:Nproc
+            n = MPI.Waitany(recv_req)
+            rrange = pen.axes_all[n]
+            dest[rrange..., colons_extra_dims...] .= recv[n]
+        end
+    end  # GC.@preserve recv
 
     end  # @timeit_debug
 
     dest
 end
-
