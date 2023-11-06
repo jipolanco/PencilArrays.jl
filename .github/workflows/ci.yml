@@ -63,6 +63,12 @@ jobs:
           MPIPreferences.use_system_binary()
           HDF5.API.set_libraries!("/usr/lib/x86_64-linux-gnu/hdf5/mpich/libhdf5.so", "/usr/lib/x86_64-linux-gnu/hdf5/mpich/libhdf5_hl.so")
 
+      # This is to fix issue when loading system HDF5. We need to use the system libcurl instead of Julia's.
+      # Note: LD_PRELOAD needs to be set here *and not before*, otherwise precompilation fails.
+      - name: Update LD_PRELOAD for system HDF5
+        # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
+        run: echo "LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libcurl.so.4" >> "$GITHUB_ENV"
+
       # This is to avoid precompilation in parallel when using MPI
       - name: Precompile test/
         shell: julia --color=yes --project=test {0}
@@ -70,12 +76,6 @@ jobs:
           using Pkg
           Pkg.instantiate(verbose = true)
           Pkg.precompile(strict = false)
-
-      # This is to fix issue when loading system HDF5. We need to use the system libcurl instead of Julia's.
-      # Note: LD_PRELOAD needs to be set here *and not before*, otherwise precompilation fails.
-      - name: Update LD_PRELOAD for system HDF5
-        # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
-        run: echo "LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libcurl.so.4" >> "$GITHUB_ENV"
 
       - uses: julia-actions/julia-runtest@v1
 
