@@ -50,25 +50,18 @@ jobs:
 
       - uses: julia-actions/julia-buildpkg@v1
 
-      - name: Add MPIPreferences + Preferences + UUIDs
+      - name: Add MPIPreferences
         shell: julia --color=yes --project=. {0}
         run: |
           using Pkg
           Pkg.add("MPIPreferences")
-          Pkg.add("Preferences")
-          Pkg.add("UUIDs")
 
       - name: Use system MPI + HDF5
         shell: julia --color=yes --project=. {0}
         run: |
-          using MPIPreferences, Preferences, UUIDs
+          using MPIPreferences, HDF5
           MPIPreferences.use_system_binary()
-          Preferences.set_preferences!(
-              UUID("f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"), # UUID of HDF5.jl
-              "libhdf5" => "/usr/lib/x86_64-linux-gnu/hdf5/mpich/libhdf5.so",
-              "libhdf5_hl" => "/usr/lib/x86_64-linux-gnu/hdf5/mpich/libhdf5_hl.so";
-              force = true,
-          )
+          HDF5.API.set_libraries!("/usr/lib/x86_64-linux-gnu/hdf5/mpich/libhdf5.so", "/usr/lib/x86_64-linux-gnu/hdf5/mpich/libhdf5_hl.so")
 
       # This is to avoid precompilation in parallel when using MPI
       - name: Precompile test/
