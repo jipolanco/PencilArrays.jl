@@ -10,14 +10,48 @@ using Test
 
 ## ================================================================================ ##
 
-using JLArrays: JLArray, DenseJLVector
+using JLArrays: JLArray, DenseJLVector, DataRef
 
 # A bit of type piracy to help tests pass (the following functions seem to be defined for
 # CuArray).
-Base.resize!(u::DenseJLVector, n) = (resize!(u.data, n); u)
-Base.unsafe_wrap(::Type{JLArray}, p::Ptr, dims::Union{Integer, Dims}; kws...) =
-    JLArray(unsafe_wrap(Array, p, dims; kws...))
-Random.rand!(rng::AbstractRNG, u::JLArray, ::Type{X}) where {X} = (rand!(rng, u.data, X); u)
+function Base.resize!(u::DenseJLVector, n)
+    T = eltype(u)
+    obj = u.data.rc.obj :: Vector{UInt8}
+    u.dims = (n,)
+    resize!(obj, n * sizeof(T))
+    @assert sizeof(obj) === sizeof(u)
+    u
+end
+function Base.unsafe_wrap(::Type{JLArray}, p::Ptr, dims::Dims; kws...)
+    T = eltype(p)
+    N = length(dims)
+    p_obj = convert(Ptr{UInt8}, p)
+    dims_obj = (sizeof(T) * prod(dims),)
+    obj = unsafe_wrap(Array, p_obj, dims_obj; kws...)
+    ref = DataRef(obj)
+    x = JLArray{T,N}(ref, dims)
+    @assert pointer(x) === p
+    x
+end
+Base.unsafe_wrap(::Type{JLArray}, p::Ptr, n::Integer; kws...) =
+    unsafe_wrap(JLArray, p, (n,); kws...)
+# Random.rand!(rng::AbstractRNG, u::JLArray, ::Type{X}) where {X} = (rand!(rng, u.data, X); u)
+
+# For some reason this kind of view doesn't work correctly in the original implementation,
+# returning a copy.
+function Base.view(u::DenseJLVector, I::AbstractUnitRange)
+    a, b = first(I), last(I)
+    inds = a:1:b  # this kind of range works correctly
+    view(u, inds)
+end
+
+# Note that MPI.Buffer is also defined for CuArray.
+function MPI.Buffer(u::JLArray)
+    obj = u.data.rc.obj :: Vector{UInt8}
+    count = length(u)
+    datatype = MPI.Datatype(eltype(u))
+    MPI.Buffer(obj, count, datatype)
+end
 
 ## ================================================================================ ##
 
@@ -42,10 +76,6 @@ Base.unsafe_wrap(::Type{TestArray}, p::Ptr, dims::Union{Integer, Dims}; kws...) 
 MPI.Buffer(u::TestArray) = MPI.Buffer(u.data)  # for `gather`
 Base.cconvert(::Type{MPI.MPIPtr}, u::TestArray{T}) where {T} =
     reinterpret(MPI.MPIPtr, pointer(u))
-
-# A bit of type piracy to help tests pass.
-# Note that MPI.Buffer is defined for CuArray.
-MPI.Buffer(u::JLArray) = MPI.Buffer(u.data)
 
 MPI.Init()
 comm = MPI.COMM_WORLD
@@ -73,13 +103,14 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
     # This is in particular to test that, for GPU arrays, scalar indexing is not
     # performed and the correct GPU functions are called.
+    rng = MersenneTwister(42)
     @testset "Initialisation" begin
         @test_nowarn fill!(u, 4)
-        @test_nowarn rand!(u)
-        @test_nowarn randn!(u)
+        @test_nowarn rand!(rng, u)
+        @test_nowarn randn!(rng, u)
     end
 
-    px = @inferred Pencil(A, (20, 16, 4), (1, ), comm)
+    px = @inferred Pencil(A, (20, 16, 4), (1,), comm)
 
     @testset "Permutation: $perm" for perm ∈ (NoPermutation(), Permutation(2, 3, 1))
         if perm != NoPermutation()
@@ -87,13 +118,13 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
             # permutation is not its own inverse.
             @assert inv(perm) != perm
         end
-        py = @inferred Pencil(px; decomp_dims = (2, ), permute = perm)
+        py = @inferred Pencil(px; decomp_dims = (2,), permute = perm)
         @test permutation(py) == perm
         @test @inferred(typeof_array(px)) === A
         @test @inferred(typeof_array(py)) === A
 
         @testset "Transpositions" begin
-            ux = @test_nowarn rand!(PencilArray{Float64}(undef, px))
+            ux = @test_nowarn rand!(rng, PencilArray{Float64}(undef, px))
             uy = @inferred similar(ux, py)
             @test pencil(uy) === py
             tr = @inferred Transpositions.Transposition(uy, ux)
@@ -111,10 +142,13 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
         @testset "Multiarrays" begin
             M = @inferred ManyPencilArray{Float32}(undef, px, py)
+            randn!(rng, M.data)
             ux = @inferred first(M)
             uy = @inferred last(M)
             uxp = parent(parent(parent(ux)))
-            @test uxp === parent(parent(parent(uy)))
+            uyp = parent(parent(parent(uy)))
+            @test uxp === M.data
+            @test uxp === uyp
             @test typeof(uxp) <: A{Float32}
             @test @inferred(Tuple(M)) === (ux, uy)
         end
