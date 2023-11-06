@@ -51,13 +51,13 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
 
       - name: Add MPIPreferences
-        shell: julia --color=yes --project=. {0}
+        shell: julia --color=yes --project=test {0}
         run: |
           using Pkg
           Pkg.add("MPIPreferences")
 
       - name: Use system MPI + HDF5
-        shell: julia --color=yes --project=. {0}
+        shell: julia --color=yes --project=test {0}
         run: |
           using MPIPreferences, HDF5
           MPIPreferences.use_system_binary()
