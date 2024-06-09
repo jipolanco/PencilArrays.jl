@@ -1,7 +1,7 @@
 using Random
 
-function Random.rand!(rng::AbstractRNG, u::PencilArray, ::Type{S}) where {S}
-    rand!(rng, parent(u), S)
+function Random.rand!(rng::AbstractRNG, u::PencilArray, sp::Random.Sampler)
+    rand!(rng, parent(u), sp)
     u
 end
 
