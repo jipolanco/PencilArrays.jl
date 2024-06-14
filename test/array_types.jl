@@ -73,6 +73,11 @@ Base.pointer(u::TestArray, n::Integer) = pointer(u.data, n)  # needed to avoid a
 Base.unsafe_wrap(::Type{TestArray}, p::Ptr, dims::Union{Integer, Dims}; kws...) =
     TestArray(unsafe_wrap(Array, p, dims; kws...))
 
+if isdefined(Base, :elsize)
+    # This seems to be needed on Julia nightly (1.12.0-DEV)
+    Base.elsize(::Type{<:TestArray{T, N}}) where {T, N} = Base.elsize(Array{T, N})
+end
+
 MPI.Buffer(u::TestArray) = MPI.Buffer(u.data)  # for `gather`
 Base.cconvert(::Type{MPI.MPIPtr}, u::TestArray{T}) where {T} =
     reinterpret(MPI.MPIPtr, pointer(u))
