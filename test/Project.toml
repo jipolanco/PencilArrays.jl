@@ -22,5 +22,5 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 [compat]
 Compat = "4.5"
 HDF5 = "0.17"
-JLArrays = "0.1.2"
+JLArrays = "0.1.5"
 OrdinaryDiffEq = ">= 6.45"
