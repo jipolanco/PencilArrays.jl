@@ -29,8 +29,8 @@ PencilArraysDiffEqExt = ["DiffEqBase"]
 PencilArraysHDF5Ext = ["HDF5"]
 
 [compat]
+AMDGPU = "0.8, 0.9, 1"
 Adapt = "3, 4"
-AMDGPU = "0.8, 0.9"
 DiffEqBase = "6"
 HDF5 = "0.16, 0.17"
 JSON3 = "1.4"
