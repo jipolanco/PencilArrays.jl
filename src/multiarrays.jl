@@ -134,7 +134,7 @@ function _make_arrays(data::DenseVector{T}, extra_dims::Dims, p::Pencil,
     dims = (size_local(p, MemoryOrder())..., extra_dims...)
     n = prod(dims)
     @assert n == length_local(p) * prod(extra_dims)
-    vec = view(data, Base.OneTo(n))
+    vec = unsafe_wrap(typeof(data), pointer(data), n) # fixes efficiency issues with vec = view(data, Base.OneTo(n))
     arr = reshape(vec, dims)
     A = PencilArray(p, arr)
     (A, _make_arrays(data, extra_dims, pens...)...)
