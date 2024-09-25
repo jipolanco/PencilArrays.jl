@@ -4,7 +4,7 @@
 import DiffEqBase
 using MPI
 using PencilArrays
-using OrdinaryDiffEq
+using OrdinaryDiffEqTsit5
 using RecursiveArrayTools: ArrayPartition
 using StructArrays: StructArray
 using StaticArrays: SVector
