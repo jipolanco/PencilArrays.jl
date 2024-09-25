@@ -27,7 +27,7 @@ function Base.resize!(a::DenseJLVector{T}, nl::Integer) where {T}
     return a
 end
 
-function Base.unsafe_wrap(::Type{JLArray}, p::Ptr, dims::Dims; kws...)
+function Base.unsafe_wrap(::Type{<:JLArray}, p::Ptr, dims::Dims; kws...)
     T = eltype(p)
     N = length(dims)
     p_obj = convert(Ptr{UInt8}, p)
@@ -39,8 +39,8 @@ function Base.unsafe_wrap(::Type{JLArray}, p::Ptr, dims::Dims; kws...)
     x
 end
 
-Base.unsafe_wrap(::Type{JLArray}, p::Ptr, n::Integer; kws...) =
-    unsafe_wrap(JLArray, p, (n,); kws...)
+Base.unsafe_wrap(::Type{T}, p::Ptr, n::Integer; kws...) where {T <: JLArray} =
+    unsafe_wrap(T, p, (n,); kws...)
 
 # Random.rand!(rng::AbstractRNG, u::JLArray, ::Type{X}) where {X} = (rand!(rng, u.data, X); u)
 
@@ -77,7 +77,7 @@ Base.setindex!(u::TestArray, args...) = setindex!(u.data, args...)
 Base.resize!(u::TestArray, args...) = (resize!(u.data, args...); u)
 Base.pointer(u::TestArray) = pointer(u.data)
 Base.pointer(u::TestArray, n::Integer) = pointer(u.data, n)  # needed to avoid ambiguity
-Base.unsafe_wrap(::Type{TestArray}, p::Ptr, dims::Union{Integer, Dims}; kws...) =
+Base.unsafe_wrap(::Type{<:TestArray}, p::Ptr, dims::Union{Integer, Dims}; kws...) =
     TestArray(unsafe_wrap(Array, p, dims; kws...))
 
 if isdefined(Base, :elsize)
@@ -93,7 +93,7 @@ MPI.Init()
 comm = MPI.COMM_WORLD
 MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
 
-@testset "Array type: $A" for A ∈ (JLArray, Array, TestArray)
+@testset "Array type: $A" for A ∈ (Array, JLArray, TestArray)
     pen = @inferred Pencil(A, (8, 10), comm)
     @test @inferred(typeof_array(pen)) === A
     @test (@inferred (p -> p.send_buf)(pen)) isa A
@@ -171,11 +171,12 @@ MPI.Comm_rank(comm) == 0 || redirect_stdout(devnull)
             randn!(rng, M.data)
             ux = @inferred first(M)
             uy = @inferred last(M)
-            uxp = parent(parent(parent(ux)))
-            uyp = parent(parent(parent(uy)))
-            @test uxp === M.data
-            @test uxp === uyp
-            @test typeof(uxp) <: A{Float32}
+            @test ux isa PencilArray{Float32}
+            @test uy isa PencilArray{Float32}
+            uxp = parent(ux)
+            uyp = parent(uy)
+            @test uxp isa A{Float32}
+            @test uyp isa A{Float32}
             @test @inferred(Tuple(M)) === (ux, uy)
         end
     end  # permutation
