@@ -21,7 +21,7 @@ jobs:
         experimental: [false]
         version:
           - '1.9'
-          - '1.10'
+          - '1.11'
         os:
           - ubuntu-latest
         arch:
@@ -97,7 +97,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@latest
         with:
-          version: '1.10'
+          version: '1.11'
 
       - name: Add MPIPreferences + Preferences + UUIDs
         shell: julia --color=yes --project=. {0}
