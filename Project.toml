@@ -29,7 +29,7 @@ PencilArraysDiffEqExt = ["DiffEqBase"]
 PencilArraysHDF5Ext = ["HDF5"]
 
 [compat]
-AMDGPU = "0.8, 0.9, 1"
+AMDGPU = "0.8, 0.9, 1, 2"
 Adapt = "3, 4"
 DiffEqBase = "6"
 HDF5 = "0.16, 0.17"
