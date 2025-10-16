@@ -59,14 +59,14 @@ end
 _unwrap_pa(u::PencilArrayBroadcastable) = _actual_parent(u)
 _unwrap_pa(u) = u
 
-BroadcastStyle(::Type{<:PencilArrayBroadcastable{T, N, <:PencilArray}}) where {T, N} =
+Broadcast.BroadcastStyle(::Type{<:PencilArrayBroadcastable{T, N, <:PencilArray}}) where {T, N} =
     PencilArrayStyle{N}()
 
 # PencilArrayStyle wins against other array styles
-BroadcastStyle(style::PencilArrayStyle, ::AbstractArrayStyle) = style
+Broadcast.BroadcastStyle(style::PencilArrayStyle, ::AbstractArrayStyle) = style
 
 # This is needed to avoid ambiguities
-BroadcastStyle(style::PencilArrayStyle, ::DefaultArrayStyle) = style
+Broadcast.BroadcastStyle(style::PencilArrayStyle, ::DefaultArrayStyle) = style
 
 function Base.similar(
         bc::Broadcasted{<:PencilArrayStyle}, ::Type{T},
