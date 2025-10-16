@@ -2,6 +2,14 @@
 
 The format is based on [Keep a Changelog] and [Common Changelog].
 
+## [0.19.8] - 2025-10-16
+
+### Fixed
+
+- Fix deprecation warnings on Julia 1.12.
+
+(Versions v0.19.1 to v0.19.7 missing...)
+
 ## [0.19.0] - 2023-07-14
 
 ### Changed

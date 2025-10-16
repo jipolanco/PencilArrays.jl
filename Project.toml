@@ -1,7 +1,7 @@
 name = "PencilArrays"
 uuid = "0e08944d-e94e-41b1-9406-dcf66b6a9d2e"
 authors = ["Juan Ignacio Polanco <juan-ignacio.polanco@cnrs.fr> and contributors"]
-version = "0.19.7"
+version = "0.19.8"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
