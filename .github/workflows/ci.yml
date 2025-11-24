@@ -38,7 +38,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install mpich libmpich-dev libhdf5-mpich-dev libcurl4-openssl-dev
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: julia-actions/setup-julia@v2
         with:
@@ -97,7 +97,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install mpich libmpich-dev libhdf5-mpich-dev libcurl4-openssl-dev
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@latest
         with:
           version: '1.12'
