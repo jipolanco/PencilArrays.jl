@@ -88,8 +88,9 @@ println(pen_x)
 Ax = PencilArray{Float64}(undef, pen_x)
 fill!(Ax, rank * π)  # each process locally fills its part of the array
 parent(Ax)           # parent array holding the local data (here, an Array{Float64,3})
-size(Ax)             # total size of the array = (42, 31, 29)
+size_global(Ax)      # total size of the array = (42, 31, 29)
 size_local(Ax)       # size of local part, e.g. (42, 8, 10) for a given process
+size(Ax)             # same as size_local, e.g. (42, 8, 10) for a given process
 range_local(Ax)      # range of local part on global grid, e.g. (1:42, 16:23, 20:29)
 
 # Let's associate the dimensions to a global grid of coordinates (x_i, y_j, z_k)
