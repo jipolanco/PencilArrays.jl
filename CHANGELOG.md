@@ -2,6 +2,10 @@
 
 The format is based on [Keep a Changelog] and [Common Changelog].
 
+## [0.19.9] - 2026-04-23
+
+- Allow DiffEqBase v7 (#107).
+
 ## [0.19.8] - 2025-10-16
 
 ### Fixed
@@ -14,9 +18,9 @@ The format is based on [Keep a Changelog] and [Common Changelog].
 
 ### Changed
 
--   **Breaking:** change behaviour of `similar(u::PencilArray, [T], dims)` ([#83])
+- **Breaking:** change behaviour of `similar(u::PencilArray, [T], dims)` ([#83])
 
-    When the `dims` argument is passed, we now try to return a new `PencilArray` instead of another (non-distributed) array type. Since this is only possible when `dims` matches the array size, an error is now thrown if that is not the case. This allows things to play nicely with other packages such as [StructArrays.jl](https://github.com/JuliaArrays/StructArrays.jl), which in some cases end up calling `similar` with the `dims` argument.
+  When the `dims` argument is passed, we now try to return a new `PencilArray` instead of another (non-distributed) array type. Since this is only possible when `dims` matches the array size, an error is now thrown if that is not the case. This allows things to play nicely with other packages such as [StructArrays.jl](https://github.com/JuliaArrays/StructArrays.jl), which in some cases end up calling `similar` with the `dims` argument.
 
   [Keep a Changelog]: https://keepachangelog.com/en/1.1.0/
   [Common Changelog]: https://common-changelog.org/
