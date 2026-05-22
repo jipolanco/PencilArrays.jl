@@ -69,8 +69,9 @@ Broadcast.BroadcastStyle(style::PencilArrayStyle, ::AbstractArrayStyle) = style
 Broadcast.BroadcastStyle(style::PencilArrayStyle, ::DefaultArrayStyle) = style
 
 function Base.similar(
-        bc::Broadcasted{<:PencilArrayStyle}, ::Type{T},
+        bc_in::Broadcasted{<:PencilArrayStyle}, ::Type{T},
     ) where {T}
+    bc = Broadcast.flatten(bc_in)
     br = find_pa(bc) :: PencilArrayBroadcastable
     A = br.data
     axs_a = permutation(A) * axes(A)  # in memory order

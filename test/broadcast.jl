@@ -39,6 +39,8 @@ pencils = (
             @test alloc == 0
             @test y ≈ 2x .+ 3
         end
+        α = 2
+        @test @.(-α * A) == -1 .* (α .* A)
     end
 
     @testset "Combinations" begin
