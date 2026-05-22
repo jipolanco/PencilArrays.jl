@@ -15,18 +15,6 @@ using JLArrays: JLArray, DenseJLVector, JLVector, DataRef
 # A bit of type piracy to help tests pass (the following functions seem to be defined for
 # CuArray).
 
-# This is a modified version of the resize! function defined in JLArrays.jl 0.1.5, which
-# avoids freeing memory that will be used in the future.
-function Base.resize!(a::DenseJLVector{T}, nl::Integer) where {T}
-    a_resized = JLVector{T}(undef, nl)
-    copyto!(a_resized, 1, a, 1, min(length(a), nl))
-    finalize(a)  # free previous memory
-    a.data = copy(a_resized.data)  # this simply increments the reference count by 1
-    a.offset = 0
-    a.dims = size(a_resized)
-    return a
-end
-
 function Base.unsafe_wrap(::Type{<:JLArray}, p::Ptr, dims::Dims; kws...)
     T = eltype(p)
     N = length(dims)
@@ -41,24 +29,6 @@ end
 
 Base.unsafe_wrap(::Type{T}, p::Ptr, n::Integer; kws...) where {T <: JLArray} =
     unsafe_wrap(T, p, (n,); kws...)
-
-# Random.rand!(rng::AbstractRNG, u::JLArray, ::Type{X}) where {X} = (rand!(rng, u.data, X); u)
-
-# For some reason this kind of view doesn't work correctly in the original implementation,
-# returning a copy.
-function Base.view(u::DenseJLVector, I::AbstractUnitRange)
-    a, b = first(I), last(I)
-    inds = a:1:b  # this kind of range works correctly
-    view(u, inds)
-end
-
-# Note that MPI.Buffer is also defined for CuArray.
-function MPI.Buffer(u::JLArray)
-    obj = u.data.rc.obj :: Vector{UInt8}
-    count = length(u)
-    datatype = MPI.Datatype(eltype(u))
-    MPI.Buffer(obj, count, datatype)
-end
 
 ## ================================================================================ ##
 

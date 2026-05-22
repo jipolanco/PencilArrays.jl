@@ -645,7 +645,7 @@ function _permutedims!(::Type{Array}, v_in::SubArray, src, perm)
 end
 
 # General case, used in particular for GPU arrays.
-function _permutedims!(::Type{<:AbstractArray}, v::SubArray, src, perm)
+function _permutedims!(::Type{<:AbstractArray}, v::AbstractArray, src, perm)
     if isidentity(perm)
         copyto!(v, src)
     else
