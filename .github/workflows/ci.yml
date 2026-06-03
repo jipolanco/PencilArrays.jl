@@ -58,13 +58,13 @@ jobs:
           cache-registries: "true"
 
       - name: Add MPIPreferences
-        shell: julia --color=yes --project=. {0}
+        shell: julia --color=yes --project=test {0}
         run: |
           using Pkg
           Pkg.add("MPIPreferences")
 
       - name: Use system MPI + HDF5
-        shell: julia --color=yes --project=. {0}
+        shell: julia --color=yes --project=test {0}
         run: |
           using MPIPreferences, HDF5
           MPIPreferences.use_system_binary()
@@ -91,7 +91,7 @@ jobs:
       - name: Install MPI via apt
         run: |
           sudo apt-get update
-          sudo apt-get install libopenmpi-dev libhdf5-openmpi-dev
+          sudo apt-get install libopenmpi-dev
 
       - uses: julia-actions/setup-julia@v3
         with:
@@ -107,12 +107,11 @@ jobs:
           using Pkg
           Pkg.add("MPIPreferences")
 
-      - name: Use system MPI + HDF5
+      - name: Use system MPI
         shell: julia --color=yes --project=. {0}
         run: |
-          using MPIPreferences, HDF5
+          using MPIPreferences
           MPIPreferences.use_system_binary()
-          HDF5.API.set_libraries!("/usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so", "/usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5_hl.so")
 
       - name: Install docs dependencies
         shell: julia --color=yes --project=docs {0}
