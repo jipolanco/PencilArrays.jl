@@ -2,11 +2,21 @@
 
 The format is based on [Keep a Changelog] and [Common Changelog].
 
+## [0.19.11] - 2026-06-03
+
+### Fixed
+
+- Fix synchronisation issue in multi-GPU configurations (#110).
+
 ## [0.19.10] - 2026-05-22
+
+### Fixed
 
 - Fix possible broadcasting failures (#108, #109).
 
 ## [0.19.9] - 2026-04-23
+
+### Compatibility
 
 - Allow DiffEqBase v7 (#107).
 
