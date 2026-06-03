@@ -1,10 +1,11 @@
 # Test interaction with DifferentialEquations.jl.
 # We solve a trivial decoupled system of ODEs.
 
-import DiffEqBase
 using MPI
 using PencilArrays
-using OrdinaryDiffEq
+using DiffEqBase: DiffEqBase
+using SciMLBase
+using OrdinaryDiffEqTsit5
 using RecursiveArrayTools: ArrayPartition
 using StructArrays: StructArray
 using StaticArrays: SVector
@@ -57,8 +58,7 @@ end
 
 @testset "OrdinaryDiffEq" begin
     tspan = (0.0, 1000.0)
-    params = (;)
-    prob = @inferred ODEProblem{true}(rhs!, u0, tspan, params)
+    prob = @inferred ODEProblem{true}(rhs!, u0, tspan)
 
     # This is not fully inferred...
     integrator = init(
@@ -75,7 +75,7 @@ end
 
     @testset "ArrayPartition" begin
         v0 = ArrayPartition(u0)
-        prob = @inferred ODEProblem{true}(rhs!, v0, tspan, params)
+        prob = @inferred ODEProblem{true}(rhs!, v0, tspan)
 
         # TODO for now this fails when permutations are enabled due to incompatible
         # broadcasting.
@@ -90,7 +90,7 @@ end
         v0 = to_structarray((u0, 2u0))
         @assert eltype(v0) <: SVector{2}
         tspan = (0.0, 1.0)
-        prob = @inferred ODEProblem{true}(rhs!, v0, tspan, params)
+        prob = @inferred ODEProblem{true}(rhs!, v0, tspan)
         integrator = init(
             prob, Tsit5();
             adaptive = true, save_everystep = false,
