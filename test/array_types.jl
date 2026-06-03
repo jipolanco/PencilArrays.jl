@@ -30,6 +30,14 @@ end
 Base.unsafe_wrap(::Type{T}, p::Ptr, n::Integer; kws...) where {T <: JLArray} =
     unsafe_wrap(T, p, (n,); kws...)
 
+# Note that MPI.Buffer is also defined for CuArray.
+function MPI.Buffer(u::JLArray)
+    obj = u.data.rc.obj :: Vector{UInt8}
+    count = length(u)
+    datatype = MPI.Datatype(eltype(u))
+    MPI.Buffer(obj, count, datatype)
+end
+
 ## ================================================================================ ##
 
 # Define simple array wrapper type for tests.

@@ -47,8 +47,6 @@ end
 
 for fname in test_files
     @info "Running $fname with $Nproc processes..."
-    mpiexec() do cmd
-        run(`$cmd -n $Nproc $(Base.julia_cmd()) $fname`)
-    end
+    run(`$(mpiexec()) -n $Nproc $(Base.julia_cmd()) $fname`)
     println()
 end
