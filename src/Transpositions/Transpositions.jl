@@ -11,6 +11,7 @@ using ..PencilArrays: typeof_ptr, typeof_array
 using ..Pencils: ArrayRegion
 using StaticPermutations
 using Strided: @strided, Strided, StridedView
+using KernelAbstractions: KernelAbstractions as KA
 
 # Declare transposition approaches.
 abstract type AbstractTransposeMethod end
@@ -468,6 +469,8 @@ function transpose_send_other!(
     tag = 42
     data_send = mpi_buffer(info.send_buf, info.send_offset[], length_send_n)
     data_recv = mpi_buffer(info.recv_buf, info.recv_offset[], length_recv_n)
+    backend = KA.get_backend(info.send_buf)
+    KA.synchronize(backend)
     MPI.Isend(data_send, comm, send_requests[n]; dest = rank, tag)
     MPI.Irecv!(data_recv, comm, recv_requests[n]; source = rank, tag)
     info.send_offset[] += length_send_n
