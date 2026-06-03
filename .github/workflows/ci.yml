@@ -11,6 +11,8 @@ on:
     tags: '*'
 
 jobs:
+  # Test using system MPI + HDF5.
+  # Adapted from https://github.com/JuliaParallel/MPI.jl/blob/0a051294fcc45a329b5f445611791e4bbc6e0f23/.github/workflows/UnitTests.yml#L252
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
@@ -32,13 +34,19 @@ jobs:
             arch: x64
             experimental: true
 
+    env:
+      # JULIA_MPI_TEST_BINARY: system
+      OMPI_MCA_btl_base_warn_component_unused: 0
+      OMPI_MCA_rmaps_base_oversubscribe: true
+
     steps:
-      - name: Install libraries
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install MPI via apt
         run: |
           sudo apt-get update
-          sudo apt-get install mpich libmpich-dev libhdf5-mpich-dev libcurl4-openssl-dev
-
-      - uses: actions/checkout@v6
+          sudo apt-get install libopenmpi-dev libhdf5-openmpi-dev
 
       - uses: julia-actions/setup-julia@v3
         with:
@@ -49,38 +57,23 @@ jobs:
         with:
           cache-registries: "true"
 
-      - uses: julia-actions/julia-buildpkg@v1
-
       - name: Add MPIPreferences
-        shell: julia --color=yes --project=test {0}
+        shell: julia --color=yes --project=. {0}
         run: |
           using Pkg
           Pkg.add("MPIPreferences")
 
       - name: Use system MPI + HDF5
-        shell: julia --color=yes --project=test {0}
+        shell: julia --color=yes --project=. {0}
         run: |
           using MPIPreferences, HDF5
           MPIPreferences.use_system_binary()
-          HDF5.API.set_libraries!("/usr/lib/x86_64-linux-gnu/hdf5/mpich/libhdf5.so", "/usr/lib/x86_64-linux-gnu/hdf5/mpich/libhdf5_hl.so")
-
-      # This is to fix issue when loading system HDF5. We need to use the system libcurl instead of Julia's.
-      # Note: LD_PRELOAD needs to be set here *and not before*, otherwise precompilation fails.
-      - name: Update LD_PRELOAD for system HDF5
-        # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
-        run: echo "LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libcurl.so.4" >> "$GITHUB_ENV"
-
-      # This is to avoid precompilation in parallel when using MPI
-      - name: Precompile test/
-        shell: julia --color=yes --project=test {0}
-        run: |
-          using Pkg
-          Pkg.instantiate(verbose = true)
-          Pkg.precompile(strict = false)
+          HDF5.API.set_libraries!("/usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so", "/usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5_hl.so")
 
       - uses: julia-actions/julia-runtest@v1
 
       - uses: julia-actions/julia-processcoverage@v1
+
       - uses: codecov/codecov-action@v6
         with:
           files: lcov.info
@@ -92,13 +85,15 @@ jobs:
       contents: write
       statuses: write
     steps:
-      - name: Install libraries
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install MPI via apt
         run: |
           sudo apt-get update
-          sudo apt-get install mpich libmpich-dev libhdf5-mpich-dev libcurl4-openssl-dev
+          sudo apt-get install libopenmpi-dev libhdf5-openmpi-dev
 
-      - uses: actions/checkout@v6
-      - uses: julia-actions/setup-julia@latest
+      - uses: julia-actions/setup-julia@v3
         with:
           version: '1.12'
 
@@ -106,32 +101,25 @@ jobs:
         with:
           cache-registries: "true"
 
-      - name: Add MPIPreferences + Preferences + UUIDs
+      - name: Add MPIPreferences
         shell: julia --color=yes --project=. {0}
         run: |
           using Pkg
           Pkg.add("MPIPreferences")
-          Pkg.add("Preferences")
-          Pkg.add("UUIDs")
 
       - name: Use system MPI + HDF5
         shell: julia --color=yes --project=. {0}
         run: |
-          using MPIPreferences, Preferences, UUIDs
+          using MPIPreferences, HDF5
           MPIPreferences.use_system_binary()
-          Preferences.set_preferences!(
-              UUID("f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"), # UUID of HDF5.jl
-              "libhdf5" => "/usr/lib/x86_64-linux-gnu/hdf5/mpich/libhdf5.so",
-              "libhdf5_hl" => "/usr/lib/x86_64-linux-gnu/hdf5/mpich/libhdf5_hl.so";
-              force = true,
-          )
+          HDF5.API.set_libraries!("/usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so", "/usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5_hl.so")
 
       - name: Install docs dependencies
+        shell: julia --color=yes --project=docs {0}
         run: |
-          julia --project=docs -e '
-            using Pkg
-            Pkg.develop(PackageSpec(path=pwd()))
-            Pkg.instantiate()'
+          using Pkg
+          Pkg.develop(PackageSpec(path=pwd()))
+          Pkg.instantiate()
 
       - name: Build and deploy
         run: julia --project=docs docs/make.jl
