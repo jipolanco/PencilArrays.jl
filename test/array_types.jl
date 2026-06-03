@@ -5,12 +5,13 @@
 using MPI
 using PencilArrays
 using PencilArrays: typeof_array
+using KernelAbstractions: KernelAbstractions as KA
 using Random
 using Test
 
 ## ================================================================================ ##
 
-using JLArrays: JLArray, DenseJLVector, JLVector, DataRef
+using JLArrays: JLArray, DenseJLVector, JLVector, JLBackend, DataRef
 
 # A bit of type piracy to help tests pass (the following functions seem to be defined for
 # CuArray).
@@ -37,6 +38,8 @@ function MPI.Buffer(u::JLArray)
     datatype = MPI.Datatype(eltype(u))
     MPI.Buffer(obj, count, datatype)
 end
+
+KA.synchronize(::JLBackend) = nothing
 
 ## ================================================================================ ##
 
