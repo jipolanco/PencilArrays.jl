@@ -46,7 +46,7 @@ jobs:
       - name: Install MPI via apt
         run: |
           sudo apt-get update
-          sudo apt-get install libmpich-dev libhdf5-mpich-dev
+          sudo apt-get install libopenmpi-dev libhdf5-openmpi-dev
 
       - uses: julia-actions/setup-julia@v3
         with:
@@ -69,7 +69,7 @@ jobs:
         run: |
           using MPIPreferences, HDF5
           MPIPreferences.use_system_binary()
-          HDF5.API.set_libraries!("/usr/lib/x86_64-linux-gnu/hdf5/mpich/libhdf5.so", "/usr/lib/x86_64-linux-gnu/hdf5/mpich/libhdf5_hl.so")
+          HDF5.API.set_libraries!("/usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so", "/usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5_hl.so")
 
       - name: Dump test/LocalPreferences.toml
         run: cat test/LocalPreferences.toml
@@ -95,7 +95,7 @@ jobs:
       - name: Install MPI via apt
         run: |
           sudo apt-get update
-          sudo apt-get install libmpich-dev
+          sudo apt-get install libopenmpi-dev
 
       - uses: julia-actions/setup-julia@v3
         with:
