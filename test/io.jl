@@ -13,6 +13,8 @@ end
 using Random
 using Test
 
+const DISABLE_PHDF5_TESTS = get(ENV, "JULIA_DISABLE_PHDF5_TESTS", "false") == "true"
+
 # Copied from PencilArraysHDF5Ext.jl
 function _is_set(fapl::HDF5.FileAccessProperties, ::Val{:fclose_degree})
     id = fapl.id
@@ -211,7 +213,7 @@ end
 rng = MersenneTwister(42)
 perms = (NoPermutation(), Permutation(2, 3, 1))
 
-@testset "$perm" for perm in perms
+@testset "Permutation: $perm" for perm in perms
     pen = Pencil(Nxyz, (1, 3), comm; permute = perm)
     u = PencilArray{Float64}(undef, pen)
     randn!(rng, u)
@@ -222,9 +224,16 @@ perms = (NoPermutation(), Permutation(2, 3, 1))
         test_write_mpiio(filename, u)
     end
 
-    @testset "HDF5" begin
-        filename = MPI.bcast(tempname(), 0, comm)
-        test_write_hdf5(filename, u)
+    # These tests currently fail on github CI, so we disable them
+    @static if DISABLE_PHDF5_TESTS
+        if myrank == 0
+            @info "Parallel HDF5 tests are disabled via environment variable (JULIA_DISABLE_PHDF5_TESTS)"
+        end
+    else
+        @testset "HDF5" begin
+            filename = MPI.bcast(tempname(), 0, comm)
+            test_write_hdf5(filename, u)
+        end
     end
 end
 

@@ -5,12 +5,13 @@
 using MPI
 using PencilArrays
 using PencilArrays: typeof_array
+using KernelAbstractions: KernelAbstractions as KA
 using Random
 using Test
 
 ## ================================================================================ ##
 
-using JLArrays: JLArray, DenseJLVector, JLVector, DataRef
+using JLArrays: JLArray, DenseJLVector, JLVector, JLBackend, DataRef
 
 # A bit of type piracy to help tests pass (the following functions seem to be defined for
 # CuArray).
@@ -29,6 +30,24 @@ end
 
 Base.unsafe_wrap(::Type{T}, p::Ptr, n::Integer; kws...) where {T <: JLArray} =
     unsafe_wrap(T, p, (n,); kws...)
+
+# For some reason this kind of view doesn't work correctly in the original implementation,
+# returning a copy. Removing this leads to test failures!!
+function Base.view(u::DenseJLVector, I::AbstractUnitRange)
+    a, b = first(I), last(I)
+    inds = a:1:b  # this kind of range works correctly
+    view(u, inds)
+end
+
+# Note that MPI.Buffer is also defined for CuArray.
+function MPI.Buffer(u::JLArray)
+    obj = u.data.rc.obj :: Vector{UInt8}
+    count = length(u)
+    datatype = MPI.Datatype(eltype(u))
+    MPI.Buffer(obj, count, datatype)
+end
+
+KA.synchronize(::JLBackend) = nothing
 
 ## ================================================================================ ##
 
@@ -58,6 +77,13 @@ end
 MPI.Buffer(u::TestArray) = MPI.Buffer(u.data)  # for `gather`
 Base.cconvert(::Type{MPI.MPIPtr}, u::TestArray{T}) where {T} =
     reinterpret(MPI.MPIPtr, pointer(u))
+
+# KernelAbstractions compatibility
+struct TestArrayBackend <: KA.Backend end
+KA.get_backend(::TestArray) = TestArrayBackend()
+KA.synchronize(::TestArrayBackend) = nothing
+
+## ================================================================================ ##
 
 MPI.Init()
 comm = MPI.COMM_WORLD

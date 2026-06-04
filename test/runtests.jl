@@ -1,10 +1,12 @@
+# Avoid precompilation in parallel
+using Pkg
+Pkg.precompile()
+
 using MPIPreferences
 @show MPIPreferences.binary
 
 using InteractiveUtils
 using MPI: MPI, mpiexec
-
-# Load test packages to trigger precompilation
 using PencilArrays
 
 # These tests can be run in serial mode
@@ -13,8 +15,8 @@ test_files_serial = [
 ]
 
 test_files = [
-    "io.jl",
     "localgrid.jl",
+    "io.jl",
     "reductions.jl",
     "broadcast.jl",
     "array_types.jl",
@@ -46,9 +48,7 @@ for fname in test_files_serial
 end
 
 for fname in test_files
-    @info "Running $fname with $Nproc processes..."
-    mpiexec() do cmd
-        run(`$cmd -n $Nproc $(Base.julia_cmd()) $fname`)
-    end
+    @info "Running $fname with $Nproc processes..." Base.julia_cmd()
+    run(`$(mpiexec()) -n $Nproc $(Base.julia_cmd()) $fname`)
     println()
 end
