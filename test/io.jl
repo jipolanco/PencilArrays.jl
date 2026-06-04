@@ -13,7 +13,7 @@ end
 using Random
 using Test
 
-DISABLE_PHDF5_TESTS::Bool = get(ENV, "JULIA_DISABLE_PHDF5_TESTS", "false") == "true"
+const DISABLE_PHDF5_TESTS = get(ENV, "JULIA_DISABLE_PHDF5_TESTS", "false") == "true"
 
 # Copied from PencilArraysHDF5Ext.jl
 function _is_set(fapl::HDF5.FileAccessProperties, ::Val{:fclose_degree})
@@ -225,8 +225,10 @@ perms = (NoPermutation(), Permutation(2, 3, 1))
     end
 
     # These tests currently fail on github CI, so we disable them
-    if DISABLE_PHDF5_TESTS
-        @info "Parallel HDF5 tests are disabled via environment variable (JULIA_DISABLE_PHDF5_TESTS)"
+    @static if DISABLE_PHDF5_TESTS
+        if myrank == 0
+            @info "Parallel HDF5 tests are disabled via environment variable (JULIA_DISABLE_PHDF5_TESTS)"
+        end
     else
         @testset "HDF5" begin
             filename = MPI.bcast(tempname(), 0, comm)
