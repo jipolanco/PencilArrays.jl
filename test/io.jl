@@ -188,7 +188,8 @@ function test_write_hdf5(filename, u::PencilArray)
     nothing
 end
 
-MPI.Init()
+threadlevel = MPI.Init(; threadlevel = :single)
+@show threadlevel
 
 Nxyz = (16, 21, 41)
 comm = MPI.COMM_WORLD
