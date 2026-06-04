@@ -230,10 +230,10 @@ perms = (NoPermutation(), Permutation(2, 3, 1))
             @info "Parallel HDF5 tests are disabled via environment variable (JULIA_DISABLE_PHDF5_TESTS)"
         end
     else
-        # @testset "HDF5" begin
-        #     filename = MPI.bcast(tempname(), 0, comm)
-        #     test_write_hdf5(filename, u)
-        # end
+        @testset "HDF5" begin
+            filename = MPI.bcast(tempname(), 0, comm)
+            test_write_hdf5(filename, u)
+        end
     end
 end
 
