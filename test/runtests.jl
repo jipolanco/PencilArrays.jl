@@ -15,8 +15,8 @@ test_files_serial = [
 ]
 
 test_files = [
-    "io.jl",
     "localgrid.jl",
+    "io.jl",
     "reductions.jl",
     "broadcast.jl",
     "array_types.jl",
