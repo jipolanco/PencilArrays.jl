@@ -2,6 +2,12 @@
 
 The format is based on [Keep a Changelog] and [Common Changelog].
 
+## [0.19.12] - 2026-07-21
+
+### Compatibility
+
+- Allow TimerOutputs.jl v1.
+
 ## [0.19.11] - 2026-06-03
 
 ### Fixed
