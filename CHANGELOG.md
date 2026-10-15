@@ -2,6 +2,12 @@
 
 The format is based on [Keep a Changelog] and [Common Changelog].
 
+## [0.19.13] - 2026-10-15
+
+### Compatibility
+
+- Replace deprecated JSON3.jl with JSON.jl.
+
 ## [0.19.12] - 2026-07-21
 
 ### Compatibility

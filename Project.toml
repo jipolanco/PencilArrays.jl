@@ -1,6 +1,6 @@
 name = "PencilArrays"
 uuid = "0e08944d-e94e-41b1-9406-dcf66b6a9d2e"
-version = "0.19.12"
+version = "0.19.13"
 authors = ["Juan Ignacio Polanco <juan-ignacio.polanco@cnrs.fr> and contributors"]
 
 [workspace]
@@ -35,7 +35,7 @@ Adapt = "3, 4"
 DiffEqBase = "6, 7"
 HDF5 = "0.16, 0.17"
 JSON = "1.10.0"
-KernelAbstractions = "0.9.41"
+KernelAbstractions = "0.9.41, 0.10"
 LinearAlgebra = "1.9"
 MPI = "0.20.16"
 OffsetArrays = "1"
