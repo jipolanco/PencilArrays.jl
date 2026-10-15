@@ -3,7 +3,7 @@ using MPI
 using PencilArrays
 using PencilArrays.PencilIO
 
-import JSON3
+import JSON
 
 if !PencilIO.hdf5_has_parallel()
     @warn "HDF5 has no parallel support. Skipping HDF5 tests."
@@ -51,7 +51,7 @@ function test_write_mpiio(filename, u::PencilArray)
     end
 
     @test isfile("$filename.json")
-    meta = open(JSON3.read, "$filename.json", "r").datasets
+    meta = open(JSON.parse, "$filename.json", "r").datasets
 
     # Test file contents in serial mode.
     # First, gather data from all processes.

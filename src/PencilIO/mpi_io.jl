@@ -1,6 +1,6 @@
 export MPIIODriver
 
-import JSON3, VersionParsing
+import JSON, VersionParsing
 
 # Version of internal MPIIO format.
 # If the version is updated, it should match the upcoming PencilArrays version.
@@ -82,11 +82,16 @@ mpiio_init_metadata() = MetadataDict(
 
 function mpiio_load_metadata(filename)
     isfile(filename) || error("metadata file not found: $filename")
-    meta = open(JSON3.read, filename, "r")
-    # Convert from specific JSON3 type to Dict, so that datasets can be appended.
+    meta = open(JSON.parse, filename, "r")
+    datasets = DatasetDict()
+    for (key, val) in meta.datasets
+        # Note: `key` is usually a String
+        datasets[Symbol(key)] = val
+    end
+    # Convert from specific JSON type to Dict, so that datasets can be appended.
     MetadataDict(
         :driver => meta.driver,
-        :datasets => DatasetDict(meta.datasets),
+        :datasets => datasets,
     )
 end
 
@@ -100,7 +105,7 @@ end
 function write_metadata(ff, meta)
     MPI.Comm_rank(ff.comm) == 0 || return
     open(filename_meta(ff), "w") do io
-        JSON3.pretty(io, JSON3.write(meta))
+        JSON.json(io, meta; pretty = true)
         write(io, '\n')
     end
     nothing
